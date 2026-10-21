@@ -1,0 +1,160 @@
+/* components/card/card.wxss —— v1.1：精修牌面（王牌设计/分牌角标/主牌金边/选中态） */
+@import '/app.wxss';
+
+.card {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--radius-card);
+  background: var(--color-card-bg);
+  border: 2rpx solid var(--color-card-border);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--anim-fast), box-shadow var(--anim-fast);
+  flex-shrink: 0;
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.22);
+}
+
+.card--red {
+  color: var(--color-red);
+}
+
+.card--black {
+  color: var(--color-black);
+}
+
+/* 主牌金边高亮 */
+.card--trump {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 2rpx rgba(243, 193, 75, 0.55), 0 2rpx 6rpx rgba(0, 0, 0, 0.22);
+}
+
+.card--selected {
+  transform: translateY(-24rpx);
+  box-shadow: 0 12rpx 24rpx rgba(0, 0, 0, 0.35);
+  border-color: var(--color-primary);
+}
+
+.card--disabled {
+  opacity: 0.35;
+  filter: grayscale(0.8);
+}
+
+.card__corner {
+  position: absolute;
+  top: 6rpx;
+  left: 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.card__corner--flip {
+  top: auto;
+  left: auto;
+  bottom: 6rpx;
+  right: 8rpx;
+  transform: rotate(180deg);
+}
+
+.card__rank {
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.card__suit {
+  font-size: 24rpx;
+  line-height: 1.1;
+}
+
+/* ========== v1.2 紧凑模式（手牌 >24 张） ========== */
+.card--dense {
+  width: 64rpx;
+  height: 96rpx;
+  border-radius: 8rpx;
+}
+
+.card--dense .card__rank {
+  font-size: 24rpx;
+}
+
+.card--dense .card__suit {
+  font-size: 20rpx;
+}
+
+.card--dense .card__corner {
+  top: 4rpx;
+  left: 4rpx;
+}
+
+.card--dense .card__joker-star {
+  font-size: 28rpx;
+}
+
+.card--dense .card__joker-text {
+  font-size: 17rpx;
+  letter-spacing: 0;
+}
+
+/* ========== v1.1 王牌专用牌面 ========== */
+.card--joker {
+  background: linear-gradient(160deg, #fffef7 0%, #ffe9b8 100%);
+}
+
+.card--joker-big {
+  background: linear-gradient(160deg, #fff5f3 0%, #ffd9c2 55%, #ffb98a 100%);
+}
+
+.card__joker-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rpx;
+}
+
+.card__joker-star {
+  font-size: 40rpx;
+  color: #e54d42;
+  text-shadow: 0 2rpx 4rpx rgba(229, 77, 66, 0.35);
+}
+
+.card--joker-big .card__joker-star {
+  color: #d0342c;
+  font-size: 46rpx;
+  text-shadow: 0 0 10rpx rgba(211, 52, 44, 0.5);
+}
+
+.card__joker-text {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #8a5a2b;
+  letter-spacing: 2rpx;
+}
+
+.card--joker-big .card__joker-text {
+  color: #b03a2e;
+}
+
+/* ========== v1.1 分牌角标（5/10/K 分值徽章） ========== */
+.card__point-badge {
+  position: absolute;
+  bottom: 8rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 28rpx;
+  padding: 2rpx 6rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(180deg, #f7d478, #e8a92f);
+  border: 2rpx solid #b8860b;
+  color: #5c3d00;
+  font-size: 18rpx;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+  z-index: 2;
+  box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.25);
+}

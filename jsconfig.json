@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "checkJs": true,
+    "strict": false,
+    "noImplicitThis": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowJs": true
+  },
+  "include": [
+    "miniprogram/engine/**/*.js",
+    "miniprogram/core/**/*.js",
+    "miniprogram/ai/**/*.js",
+    "miniprogram/services/**/*.js",
+    "miniprogram/utils/**/*.js",
+    "miniprogram/storage/*.js",
+    "tests/**/*.js"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

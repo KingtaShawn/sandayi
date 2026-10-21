@@ -1,0 +1,55 @@
+<!-- pages/rules/rules.wxml —— 规则速查（由 RuleConfig 动态渲染，验收标准 2） -->
+<scroll-view class="rules" scroll-y>
+  <view class="rules__section">
+    <text class="rules__h2">牌与发牌</text>
+    <text class="rules__li">· {{cfg.deckCount}} 副牌共 {{totalCards}} 张（含大小王）</text>
+    <text class="rules__li">· 每人 {{perPlayer}} 张，底牌 {{cfg.bottomCards}} 张</text>
+    <text class="rules__li">· 分牌：5 计 5 分、10 与 K 计 10 分，总分 {{totalPoints}} 分</text>
+  </view>
+
+  <view class="rules__section">
+    <text class="rules__h2">级数与主牌</text>
+    <text class="rules__li">· 级牌从 {{cfg.rankStart}} 打到 {{cfg.rankEnd}}（先过 A 者胜）</text>
+    <text class="rules__li">· 有主局：大王 &gt; 小王 &gt; 主花色级牌 &gt; 副级牌（先出为大）&gt; 主花色 A~3</text>
+    <text class="rules__li">· 无主局{{cfg.allowNoTrump ? '：对王可反成无主，主牌仅 12 张' : '（已关闭）'}}</text>
+  </view>
+
+  <view class="rules__section">
+    <text class="rules__h2">亮主 / 反主</text>
+    <text class="rules__li">· 一张级牌亮主；两张同花色级牌可反主</text>
+    <text class="rules__li">{{cfg.allowNoTrump ? '· 对王可反成无主局（最高优先级）' : '· 王不可反主（无主局已关闭）'}}</text>
+    <text class="rules__li">· 无人亮主：{{noBidText}}</text>
+  </view>
+
+  <view class="rules__section">
+    <text class="rules__h2">跟牌规则</text>
+    <text class="rules__li">{{cfg.mustFollowPairAsPair ? '· 有对必跟对（不可拆）' : '· 允许拆对跟单'}}</text>
+    <text class="rules__li">{{cfg.mustFollowTractorAsTractor ? '· 有拖必跟拖（允许拆更长拖）' : '· 允许拆拖跟对'}}</text>
+    <text class="rules__li">· 缺门可垫牌或将吃；将吃须结构对应（对→主对、拖→主拖）</text>
+    <text class="rules__li">· 甩牌{{throwText}}</text>
+  </view>
+
+  <view class="rules__section">
+    <text class="rules__h2">计分与升级</text>
+    <view class="rules__table">
+      <view class="rules__row rules__row--head">
+        <text class="rules__cell">攻方得分</text>
+        <text class="rules__cell">结果</text>
+        <text class="rules__cell">升级</text>
+      </view>
+      <view class="rules__row" wx:for="{{levelUpRows}}" wx:key="index">
+        <text class="rules__cell">{{item.range}}</text>
+        <text class="rules__cell">{{item.result}}</text>
+        <text class="rules__cell">{{item.levels}}</text>
+      </view>
+    </view>
+    <text class="rules__li">· 上台分：攻方 {{cfg.pointsToTake}} 分即上台</text>
+    <text class="rules__li">· 抠底：底牌分 ×{{cfg.bottomMultiplier}}{{cfg.bottomMultiplierByType ? '（按牌型：对4/拖8）' : ''}}</text>
+  </view>
+
+  <view class="rules__section">
+    <text class="rules__h2">过 A 与终局</text>
+    <text class="rules__li">· {{passAText}}</text>
+    <text class="rules__li">· 庄家传递：{{dealerPassText}}</text>
+  </view>
+</scroll-view>

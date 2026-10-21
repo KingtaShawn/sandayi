@@ -1,0 +1,57 @@
+<!-- components/bid-bar/bid-bar.wxml —— 亮主/反主 & 三打一报分/选主操作条 v1.5 -->
+<view class="bid-bar" wx:if="{{visible}}">
+  <text class="bid-bar__tip">{{tipText}}</text>
+
+  <!-- 三打一：报分按钮 -->
+  <block wx:if="{{mode === 'score'}}">
+    <view class="bid-bar__options">
+      <view
+        class="bid-bar__option"
+        wx:for="{{scoreOptions}}"
+        wx:key="*this"
+        data-score="{{item}}"
+        bind:tap="onScoreTap"
+      >
+        <text class="bid-bar__option-label">{{item}}分</text>
+      </view>
+    </view>
+    <view class="bid-bar__pass" bind:tap="onPass">
+      <text>{{passLabel}}</text>
+    </view>
+  </block>
+
+  <!-- 三打一：庄家选主花色 -->
+  <block wx:elif="{{mode === 'trump'}}">
+    <view class="bid-bar__options">
+      <view
+        class="bid-bar__option bid-bar__option--suit {{item.red ? 'bid-bar__option--red' : ''}}"
+        wx:for="{{suitOptions}}"
+        wx:key="suit"
+        data-suit="{{item.suit}}"
+        bind:tap="onSuitTap"
+      >
+        <text class="bid-bar__suit-symbol">{{item.symbol}}</text>
+        <text class="bid-bar__option-sub">{{item.count}} 张</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- 升级模式：亮主选项 -->
+  <block wx:else>
+    <view class="bid-bar__options">
+      <view
+        class="bid-bar__option"
+        wx:for="{{options}}"
+        wx:key="key"
+        data-index="{{index}}"
+        bind:tap="onOptionTap"
+      >
+        <text class="bid-bar__option-label">{{item.label}}</text>
+        <text class="bid-bar__option-sub">{{item.sub}}</text>
+      </view>
+    </view>
+    <view class="bid-bar__pass" bind:tap="onPass">
+      <text>不亮主</text>
+    </view>
+  </block>
+</view>

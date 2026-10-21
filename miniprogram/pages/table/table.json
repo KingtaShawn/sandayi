@@ -1,0 +1,14 @@
+{
+  "usingComponents": {
+    "card": "/components/card/card",
+    "hand-area": "/components/hand-area/hand-area",
+    "trick-area": "/components/trick-area/trick-area",
+    "seat-info": "/components/seat-info/seat-info",
+    "status-bar": "/components/status-bar/status-bar",
+    "bid-bar": "/components/bid-bar/bid-bar",
+    "bury-bar": "/components/bury-bar/bury-bar",
+    "result-modal": "/components/result-modal/result-modal",
+    "history-modal": "/components/history-modal/history-modal"
+  },
+  "navigationBarTitleText": "牌桌"
+}

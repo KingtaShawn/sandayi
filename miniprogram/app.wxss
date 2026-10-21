@@ -1,0 +1,161 @@
+/**
+ * miniprogram/app.wxss —— 全局样式：CSS 变量 + BEM 公共类（架构 D6）。
+ *
+ * v1.1 UI 雕琢：QQ 升级风格视觉体系（自绘，不使用第三方素材）
+ */
+
+/* ========== 全局 CSS 变量 ========== */
+page {
+  /* 牌桌绿（深色渐变呢面） */
+  --color-felt-dark: #07452a;
+  --color-felt: #0b6b3a;
+  --color-felt-light: #15934f;
+  /* 牌张 */
+  --color-card-bg: #ffffff;
+  --color-card-border: #c8c2b6;
+  --color-red: #d0342c;
+  --color-black: #222222;
+  --color-gold: #f3c14b;
+  --color-gold-deep: #caa235;
+  /* 功能 */
+  --color-primary: #f3c14b;
+  --color-danger: #e54d42;
+  --color-success: #35c46a;
+  --color-text-light: #f5f2e9;
+  --color-text-dim: #a8d5ba;
+  --color-mask: rgba(0, 0, 0, 0.55);
+  /* 尺寸 */
+  --card-w: 88rpx;
+  --card-h: 124rpx;
+  --card-gap: 10rpx;
+  --radius-card: 10rpx;
+  --radius-btn: 44rpx;
+  /* 动效 */
+  --anim-fast: 150ms ease;
+  --anim-normal: 300ms ease;
+}
+
+/* ========== 公共 BEM 类 ========== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18rpx 44rpx;
+  border-radius: var(--radius-btn);
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1;
+  transition: transform var(--anim-fast), opacity var(--anim-fast);
+}
+
+.btn--primary {
+  background: linear-gradient(180deg, #f7d478, var(--color-primary));
+  color: #5c3d00;
+  border: 2rpx solid var(--color-gold-deep);
+  box-shadow: 0 6rpx 16rpx rgba(202, 162, 53, 0.35);
+}
+
+.btn--ghost {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-text-light);
+  border: 2rpx solid rgba(255, 255, 255, 0.35);
+}
+
+.btn--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+/* ========== 动效库（v1.1） ========== */
+
+/* 抖动动画（非法出牌提示 F-08） */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-12rpx); }
+  40% { transform: translateX(12rpx); }
+  60% { transform: translateX(-8rpx); }
+  80% { transform: translateX(8rpx); }
+}
+
+.anim-shake {
+  animation: shake 320ms ease;
+}
+
+/* 出牌飞入动画 */
+@keyframes play-in {
+  from { opacity: 0; transform: translateY(40rpx) scale(0.85); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.anim-play-in {
+  animation: play-in var(--anim-normal) ease;
+}
+
+/* AI 思考气泡（三点跳动） */
+@keyframes dot-jump {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-10rpx); opacity: 1; }
+}
+
+.anim-dot {
+  animation: dot-jump 1.2s ease-in-out infinite;
+}
+.anim-dot--2 { animation-delay: 0.15s; }
+.anim-dot--2 { animation-delay: 0.15s; }
+.anim-dot--3 { animation-delay: 0.3s; }
+
+/* 可亮主牌呼吸光效 */
+@keyframes glow-breathe {
+  0%, 100% { box-shadow: 0 0 0 2rpx rgba(243, 193, 75, 0.55), 0 0 12rpx rgba(243, 193, 75, 0.25); }
+  50% { box-shadow: 0 0 0 4rpx rgba(243, 193, 75, 0.9), 0 0 28rpx rgba(243, 193, 75, 0.55); }
+}
+
+.anim-glow {
+  animation: glow-breathe 1.6s ease-in-out infinite;
+}
+
+/* 收墩飘分（+5/+10 上浮消散） */
+@keyframes float-up {
+  0% { opacity: 0; transform: translateY(0) scale(0.7); }
+  25% { opacity: 1; transform: translateY(-20rpx) scale(1.15); }
+  100% { opacity: 0; transform: translateY(-90rpx) scale(1); }
+}
+
+.anim-float-up {
+  animation: float-up 1.3s ease-out forwards;
+}
+
+/* 赢墩闪光扫过 */
+@keyframes sweep {
+  0% { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+  30% { opacity: 0.9; }
+  100% { transform: translateX(220%) skewX(-18deg); opacity: 0; }
+}
+
+.anim-sweep {
+  animation: sweep 700ms ease-out forwards;
+}
+
+/* 呼吸按钮（提示用） */
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.anim-pulse {
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+/* 庄家徽标轻微浮动 */
+@keyframes badge-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4rpx); }
+}
+
+.anim-badge-float {
+  animation: badge-float 2.2s ease-in-out infinite;
+}

@@ -1,0 +1,17 @@
+<!-- components/card/card.wxml —— 单张牌（花色/字面/级牌高亮/主牌高亮/选中态/置灰/王牌设计/分牌角标） -->
+<view
+  class="card {{red ? 'card--red' : 'card--black'}} {{isJoker ? 'card--joker' : ''}} {{isJoker && isBigJoker ? 'card--joker-big' : ''}} {{isTrump ? 'card--trump' : ''}} {{isLevel ? 'card--level' : ''}} {{selected ? 'card--selected' : ''}} {{disabled ? 'card--disabled' : ''}} {{shaking ? 'anim-shake' : ''}} {{glowing ? 'anim-glow' : ''}} {{playIn ? 'anim-play-in' : ''}} {{dense ? 'card--dense' : ''}}"
+  style="{{styleText}}; {{playInDelay ? 'animation-delay:' + playInDelay + 'ms' : ''}}"
+  bind:tap="onTap"
+>
+  <view class="card__corner">
+    <text class="card__rank">{{displayRank}}</text>
+    <text class="card__suit">{{suitSymbol}}</text>
+  </view>
+  <block wx:if="{{isJoker}}">
+    <view class="card__joker-face">
+      <text class="card__joker-star">★</text>
+      <text class="card__joker-text">{{jokerLabel}}</text>
+    </view>
+  </block>
+</view>

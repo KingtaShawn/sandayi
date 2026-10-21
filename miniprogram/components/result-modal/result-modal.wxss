@@ -1,0 +1,107 @@
+/* components/result-modal/result-modal.wxss */
+@import '/app.wxss';
+
+.result-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.result-modal__mask {
+  position: absolute;
+  inset: 0;
+  background: var(--color-mask);
+}
+
+.result-modal__panel {
+  position: relative;
+  width: 620rpx;
+  background: linear-gradient(170deg, #11603a, #0b4a2c);
+  border: 2rpx solid rgba(243, 193, 75, 0.5);
+  border-radius: 24rpx;
+  padding: 36rpx 30rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.result-modal__banner {
+  font-size: 40rpx;
+  font-weight: 800;
+  color: var(--color-text-light);
+  margin-bottom: 24rpx;
+}
+
+.result-modal__banner--win {
+  color: var(--color-gold);
+}
+
+.result-modal__scores {
+  display: flex;
+  gap: 36rpx;
+  margin-bottom: 20rpx;
+}
+
+.result-modal__score-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.result-modal__score-label {
+  font-size: 22rpx;
+  color: var(--color-text-dim);
+}
+
+.result-modal__score-value {
+  font-size: 40rpx;
+  font-weight: 800;
+  color: #fff;
+}
+
+.result-modal__score-value--gold {
+  color: var(--color-gold);
+}
+
+.result-modal__levels {
+  display: flex;
+  gap: 40rpx;
+  font-size: 24rpx;
+  color: var(--color-text-light);
+  margin-bottom: 20rpx;
+}
+
+.result-modal__bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.result-modal__bottom-title {
+  font-size: 22rpx;
+  color: var(--color-text-dim);
+  margin-bottom: 8rpx;
+}
+
+.result-modal__bottom-cards {
+  display: flex;
+}
+
+.result-modal__actions {
+  display: flex;
+  gap: 24rpx;
+}
+
+.result-modal__gameover {
+  margin-top: 16rpx;
+}
+
+.result-modal__gameover-text {
+  color: var(--color-gold);
+  font-size: 32rpx;
+  font-weight: 700;
+}

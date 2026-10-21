@@ -1,0 +1,17 @@
+{
+  "name": "tractor-80points",
+  "version": "1.0.0",
+  "private": true,
+  "description": "拖拉机（升级/80分）微信小程序 —— 单机版（1真人+3AI，2v2），纯 CommonJS 规则引擎，Node 直跑单测",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node tests/run-tests.js",
+    "test:engine": "node --test tests/test-config.js tests/test-deck.js tests/test-trump.js tests/test-combo.js",
+    "test:rules": "node --test tests/test-bid.js tests/test-validate-play.js tests/test-trick.js tests/test-settle.js",
+    "test:core": "node --test tests/test-statemachine.js tests/test-ai-legal.js"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}

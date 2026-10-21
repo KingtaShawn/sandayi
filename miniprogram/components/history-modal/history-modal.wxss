@@ -1,0 +1,79 @@
+/* components/history-modal/history-modal.wxss */
+@import '/app.wxss';
+
+.history-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-modal__mask {
+  position: absolute;
+  inset: 0;
+  background: var(--color-mask);
+}
+
+.history-modal__panel {
+  position: relative;
+  width: 640rpx;
+  max-height: 80vh;
+  background: #f7f4ec;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-modal__title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #2c3e2c;
+  margin-bottom: 16rpx;
+  text-align: center;
+}
+
+.history-modal__list {
+  flex: 1;
+  max-height: 52vh;
+}
+
+.history-modal__trick {
+  background: #fff;
+  border-radius: 12rpx;
+  padding: 12rpx 16rpx;
+  margin-bottom: 12rpx;
+}
+
+.history-modal__trick-head {
+  font-size: 22rpx;
+  color: #7a6a3a;
+  margin-bottom: 6rpx;
+}
+
+.history-modal__trick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx 20rpx;
+}
+
+.history-modal__play {
+  font-size: 24rpx;
+  color: #333;
+}
+
+.history-modal__empty {
+  text-align: center;
+  color: #999;
+  padding: 40rpx 0;
+  font-size: 24rpx;
+}
+
+.history-modal__close {
+  margin-top: 16rpx;
+  align-self: center;
+  border-color: #b9c6b9;
+  color: #40513f;
+}

@@ -1,0 +1,33 @@
+<!-- components/trick-area/trick-area.wxml —— 中央出牌区 v1.3（残留墩变暗保留） -->
+<view class="trick-area {{dim ? 'trick-area--dim' : ''}}">
+  <view class="trick-area__seat trick-area__seat--north">
+    <block wx:for="{{north}}" wx:key="id">
+      <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" style-text="margin-left: {{index === 0 ? 0 : -40}}rpx" />
+    </block>
+  </view>
+  <view class="trick-area__middle">
+    <view class="trick-area__seat trick-area__seat--west">
+      <block wx:for="{{west}}" wx:key="id">
+        <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" style-text="margin-left: {{index === 0 ? 0 : -40}}rpx" />
+      </block>
+    </view>
+    <view class="trick-area__bottom-holder">
+      <view class="trick-area__bottom" wx:if="{{bottomCards.length}}">
+        <view class="trick-area__bottom-cards">
+          <view class="trick-area__bottom-card" wx:for="{{bottomCards}}" wx:key="id"></view>
+        </view>
+        <text class="trick-area__bottom-label">底牌 {{bottomCards.length}} 张</text>
+      </view>
+    </view>
+    <view class="trick-area__seat trick-area__seat--east">
+      <block wx:for="{{east}}" wx:key="id">
+        <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" style-text="margin-left: {{index === 0 ? 0 : -40}}rpx" />
+      </block>
+    </view>
+  </view>
+  <view class="trick-area__seat trick-area__seat--south">
+    <block wx:for="{{south}}" wx:key="id">
+      <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" style-text="margin-left: {{index === 0 ? 0 : -40}}rpx" />
+    </block>
+  </view>
+</view>

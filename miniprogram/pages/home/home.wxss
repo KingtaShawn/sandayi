@@ -1,0 +1,78 @@
+/* pages/home/home.wxss */
+@import '/app.wxss';
+
+.home {
+  min-height: 100vh;
+  background: radial-gradient(circle at 50% 20%, #17854c, #0b6b3a 65%, #075230);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 120rpx;
+}
+
+.home__logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 60rpx;
+}
+
+.home__title {
+  font-size: 96rpx;
+  font-weight: 900;
+  color: var(--color-gold);
+  letter-spacing: 12rpx;
+  text-shadow: 0 6rpx 16rpx rgba(0, 0, 0, 0.45);
+}
+
+.home__subtitle {
+  margin-top: 8rpx;
+  font-size: 32rpx;
+  color: var(--color-text-light);
+  letter-spacing: 6rpx;
+}
+
+.home__progress {
+  display: flex;
+  gap: 40rpx;
+  margin-bottom: 32rpx;
+}
+
+.home__progress-item {
+  font-size: 26rpx;
+  color: var(--color-text-light);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8rpx 24rpx;
+  border-radius: 999rpx;
+}
+
+.home__resume {
+  margin-bottom: 24rpx;
+}
+
+.home__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28rpx;
+  margin-top: 20rpx;
+}
+
+.home__start {
+  padding: 26rpx 120rpx;
+  font-size: 38rpx;
+}
+
+.home__secondary {
+  display: flex;
+  gap: 24rpx;
+}
+
+.home__stats {
+  margin-top: 80rpx;
+}
+
+.home__stats-text {
+  font-size: 22rpx;
+  color: var(--color-text-dim);
+}

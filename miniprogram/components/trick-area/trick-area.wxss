@@ -1,0 +1,67 @@
+/* components/trick-area/trick-area.wxss */
+@import '/app.wxss';
+
+.trick-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 320rpx;
+}
+
+/* v1.3 残留墩：变暗保留（上一墩牌直到新牌打出才被替换） */
+.trick-area--dim {
+  opacity: 0.45;
+  filter: saturate(0.6);
+}
+
+.trick-area__seat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 130rpx;
+}
+
+.trick-area__middle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.trick-area__seat--west,
+.trick-area__seat--east {
+  min-width: 120rpx;
+}
+
+.trick-area__bottom-holder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trick-area__bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.trick-area__bottom-cards {
+  display: flex;
+}
+
+.trick-area__bottom-card {
+  width: 40rpx;
+  height: 56rpx;
+  margin-left: -14rpx;
+  border-radius: 6rpx;
+  background: repeating-linear-gradient(45deg, #2c5f8a, #2c5f8a 6rpx, #1d4467 6rpx, #1d4467 12rpx);
+  border: 2rpx solid #16374f;
+}
+
+.trick-area__bottom-label {
+  font-size: 20rpx;
+  color: var(--color-text-dim);
+  margin-top: 6rpx;
+}

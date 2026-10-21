@@ -1,0 +1,10 @@
+<!-- components/bury-bar/bury-bar.wxml —— 埋底操作条 -->
+<view class="bury-bar" wx:if="{{visible}}">
+  <text class="bury-bar__tip">选择 {{needCount}} 张埋底（已选 {{selectedCount}}/{{needCount}}）</text>
+  <view
+    class="bury-bar__confirm {{selectedCount === needCount ? '' : 'btn--disabled'}}"
+    bind:tap="onConfirm"
+  >
+    <text>确认埋底</text>
+  </view>
+</view>

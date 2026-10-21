@@ -1,0 +1,81 @@
+/* components/status-bar/status-bar.wxss —— v1.1：计分牌风格 */
+@import '/app.wxss';
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12rpx;
+  padding: 10rpx 12rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.status-bar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.status-bar__label {
+  font-size: 20rpx;
+  color: var(--color-text-dim);
+}
+
+.status-bar__value {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--color-text-light);
+}
+
+.status-bar__value--gold {
+  color: var(--color-gold);
+}
+
+.status-bar__value--dim {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: var(--color-text-dim);
+}
+
+/* v1.1 计分牌 */
+.status-bar__score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rpx 28rpx;
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2rpx solid rgba(255, 255, 255, 0.15);
+}
+
+.status-bar__score--mine {
+  border-color: rgba(243, 193, 75, 0.55);
+}
+
+.status-bar__score--enemy {
+  border-color: rgba(229, 77, 66, 0.5);
+}
+
+.status-bar__score-label {
+  font-size: 20rpx;
+  color: var(--color-text-dim);
+}
+
+.status-bar__score-value {
+  font-size: 40rpx;
+  font-weight: 800;
+  color: var(--color-text-light);
+  font-family: 'DIN Alternate', 'Menlo', monospace;
+}
+
+.status-bar__score--mine .status-bar__score-value {
+  color: var(--color-gold);
+}
+
+.status-bar__divider {
+  width: 2rpx;
+  height: 48rpx;
+  background: rgba(255, 255, 255, 0.2);
+}

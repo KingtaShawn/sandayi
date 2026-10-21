@@ -1,0 +1,29 @@
+/* components/bury-bar/bury-bar.wxss */
+@import '/app.wxss';
+
+.bury-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 16rpx;
+  padding: 14rpx 20rpx;
+}
+
+.bury-bar__tip {
+  font-size: 24rpx;
+  color: var(--color-gold);
+}
+
+.bury-bar__confirm {
+  padding: 12rpx 32rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(180deg, #f7d478, var(--color-primary));
+  border: 2rpx solid #caa235;
+}
+
+.bury-bar__confirm text {
+  color: #5c3d00;
+  font-size: 26rpx;
+  font-weight: 700;
+}

@@ -1,0 +1,74 @@
+<!-- components/result-modal/result-modal.wxml —— 结算弹层 v1.4（三打一支持） -->
+<view class="result-modal" wx:if="{{visible}}">
+  <view class="result-modal__mask" bind:tap="noop"></view>
+  <view class="result-modal__panel">
+    <text class="result-modal__banner {{isWin ? 'result-modal__banner--win' : ''}}">{{banner}}</text>
+
+    <!-- 三打一 -->
+    <block wx:if="{{mode === 'san_da_yi'}}">
+      <view class="result-modal__scores">
+        <view class="result-modal__score-item">
+          <text class="result-modal__score-label">庄家得分</text>
+          <text class="result-modal__score-value">{{dealerPoints}}</text>
+        </view>
+        <view class="result-modal__score-item">
+          <text class="result-modal__score-label">合同分</text>
+          <text class="result-modal__score-value result-modal__score-value--gold">{{contractScore}}</text>
+        </view>
+        <view class="result-modal__score-item" wx:if="{{bottomGained > 0}}">
+          <text class="result-modal__score-label">收底 +{{bottomGained}}</text>
+          <text class="result-modal__score-value result-modal__score-value--gold">×1</text>
+        </view>
+        <view class="result-modal__score-item" wx:if="{{penaltyTotal > 0}}">
+          <text class="result-modal__score-label">罚分</text>
+          <text class="result-modal__score-value">{{penaltyTotal}}</text>
+        </view>
+      </view>
+    </block>
+
+    <!-- 升级模式 -->
+    <block wx:else>
+      <view class="result-modal__scores">
+        <view class="result-modal__score-item">
+          <text class="result-modal__score-label">攻方得分</text>
+          <text class="result-modal__score-value">{{attackPoints}}</text>
+        </view>
+        <view class="result-modal__score-item" wx:if="{{bottomGained > 0}}">
+          <text class="result-modal__score-label">抠底 +{{bottomGained}}</text>
+          <text class="result-modal__score-value result-modal__score-value--gold">×{{bottomMultiplier}}</text>
+        </view>
+        <view class="result-modal__score-item">
+          <text class="result-modal__score-label">升级</text>
+          <text class="result-modal__score-value">+{{levelsGained}}</text>
+        </view>
+      </view>
+
+      <view class="result-modal__levels">
+        <text>我方进度：打 {{myLevel}}</text>
+        <text>敌方进度：打 {{enemyLevel}}</text>
+      </view>
+    </block>
+
+    <view class="result-modal__bottom" wx:if="{{bottomCards.length}}">
+      <text class="result-modal__bottom-title">底牌翻开</text>
+      <view class="result-modal__bottom-cards">
+        <block wx:for="{{bottomCards}}" wx:key="id">
+          <card card="{{item}}" style-text="margin-left: {{index === 0 ? 0 : -46}}rpx" />
+        </block>
+      </view>
+    </view>
+
+    <view class="result-modal__actions">
+      <view class="btn btn--ghost" bind:tap="onHome">
+        <text>返回首页</text>
+      </view>
+      <view class="btn btn--primary" bind:tap="onNext" wx:if="{{!gameOver}}">
+        <text>下一局</text>
+      </view>
+    </view>
+
+    <view class="result-modal__gameover" wx:if="{{gameOver}}">
+      <text class="result-modal__gameover-text">🎉 恭喜过A获胜！</text>
+    </view>
+  </view>
+</view>

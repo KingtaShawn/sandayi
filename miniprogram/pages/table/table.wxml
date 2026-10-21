@@ -1,0 +1,143 @@
+<!-- pages/table/table.wxml —— 牌桌页 v1.1（四方位环绕布局） -->
+<view class="table">
+  <!-- 顶部：北家（升级=队友 / 三打一=对手） -->
+  <view class="table__north">
+    <seat-info player-idx="{{2}}" name="{{players[2].name}}" hand-count="{{players[2].handCount}}"
+      is-dealer="{{dealerIdx === 2}}" is-turn="{{turnIdx === 2}}" camp-label="{{players[2].campLabel}}" />
+  </view>
+
+  <!-- 中部：西家 | 中央出牌区 | 东家 -->
+  <view class="table__mid">
+    <view class="table__side">
+      <seat-info vertical player-idx="{{3}}" name="{{players[3].name}}" hand-count="{{players[3].handCount}}"
+        is-dealer="{{dealerIdx === 3}}" is-turn="{{turnIdx === 3}}" camp-label="{{players[3].campLabel}}" />
+    </view>
+
+    <view class="table__center">
+      <status-bar
+        trump-text="{{trumpText}}"
+        my-score="{{myScore}}"
+        enemy-score="{{enemyScore}}"
+        my-score-label="{{myScoreLabel}}"
+        enemy-score-label="{{enemyScoreLabel}}"
+        game-mode="{{gameMode}}"
+        contract-score="{{contractScore}}"
+        round-no="{{roundNo}}"
+        trick-info="{{trickInfo}}"
+      />
+      <trick-area current-trick="{{currentTrick}}" bottom-count="{{bottomCount}}" level-rank="{{levelRank}}" dim="{{lastTrickDim}}" />
+      <!-- v1.7 三打一：低叫分时底牌明示（QQ 规则：叫 60/65 闲家可看） -->
+      <view class="table__bottom-reveal" wx:if="{{bottomRevealCards.length && gameMode === 'san_da_yi'}}">
+        <text class="table__bottom-reveal-label">底牌（公开）</text>
+        <view class="table__bottom-reveal-cards">
+          <block wx:for="{{bottomRevealCards}}" wx:key="id">
+            <card card="{{item}}" style-text="margin-left: {{index === 0 ? 0 : -30}}rpx" />
+          </block>
+        </view>
+      </view>
+      <!-- v1.7 三打一：叫分气泡（各家叫分记录） -->
+      <view class="table__bid-bubbles" wx:if="{{bidBubble.length && phase === 'BIDDING'}}">
+        <view class="table__bid-bubble table__bid-bubble--p{{item.idx}}" wx:for="{{bidBubble}}" wx:key="index">
+          <text>P{{item.idx + 1}} 叫 {{item.score}}</text>
+        </view>
+      </view>
+      <!-- v1.1 收墩飘分 -->
+      <view class="table__float-layer">
+        <view class="table__float-points {{floatPoints.anim ? 'anim-float-up' : ''}}" wx:if="{{floatPoints.visible}}">
+          <text>{{floatPoints.text}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="table__side">
+      <seat-info vertical player-idx="{{1}}" name="{{players[1].name}}" hand-count="{{players[1].handCount}}"
+        is-dealer="{{dealerIdx === 1}}" is-turn="{{turnIdx === 1}}" camp-label="{{players[1].campLabel}}" />
+    </view>
+  </view>
+
+  <!-- 工具条 -->
+  <view class="table__tools">
+    <view class="btn btn--ghost table__tool-btn" bind:tap="onHint">
+      <text>提示</text>
+    </view>
+    <view class="table__trump-chip" wx:if="{{trumpChipText}}">{{trumpChipText}}</view>
+    <view class="btn btn--ghost table__tool-btn" bind:tap="onHistory">
+      <text>历史</text>
+    </view>
+  </view>
+
+  <!-- 亮主/报分/选主条 -->
+  <bid-bar
+    visible="{{phase === 'BIDDING' && isHumanTurnBid || phase === 'CHOOSE_TRUMP' && isHumanChooseTrump}}"
+    mode="{{bidMode}}"
+    options="{{bidOptionsView}}"
+    score-options="{{scoreOptionsView}}"
+    suit-options="{{suitOptionsView}}"
+    tip-text="{{bidTipText}}"
+    pass-label="{{passLabel}}"
+    bind:bid="onBid"
+    bind:scorebid="onScoreBid"
+    bind:chooseTrump="onChooseTrump"
+    bind:pass="onPassBid"
+  />
+
+  <!-- 埋底条 -->
+  <bury-bar
+    visible="{{phase === 'BURYING' && isHumanDealer}}"
+    need-count="{{needBuryCount}}"
+    selected-count="{{selectedIds.length}}"
+    bind:confirm="onBuryConfirm"
+  />
+
+  <!-- 我方手牌 -->
+  <view class="table__hand">
+    <hand-area
+      hand="{{myHand}}"
+      level-rank="{{levelRank}}"
+      selected-ids="{{selectedIds}}"
+      glowing-ids="{{glowingIds}}"
+      play-in-ids="{{playInIds}}"
+      visible-count="{{handVisibleCount}}"
+      label="{{handLabel}}"
+      bind:cardtap="onCardTap"
+    />
+  </view>
+
+  <!-- 出牌操作 -->
+  <view class="table__actions" wx:if="{{phase === 'PLAYING' && turnIdx === 0}}">
+    <view class="btn btn--primary {{(selectedIds.length > 0 && selectedIds.length === needPlayCount) ? 'anim-pulse' : 'btn--disabled'}}" bind:tap="onPlay">
+      <text>出牌</text>
+    </view>
+    <view class="btn btn--ghost" bind:tap="onClearSelect">
+      <text>重选</text>
+    </view>
+  </view>
+
+  <!-- 结算弹层 -->
+  <result-modal
+    visible="{{phase === 'SCORING' || phase === 'GAME_OVER'}}"
+    banner="{{settleBanner}}"
+    is-win="{{settleIsWin}}"
+    mode="{{gameMode}}"
+    dealer-points="{{settle.dealerPoints}}"
+    contract-score="{{settle.contractScore}}"
+    penalty-total="{{settle.penaltyTotal}}"
+    attack-points="{{settle.attackPoints}}"
+    bottom-gained="{{settle.bottomGained}}"
+    bottom-multiplier="{{settle.bottomMultiplierUsed}}"
+    levels-gained="{{settle.levelsGained}}"
+    my-level="{{levels.team0}}"
+    enemy-level="{{levels.team1}}"
+    bottom-cards="{{settleBottomCards}}"
+    game-over="{{phase === 'GAME_OVER'}}"
+    bind:next="onNextRound"
+    bind:home="onHome"
+  />
+
+  <!-- 历史弹层 -->
+  <history-modal
+    visible="{{historyVisible}}"
+    tricks="{{historyTricks}}"
+    bind:close="onHistoryClose"
+  />
+</view>

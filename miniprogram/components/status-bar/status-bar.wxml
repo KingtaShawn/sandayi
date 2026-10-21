@@ -1,0 +1,21 @@
+<!-- components/status-bar/status-bar.wxml —— 状态栏 v1.4（三打一：庄家/三家+合同分） -->
+<view class="status-bar">
+  <view class="status-bar__item">
+    <text class="status-bar__label">{{gameMode === 'san_da_yi' ? '模式' : '主牌'}}</text>
+    <text class="status-bar__value status-bar__value--gold">{{gameMode === 'san_da_yi' ? '三打一' : trumpText}}</text>
+  </view>
+  <view class="status-bar__score status-bar__score--mine">
+    <text class="status-bar__score-label">{{myScoreLabel}}</text>
+    <text class="status-bar__score-value">{{myScore}}</text>
+  </view>
+  <view class="status-bar__divider"></view>
+  <view class="status-bar__score status-bar__score--enemy">
+    <text class="status-bar__score-label">{{enemyScoreLabel}}</text>
+    <text class="status-bar__score-value">{{enemyScore}}</text>
+  </view>
+  <view class="status-bar__item">
+    <text class="status-bar__label">{{gameMode === 'san_da_yi' ? (contractScore ? '合同' : '报分中') : '第' + roundNo + '局'}}</text>
+    <text class="status-bar__value status-bar__value--gold" wx:if="{{gameMode === 'san_da_yi' && contractScore}}">{{contractScore}}分</text>
+    <text class="status-bar__value status-bar__value--dim" wx:else>{{trickInfo}}</text>
+  </view>
+</view>

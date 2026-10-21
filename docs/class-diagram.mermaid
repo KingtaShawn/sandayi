@@ -1,0 +1,158 @@
+classDiagram
+    direction LR
+
+    class RuleConfig {
+        +deckCount : number
+        +bottomCards : number
+        +rankStart : number
+        +pointsToTake : number
+        +pointsPerLevel : number
+        +mustFollowPairAsPair : boolean
+        +mustFollowTractorAsTractor : boolean
+        +throwPenalty : string
+        R1至R24 共24项
+    }
+    class Card {
+        +id : string
+        +suit : Suit|JOKER
+        +rank : Rank
+        +isJoker : boolean
+    }
+    class TrumpInfo {
+        +levelRank : Rank
+        +trumpSuit : Suit|null
+        +isNoTrump : boolean
+        +trumpIds : Set~string~
+        +order : Card[]
+    }
+    class ComboUnit {
+        +type : single|pair|tractor
+        +cards : Card[]
+        +isTrumpUnit : boolean
+    }
+    class Combo {
+        +type : ComboType
+        +units : ComboUnit[]
+        +n : number
+        +isTrump : boolean
+    }
+    class Player {
+        +seat : Seat
+        +team : Team
+        +isHuman : boolean
+        +hand : Card[]
+    }
+    class BidRecord {
+        +playerIdx : number
+        +type : string
+        +trumpSuit : Suit|null
+        +isNoTrump : boolean
+    }
+    class PlayRecord {
+        +playerIdx : number
+        +cards : Card[]
+        +combo : Combo
+        +isDiscard : boolean
+        +isEffectiveTrump : boolean
+    }
+    class TrickData {
+        +leadPlayerIdx : number
+        +leadCombo : Combo
+        +plays : PlayRecord[]
+        +winnerIdx : number
+        +points : number
+    }
+    class SettleResult {
+        +attackPoints : number
+        +bottomMultiplierUsed : number
+        +winnerTeam : Team
+        +levelsGained : number
+        +passedA : boolean
+        +nextDealerIdx : number
+    }
+    class GameState {
+        +schemaVersion : number
+        +config : RuleConfig
+        +phase : Phase
+        +players : Player[]
+        +turnIdx : number
+        +deck : Card[]
+        +bottomCards : Card[]
+        +bids : BidRecord[]
+        +trumpInfo : TrumpInfo
+        +dealerIdx : number
+        +currentTrick : TrickData
+        +completedTricks : TrickData[]
+        +scores : object
+        +levels : object
+    }
+    class GameStateMachine {
+        +transition(state, action) GameState$
+        +canDispatch(state, action) boolean$
+    }
+    class GameService {
+        -state : GameState
+        -ai : AIStrategy
+        -logger : Logger
+        +startGame(difficulty) void
+        +bid(playerIdx, cards) ValidateResult
+        +bury(cards) ValidateResult
+        +play(playerIdx, cards) ValidateResult
+        +tick() void
+        +resume(saved) void
+        +serialize() object
+    }
+    class AIStrategy {
+        <<interface>>
+        +decideBid(state, playerIdx, options) BidOption|null
+        +decideBury(state, playerIdx) Card[]
+        +decidePlay(state, playerIdx, legalPlays) Card[]
+    }
+    class GreedyStrategy {
+        +decideBid() BidOption|null
+        +decideBury() Card[]
+        +decidePlay() Card[]
+    }
+    class Logger {
+        +log(action) void
+        +query(filter) LogEntry[]
+    }
+    class StorageAdapter {
+        +get(key) object
+        +set(key, value) void
+        +remove(key) void
+    }
+    class GamePresenter {
+        -service : GameService
+        -storage : StorageAdapter
+        +onPlayTap(cards) void
+        +onBidTap(cards) void
+        +driveAI() void
+        +onShowResume() void
+    }
+
+    GameState *-- RuleConfig : config快照
+    GameState *-- "4" Player
+    GameState *-- TrumpInfo : 定主后
+    GameState *-- "0..n" BidRecord
+    GameState *-- "0..n" TrickData : completedTricks
+    GameState *-- TrickData : currentTrick
+    GameState *-- SettleResult : lastSettle
+    TrickData *-- Combo : leadCombo
+    TrickData *-- "4" PlayRecord
+    PlayRecord *-- Combo
+    Combo *-- "1..n" ComboUnit
+    ComboUnit *-- "1..n" Card
+    TrumpInfo ..> Card : order引用
+
+    GameStateMachine ..> GameState : 产出
+    GameStateMachine ..> Action : 消费
+    GameService *-- GameState : 持有
+    GameService *-- AIStrategy : 注入
+    GameService ..> GameStateMachine : 调用
+    AIStrategy <|.. GreedyStrategy : 实现
+    GameService *-- Logger
+    GamePresenter ..> GameService : 调用
+    GamePresenter ..> StorageAdapter : 断线续玩
+    StorageAdapter ..> GameState : 序列化/恢复
+    GreedyStrategy ..> GameState : 只读

@@ -1,0 +1,24 @@
+<!-- components/hand-area/hand-area.wxml —— 手牌区 v1.2（一屏全显，动态间距，QQ 风格） -->
+<view class="hand-area">
+  <view class="hand-area__label" wx:if="{{label}}">{{label}}</view>
+  <view class="hand-area__scroll">
+    <view class="hand-area__row">
+      <block wx:for="{{viewCards}}" wx:key="id">
+        <view class="hand-area__divider" wx:if="{{item.isTrumpHead && index > 0}}"></view>
+        <card
+          card="{{item.card}}"
+          level-rank="{{levelRank}}"
+          dense="{{dense}}"
+          selected="{{item.selected}}"
+          disabled="{{item.disabled}}"
+          glowing="{{item.glowing}}"
+          play-in="{{item.playIn}}"
+          play-in-delay="{{item.playInDelay}}"
+          style-text="{{item.styleText}}"
+          data-index="{{index}}"
+          bind:cardtap="onCardTap"
+        />
+      </block>
+    </view>
+  </view>
+</view>

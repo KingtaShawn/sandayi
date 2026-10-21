@@ -1,0 +1,79 @@
+/* components/bid-bar/bid-bar.wxss */
+@import '/app.wxss';
+
+.bid-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 16rpx;
+  padding: 16rpx;
+}
+
+.bid-bar__tip {
+  font-size: 24rpx;
+  color: var(--color-gold);
+  margin-bottom: 12rpx;
+}
+
+.bid-bar__options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12rpx;
+}
+
+.bid-bar__option {
+  background: linear-gradient(180deg, #f7d478, var(--color-primary));
+  border-radius: 12rpx;
+  padding: 12rpx 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2rpx solid #caa235;
+}
+
+.bid-bar__option:active {
+  transform: scale(0.95);
+}
+
+.bid-bar__option-label {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #5c3d00;
+}
+
+.bid-bar__option-sub {
+  font-size: 20rpx;
+  color: #7a5a1a;
+}
+
+.bid-bar__pass {
+  margin-top: 12rpx;
+  padding: 8rpx 32rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.12);
+  border: 2rpx solid rgba(255, 255, 255, 0.3);
+}
+
+.bid-bar__pass text {
+  color: var(--color-text-light);
+  font-size: 24rpx;
+}
+
+/* v1.5 三打一选主花色 */
+.bid-bar__option--suit {
+  min-width: 140rpx;
+  padding: 16rpx 28rpx;
+}
+
+.bid-bar__suit-symbol {
+  font-size: 56rpx;
+  font-weight: 700;
+  color: #222;
+  line-height: 1.2;
+}
+
+.bid-bar__option--red .bid-bar__suit-symbol {
+  color: #d0342c;
+}

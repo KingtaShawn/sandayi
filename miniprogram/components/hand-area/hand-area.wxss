@@ -1,0 +1,37 @@
+/* components/hand-area/hand-area.wxss —— v1.2：一屏全显（无滚动） */
+@import '/app.wxss';
+
+.hand-area {
+  width: 100%;
+  padding: 8rpx 0;
+}
+
+.hand-area__label {
+  font-size: 22rpx;
+  color: var(--color-text-dim);
+  margin-bottom: 4rpx;
+  padding-left: 16rpx;
+}
+
+/* v1.2：普通 view 容器（不再滚动） */
+.hand-area__scroll {
+  width: 100%;
+}
+
+.hand-area__row {
+  display: flex;
+  align-items: flex-end;
+  padding: 24rpx 8rpx 8rpx;
+  min-height: 170rpx;
+}
+
+/* 主/副牌金色分隔条 */
+.hand-area__divider {
+  align-self: stretch;
+  width: 4rpx;
+  margin: 6rpx 4rpx 6rpx 16rpx;
+  border-radius: 2rpx;
+  background: linear-gradient(180deg, rgba(243, 193, 75, 0.15), rgba(243, 193, 75, 0.85), rgba(243, 193, 75, 0.15));
+  box-shadow: 0 0 8rpx rgba(243, 193, 75, 0.4);
+  flex-shrink: 0;
+}

@@ -1,0 +1,25 @@
+<!-- components/history-modal/history-modal.wxml —— 出牌历史回看（最近 N 墩） -->
+<view class="history-modal" wx:if="{{visible}}">
+  <view class="history-modal__mask" bind:tap="onClose"></view>
+  <view class="history-modal__panel">
+    <text class="history-modal__title">出牌历史（最近 {{tricks.length}} 墩）</text>
+    <scroll-view class="history-modal__list" scroll-y>
+      <view class="history-modal__trick" wx:for="{{tricks}}" wx:key="index" wx:for-item="trick">
+        <view class="history-modal__trick-head">
+          <text>第 {{trick.no}} 墩 · {{trick.leadName}} 领出 · 赢家 {{trick.winnerName}}{{trick.points ? ' · +' + trick.points + ' 分' : ''}}</text>
+        </view>
+        <view class="history-modal__trick-row">
+          <text class="history-modal__play" wx:for="{{trick.plays}}" wx:key="index" wx:for-item="play">
+            {{play.name}}: {{play.text}}
+          </text>
+        </view>
+      </view>
+      <view wx:if="{{!tricks.length}}" class="history-modal__empty">
+        <text>暂无出牌记录</text>
+      </view>
+    </scroll-view>
+    <view class="btn btn--ghost history-modal__close" bind:tap="onClose">
+      <text>关闭</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,21 @@
+<!-- components/seat-info/seat-info.wxml —— 座位信息（头像/剩余牌数/庄徽标/阵营标签） -->
+<view class="seat-info {{vertical ? 'seat-info--vertical' : ''}} {{isTurn ? 'seat-info--turn' : ''}}">
+  <view class="seat-info__avatar">
+    <text class="seat-info__avatar-text">{{seatLabel}}</text>
+    <view class="seat-info__dealer-badge anim-badge-float" wx:if="{{isDealer}}">庄</view>
+  </view>
+  <view class="seat-info__meta" wx:if="{{!vertical}}">
+    <text class="seat-info__name">{{name}}</text>
+    <text class="seat-info__cards">剩 {{handCount}} 张</text>
+  </view>
+  <view class="seat-info__meta" wx:else>
+    <text class="seat-info__name">{{name}}</text>
+  </view>
+  <view class="seat-info__thinking" wx:if="{{isTurn && thinking}}">
+    <view class="seat-info__dot anim-dot"></view>
+    <view class="seat-info__dot anim-dot anim-dot--2"></view>
+    <view class="seat-info__dot anim-dot anim-dot--3"></view>
+  </view>
+  <view class="seat-info__badge seat-info__badge--turn" wx:if="{{isTurn && !thinking}}">行动中</view>
+  <text class="seat-info__camp {{campLabel === '对手' ? 'seat-info__camp--foe' : ''}}" wx:if="{{campLabel}}">{{campLabel}}</text>
+</view>

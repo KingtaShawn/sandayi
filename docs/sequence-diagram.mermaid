@@ -1,0 +1,98 @@
+sequenceDiagram
+    autonumber
+    actor H as 真人(南)
+    participant P as table.js<br/>(Presenter)
+    participant GS as GameService
+    participant SM as GameStateMachine
+    participant E as engine/<br/>(规则引擎)
+    participant AI as GreedyStrategy
+    participant ST as StorageAdapter
+
+    Note over P,ST: ── 开局 ──
+    P->>GS: startGame()
+    GS->>E: buildDeck(cfg) / shuffle(rng)
+    GS->>SM: transition(DEAL_STEP ×n)
+    SM->>E: dealInitial 切分 hands + bottom(R2)
+    SM-->>GS: state(phase=BIDDING)
+    GS->>ST: set(SAVE_KEY, serialize(state))
+    P->>P: setData(render(state))
+
+    Note over P,AI: ── 亮主/反主（发牌起~翻底前, R17）──
+    loop 每个AI亮主窗口(aiPace R23)
+        P->>GS: tick()
+        GS->>AI: decideBid(state, idx, options)
+        AI->>E: canBid/canOverride 校验候选
+        E-->>AI: ValidateResult
+        AI-->>GS: BidOption|null
+        GS->>SM: transition(BID / 不动作)
+        SM->>E: bidPriority 优先级比较
+        SM-->>GS: 新 bids[]（亮出牌收回手牌）
+    end
+    H->>P: 点击级牌亮主
+    P->>GS: bid(0, [♥X])
+    GS->>E: canBid(0, [♥X])
+    E-->>GS: ok
+    GS->>SM: transition(BID)
+    SM-->>GS: state(trumpInfo=♥, dealerIdx=0)
+    opt 对王反主(R8)
+        H->>P: 反主(对大王)→二次确认
+        P->>GS: bid(0, [大王,大王])
+        GS->>E: canOverride → 对王>对级牌 ✓
+        GS->>SM: transition(BID, joker_pair)
+        SM-->>GS: state(无主局 isNoTrump=true)
+    end
+
+    Note over P,ST: ── 埋底（仅庄家）──
+    alt 庄家=真人
+        H->>P: 选 8 张 → 确认埋底
+        P->>GS: bury(cards)
+        GS->>E: validatePlay 埋底张数/在手
+        GS->>SM: transition(BURY)
+        SM-->>GS: state(buryDone, phase=PLAYING)
+    else 庄家=AI
+        P->>GS: tick()
+        GS->>AI: decideBury(state, idx)
+        AI-->>GS: 8张底牌(主强藏分/主弱埋废)
+        GS->>SM: transition(BURY)
+    end
+
+    Note over P,ST: ── 逐墩出牌（25轮循环）──
+    loop 每墩×每家（逆时针 R19）
+        alt 轮到真人(turnIdx=0)
+            H->>P: 选牌 → 出牌
+            P->>GS: play(0, cards)
+            GS->>E: validatePlay(state, 0, cards)
+            alt 非法（结构不符/有对必跟对R11等）
+                E-->>GS: {ok:false, reason}
+                GS-->>P: ValidateResult(错误码)
+                P->>P: 牌抖动+提示原因(F-08)，不 dispatch
+            else 合法
+                GS->>SM: transition(PLAY)
+                SM->>E: parseCombo / resolveTrick(4家齐时)
+                SM-->>GS: 更新 currentTrick / winnerIdx / scores
+            end
+        else 轮到AI
+            P->>GS: tick()  (间隔 R23)
+            GS->>E: legalMoves(state, idx)
+            E-->>AI: 合法组合集合
+            AI->>AI: 启发式打分(配合/将吃/抠底意识)
+            AI-->>GS: 最优 Card[]
+            GS->>E: validatePlay 二次校验(铁律)
+            GS->>SM: transition(PLAY)
+        end
+        GS->>ST: set(SAVE_KEY, serialize(state))
+        P->>P: setData(render(state)) 动画
+    end
+
+    Note over P,ST: ── 抠底与结算 ──
+    SM->>E: settleRound(state, cfg)
+    E->>E: 攻方分汇总 + 抠底(R9×2 或 R10牌型)
+    E->>E: 升级表(R18): 0分3级/小光2级/40-79:1级/80+上台
+    E->>E: 过A(R15 small_light) / 庄传递(R16 winner_stays)
+    E-->>SM: SettleResult
+    SM-->>GS: state(phase=SCORING)
+    GS-->>P: 结算数据
+    P->>P: result-modal 展示(底牌翻开/得分明细)
+    H->>P: 【下一局】
+    P->>GS: NEXT_ROUND → INIT_DEAL(新级数/新庄)
+    Note over SM: 过A且R24=first_pass_A → GAME_OVER 胜利画面
