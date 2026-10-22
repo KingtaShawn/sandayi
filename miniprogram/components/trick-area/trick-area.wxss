@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   min-height: 320rpx;
 }
 
@@ -19,7 +19,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 130rpx;
+  min-height: 104rpx;
 }
 
 .trick-area__middle {

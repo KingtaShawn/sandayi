@@ -2,13 +2,13 @@
 <view class="trick-area {{dim ? 'trick-area--dim' : ''}}">
   <view class="trick-area__seat trick-area__seat--north">
     <block wx:for="{{north}}" wx:key="id">
-      <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" style-text="margin-left: {{index === 0 ? 0 : -40}}rpx" />
+      <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" dense="{{true}}" style-text="margin-left: {{index === 0 ? 0 : -28}}rpx" />
     </block>
   </view>
   <view class="trick-area__middle">
     <view class="trick-area__seat trick-area__seat--west">
       <block wx:for="{{west}}" wx:key="id">
-        <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" style-text="margin-left: {{index === 0 ? 0 : -40}}rpx" />
+        <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" dense="{{true}}" style-text="margin-left: {{index === 0 ? 0 : -28}}rpx" />
       </block>
     </view>
     <view class="trick-area__bottom-holder">
@@ -21,13 +21,13 @@
     </view>
     <view class="trick-area__seat trick-area__seat--east">
       <block wx:for="{{east}}" wx:key="id">
-        <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" style-text="margin-left: {{index === 0 ? 0 : -40}}rpx" />
+        <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" dense="{{true}}" style-text="margin-left: {{index === 0 ? 0 : -28}}rpx" />
       </block>
     </view>
   </view>
   <view class="trick-area__seat trick-area__seat--south">
     <block wx:for="{{south}}" wx:key="id">
-      <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" style-text="margin-left: {{index === 0 ? 0 : -40}}rpx" />
+      <card card="{{item}}" level-rank="{{levelRank}}" play-in="{{!dim}}" dense="{{true}}" style-text="margin-left: {{index === 0 ? 0 : -28}}rpx" />
     </block>
   </view>
 </view>

@@ -175,7 +175,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .table__hand { background: rgba(0, 0, 0, 0.18); border-radius: 2.13rem; }
 
 .table__action-slot {
-  min-height: 24rem;
+  min-height: 20rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -220,9 +220,10 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .status-bar__divider { width: 0.27rem; height: 6.4rem; background: rgba(255, 255, 255, 0.2); }
 
 /* ========== 中央出牌区 ========== */
-.trick-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 26.67rem; }
+.trick-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-between; width: 100%; min-height: 26.67rem; }
 .trick-area--dim { opacity: 0.45; filter: saturate(0.6); }
-.trick-area__seat { display: flex; align-items: center; justify-content: center; min-height: 17.33rem; }
+/* 三行各自贴边：北贴顶（头像正下方）、南贴底（手牌正上方）、西/东经 mid 贴左右——不再向中心聚拢 */
+.trick-area__seat { display: flex; align-items: center; justify-content: center; min-height: 10.67rem; }
 .trick-area__middle { display: flex; align-items: center; justify-content: space-between; width: 100%; }
 .trick-area__seat--west, .trick-area__seat--east { min-width: 16rem; }
 .trick-area__bottom-holder { flex: 1; display: flex; align-items: center; justify-content: center; }
@@ -238,7 +239,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 /* ========== 手牌区 ========== */
 .hand-area { width: 100%; padding: 1.07rem 0; }
 .hand-area__label { font-size: 2.93rem; color: var(--color-text-dim); margin-bottom: 0.53rem; padding-left: 2.13rem; min-height: 3.7rem; }
-.hand-area__row { display: flex; align-items: flex-end; padding: 3.2rem 1.07rem 1.07rem; min-height: 22.67rem; }
+.hand-area__row { display: flex; align-items: flex-end; padding: 3.2rem 1.07rem 1.07rem; min-height: 20rem; }
 .hand-area__divider {
   align-self: stretch;
   width: 0.53rem;
@@ -284,6 +285,14 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .card__rank--star { font-size: 4rem; line-height: 1.1; }
 .card--joker .card__rank--star { font-weight: 700; text-shadow: 0 0 0.27rem currentColor; }
 .card--dense .card__rank--star { font-size: 3.2rem; }
+
+/* 出牌区专属小牌规格（比 dense 再小一档）：桌面三行出牌必须塞进中央区可用高度，
+   否则 space-between 会把南家牌挤出下边界压到工具条 */
+.trick-area .card { width: 7.2rem; height: 10.4rem; }
+.trick-area .card__rank { font-size: 2.93rem; }
+.trick-area .card__suit { font-size: 2.4rem; }
+.trick-area .card__rank--star { font-size: 2.93rem; }
+.trick-area .card__corner { top: 0.53rem; left: 0.67rem; }
 
 /* ========== 座位信息 ========== */
 .seat-info {

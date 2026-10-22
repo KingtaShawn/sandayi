@@ -263,7 +263,8 @@
     const seatRow = (cards) => {
       const s = el('div', 'trick-area__seat');
       cards.forEach((c, i) => {
-        s.appendChild(cardEl(c, { playIn: !dim, styleText: `margin-left:${i === 0 ? 0 : -5.33}rem` }));
+        // 出牌区用小一号牌面（.trick-area .card 专属规格），不与手牌等大抢视觉
+        s.appendChild(cardEl(c, { playIn: !dim, styleText: `margin-left:${i === 0 ? 0 : -3.47}rem` }));
       });
       return s;
     };
