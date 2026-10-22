@@ -46,7 +46,6 @@ Component({
     isLevel: false,
     isJoker: false,
     isBigJoker: false,
-    jokerLabel: '',
     pointValue: 0
   },
   lifetimes: {
@@ -62,14 +61,14 @@ Component({
       const red = isJoker ? card.rank === 'BJ' : card.suit === 'H' || card.suit === 'D';
       const levelRank = this.properties.levelRank;
       this.setData({
-        displayRank: isJoker ? '' : card.rank,
-        suitSymbol: isJoker ? '' : (SUIT_SYMBOLS[card.suit] || ''),
+        // 王：大王=实心星★（红），小王=空心星☆（黑）——与普通牌同构的边角显示（星占牌面位、王占花色位）
+        displayRank: isJoker ? (card.rank === 'BJ' ? '★' : '☆') : card.rank,
+        suitSymbol: isJoker ? '王' : (SUIT_SYMBOLS[card.suit] || ''),
         red,
         isTrump: !!card.isTrump,
         isLevel: !!(levelRank && card.rank === levelRank),
         isJoker,
         isBigJoker: card.rank === 'BJ',
-        jokerLabel: isJoker ? (card.rank === 'BJ' ? '大 王' : '小 王') : '',
         // 分牌角标（预计算值；5→5 10→10 K→10，数值来自 RuleConfig.pointValues）
         pointValue: card.pointValue || 0
       });

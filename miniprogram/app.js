@@ -52,6 +52,8 @@ App({
     } catch (e) {
       this.globalData.stats = null;
     }
+    // 隐私合规授权（微信审核硬性要求，见 initPrivacy）
+    this.initPrivacy();
   },
 
   /**
@@ -79,6 +81,39 @@ App({
       return { ok: true };
     } catch (e) {
       return { ok: false, reason: e.message };
+    }
+  },
+
+  /**
+   * 隐私合规授权（微信 2023 起强制要求）。
+   * 本游戏纯单机、不联网、不调用任何用户信息接口（无登录/定位/手机号等），
+   * 但仍需在首次启动触发微信官方隐私弹窗并取得用户同意，否则公众平台审核可能不通过。
+   * 前置条件：需在公众平台「设置 → 隐私保护指引」填写本小程序的隐私说明。
+   * 用户同意后由微信端记录，后续启动不再弹出。
+   */
+  initPrivacy() {
+    if (typeof wx === 'undefined' || typeof wx.getPrivacySetting !== 'function') return;
+    try {
+      wx.getPrivacySetting({
+        success: (res) => {
+          if (res && res.needAuthorization) {
+            // 触发微信官方隐私授权弹窗（含《隐私保护指引》链接）
+            wx.requirePrivacyAuthorize({
+              success: () => {
+                // 用户已同意，微信端已记录，无需额外处理
+              },
+              fail: () => {
+                // 用户拒绝：不阻塞游戏，下次启动再提示
+              }
+            });
+          }
+        },
+        fail: () => {
+          // 未配置隐私指引或接口异常时静默忽略，不影响游戏运行
+        }
+      });
+    } catch (e) {
+      // 开发者工具/未配置隐私指引可能抛错，忽略不影响本地运行
     }
   }
 });

@@ -1,19 +1,13 @@
 <!-- pages/home/home.wxml —— 首页 -->
 <view class="home">
   <view class="home__logo">
-    <text class="home__title">拖拉机</text>
-    <text class="home__subtitle">80 分 · 升级</text>
+    <text class="home__title">{{isSanDaYi ? '三打一' : '拖拉机'}}</text>
+    <text class="home__subtitle">{{isSanDaYi ? '1 庄 vs 3 家 · 报分 90 起' : '80 分 · 升级'}}</text>
   </view>
 
-  <view class="home__progress" wx:if="{{hasHistory}}">
+  <view class="home__progress" wx:if="{{hasHistory && !isSanDaYi}}">
     <text class="home__progress-item">我方：打 {{myLevel}}</text>
     <text class="home__progress-item">敌方：打 {{enemyLevel}}</text>
-  </view>
-
-  <view class="home__resume" wx:if="{{hasResumable}}">
-    <view class="btn btn--primary" bind:tap="onResume">
-      <text>继续对局（第 {{resumeRound}} 局）</text>
-    </view>
   </view>
 
   <view class="home__actions">

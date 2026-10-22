@@ -26,6 +26,32 @@
         trick-info="{{trickInfo}}"
       />
       <trick-area current-trick="{{currentTrick}}" bottom-count="{{bottomCount}}" level-rank="{{levelRank}}" dim="{{lastTrickDim}}" />
+      <!-- v2.0 QQ 风格发牌动画：中央牌堆 + 四向轮发飞牌（absolute 覆盖中央区，pointer-events 穿透） -->
+      <view class="deal-anim" wx:if="{{dealAnim.active}}">
+        <view class="deal-anim__deck">
+          <view class="deal-anim__deck-card deal-anim__deck-card--3"></view>
+          <view class="deal-anim__deck-card deal-anim__deck-card--2"></view>
+          <view class="deal-anim__deck-card deal-anim__deck-card--1"></view>
+        </view>
+        <view class="deal-anim__fly deal-anim__fly--s{{item.seat}}" wx:for="{{dealAnim.flyCards}}" wx:key="id"></view>
+      </view>
+      <!-- v2.1 三打一抓底牌动画：中央 8 张底牌背展示（轻微弹跳+金光强调）→ 逐张飞向庄家座位 -->
+      <view class="grab-anim" wx:if="{{grabBottom.active}}">
+        <view class="grab-anim__glow"></view>
+        <view class="grab-anim__pile">
+          <view class="grab-anim__cards">
+            <view
+              class="grab-anim__card {{grabBottom.stage === 'fly' && index < grabBottom.flyCount ? 'grab-anim__card--gone' : ''}}"
+              wx:for="{{grabBottom.cards}}"
+              wx:key="id"
+              style="animation-delay: {{item.delay}}ms"
+            ></view>
+          </view>
+          <view class="grab-anim__label" wx:if="{{grabBottom.stage === 'show' || grabBottom.flyCount < grabBottom.cards.length}}">底牌 ×{{grabBottom.cards.length}}</view>
+        </view>
+        <!-- 飞牌：复用发牌动画 deal-fly 四向关键帧（庄家座位方向） -->
+        <view class="deal-anim__fly deal-anim__fly--s{{item.seat}}" wx:for="{{grabBottom.flyCards}}" wx:key="id"></view>
+      </view>
       <!-- v1.7 三打一：低叫分时底牌明示（QQ 规则：叫 60/65 闲家可看） -->
       <view class="table__bottom-reveal" wx:if="{{bottomRevealCards.length && gameMode === 'san_da_yi'}}">
         <text class="table__bottom-reveal-label">底牌（公开）</text>
@@ -66,28 +92,7 @@
     </view>
   </view>
 
-  <!-- 亮主/报分/选主条 -->
-  <bid-bar
-    visible="{{phase === 'BIDDING' && isHumanTurnBid || phase === 'CHOOSE_TRUMP' && isHumanChooseTrump}}"
-    mode="{{bidMode}}"
-    options="{{bidOptionsView}}"
-    score-options="{{scoreOptionsView}}"
-    suit-options="{{suitOptionsView}}"
-    tip-text="{{bidTipText}}"
-    pass-label="{{passLabel}}"
-    bind:bid="onBid"
-    bind:scorebid="onScoreBid"
-    bind:chooseTrump="onChooseTrump"
-    bind:pass="onPassBid"
-  />
-
-  <!-- 埋底条 -->
-  <bury-bar
-    visible="{{phase === 'BURYING' && isHumanDealer}}"
-    need-count="{{needBuryCount}}"
-    selected-count="{{selectedIds.length}}"
-    bind:confirm="onBuryConfirm"
-  />
+  <!-- 操作条（报分/选主/埋底/出牌）已统一移至手牌下方 table__action-slot，避免阶段切换抖动 -->
 
   <!-- 我方手牌 -->
   <view class="table__hand">
@@ -103,14 +108,35 @@
     />
   </view>
 
-  <!-- 出牌操作 -->
-  <view class="table__actions" wx:if="{{phase === 'PLAYING' && turnIdx === 0}}">
-    <view class="btn btn--primary {{(selectedIds.length > 0 && selectedIds.length === needPlayCount) ? 'anim-pulse' : 'btn--disabled'}}" bind:tap="onPlay">
-      <text>出牌</text>
-    </view>
-    <view class="btn btn--ghost" bind:tap="onClearSelect">
-      <text>重选</text>
-    </view>
+  <!-- 操作条插槽：固定高度，阶段内（报分/选主/埋底/出牌）互斥切换，高度恒定不抖动 -->
+  <view class="table__action-slot">
+    <bid-bar
+      visible="{{!dealAnim.active && !grabBottom.active && (phase === 'BIDDING' && isHumanTurnBid || phase === 'CHOOSE_TRUMP' && isHumanChooseTrump)}}"
+      mode="{{bidMode}}"
+      options="{{bidOptionsView}}"
+      score-options="{{scoreOptionsView}}"
+      suit-options="{{suitOptionsView}}"
+      tip-text="{{bidTipText}}"
+      pass-label="{{passLabel}}"
+      bind:bid="onBid"
+      bind:scorebid="onScoreBid"
+      bind:chooseTrump="onChooseTrump"
+      bind:pass="onPassBid"
+    />
+    <bury-bar
+      visible="{{phase === 'BURYING' && isHumanDealer}}"
+      need-count="{{needBuryCount}}"
+      selected-count="{{selectedIds.length}}"
+      bind:confirm="onBuryConfirm"
+    />
+    <block wx:if="{{phase === 'PLAYING' && turnIdx === 0}}">
+      <view class="btn btn--primary {{(selectedIds.length > 0 && selectedIds.length === needPlayCount) ? 'anim-pulse' : 'btn--disabled'}}" bind:tap="onPlay">
+        <text>出牌</text>
+      </view>
+      <view class="btn btn--ghost" bind:tap="onClearSelect">
+        <text>重选</text>
+      </view>
+    </block>
   </view>
 
   <!-- 结算弹层 -->

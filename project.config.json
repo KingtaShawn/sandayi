@@ -2,7 +2,7 @@
   "compileType": "miniprogram",
   "miniprogramRoot": "miniprogram/",
   "appid": "touristappid",
-  "projectname": "tractor-80points",
+  "projectname": "三打一",
   "libVersion": "2.33.0",
   "setting": {
     "es6": true,
@@ -60,7 +60,7 @@
     ],
     "include": []
   },
-  "description": "拖拉机（升级/80分）单机微信小程序。appid 为测试号占位，发布前替换为正式 appid。",
+  "description": "三打一（1庄家 vs 3家）扑克单机微信小程序。appid 当前为测试号占位（touristappid），正式发布前必须替换为你在微信公众平台申请的正式 AppID。",
   "simulatorPluginLibVersion": {},
   "isGameTourist": false
 }

@@ -488,7 +488,8 @@ function doPlay(s, action) {
       cards_ = pre.replacement;
     }
   }
-  const v = validatePlay(s, idx, cards_);
+  // 罚则替换牌不做甩牌成立性二次校验（最小牌必然可被压，二次校验会死锁罚则）
+  const v = validatePlay(s, idx, cards_, { skipThrowValidation: true });
   if (!v.ok) {
     throw new RuleError(v.errorCode || 'E101', v.reason);
   }

@@ -141,3 +141,194 @@
   border: 2rpx solid #caa235;
   box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.25);
 }
+
+/* 操作条插槽：固定高度，阶段内（报分/选主/埋底/出牌）互斥切换时高度恒定，消除抖动 */
+.table__action-slot {
+  min-height: 180rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28rpx;
+  padding: 0 16rpx;
+}
+
+/* ===== v2.0 QQ 风格发牌动画：中央牌堆 + 四向轮发飞牌 ===== */
+/* 容器：覆盖中央区（.table__center 已 relative），不拦截点击 */
+.deal-anim {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+/* 中央牌堆：三张叠放的牌背，发牌期间轻微呼吸 */
+.deal-anim__deck {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 0;
+  height: 0;
+  animation: deal-deck-pulse 0.9s ease-in-out infinite;
+}
+
+.deal-anim__deck-card {
+  position: absolute;
+  left: -44rpx;
+  top: -60rpx;
+  width: 88rpx;
+  height: 120rpx;
+  border-radius: 10rpx;
+  background: linear-gradient(160deg, #4a72c4 0%, #33518f 55%, #274070 100%);
+  border: 3rpx solid #e8ecf4;
+  box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.35);
+}
+
+.deal-anim__deck-card--2 { transform: translate(-5rpx, 5rpx) rotate(-4deg); }
+.deal-anim__deck-card--3 { transform: translate(5rpx, -5rpx) rotate(3deg); }
+
+@keyframes deal-deck-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+/* 四向飞牌：从牌堆位置飞向对应座位方向后淡出（animation-name 由座位方向类指定） */
+.deal-anim__fly {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 88rpx;
+  height: 120rpx;
+  margin-left: -44rpx;
+  margin-top: -60rpx;
+  border-radius: 10rpx;
+  background: linear-gradient(160deg, #4a72c4 0%, #33518f 55%, #274070 100%);
+  border: 3rpx solid #e8ecf4;
+  box-shadow: 0 4rpx 10rpx rgba(0,0,0, 0.3);
+  animation-duration: 320ms;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
+}
+
+/* 座位方向：0=南(下/自己) 1=东(右) 2=北(上) 3=西(左)——四个独立关键帧（避免 keyframes 内 CSS 变量的低版本兼容问题） */
+.deal-anim__fly--s0 { animation-name: deal-fly-s0; }
+.deal-anim__fly--s1 { animation-name: deal-fly-s1; }
+.deal-anim__fly--s2 { animation-name: deal-fly-s2; }
+.deal-anim__fly--s3 { animation-name: deal-fly-s3; }
+
+@keyframes deal-fly-s0 {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0; }
+  12% { opacity: 1; }
+  70% { transform: translate(0, 255rpx) rotate(24deg) scale(0.85); opacity: 1; }
+  100% { transform: translate(0, 340rpx) rotate(40deg) scale(0.6); opacity: 0; }
+}
+
+@keyframes deal-fly-s1 {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0; }
+  12% { opacity: 1; }
+  70% { transform: translate(225rpx, 15rpx) rotate(24deg) scale(0.85); opacity: 1; }
+  100% { transform: translate(300rpx, 20rpx) rotate(40deg) scale(0.6); opacity: 0; }
+}
+
+@keyframes deal-fly-s2 {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0; }
+  12% { opacity: 1; }
+  70% { transform: translate(0, -255rpx) rotate(24deg) scale(0.85); opacity: 1; }
+  100% { transform: translate(0, -340rpx) rotate(40deg) scale(0.6); opacity: 0; }
+}
+
+@keyframes deal-fly-s3 {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0; }
+  12% { opacity: 1; }
+  70% { transform: translate(-225rpx, 15rpx) rotate(24deg) scale(0.85); opacity: 1; }
+  100% { transform: translate(-300rpx, 20rpx) rotate(40deg) scale(0.6); opacity: 0; }
+}
+
+/* ===== v2.1 三打一抓底牌动画：中央底牌展示 + 逐张飞庄家 ===== */
+/* 容器：覆盖中央区，不拦截点击（与 deal-anim 同层级规范） */
+.grab-anim {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+
+/* 底牌区金色柔光（强调"这是底牌"；top 与飞牌起点 46% 对齐） */
+.grab-anim__glow {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 420rpx;
+  height: 300rpx;
+  margin-left: -210rpx;
+  margin-top: -150rpx;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(243, 193, 75, 0.35) 0%, rgba(243, 193, 75, 0.12) 55%, rgba(243, 193, 75, 0) 75%);
+  animation: grab-glow-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes grab-glow-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+/* 底牌堆（8 张牌背 + 计数标签）；top 与飞牌起点 46% 对齐 */
+.grab-anim__pile {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.grab-anim__cards {
+  display: flex;
+  align-items: center;
+}
+
+/* 单张底牌背：入场轻微弹跳（stagger 由内联 animation-delay 错开） */
+.grab-anim__card {
+  width: 72rpx;
+  height: 100rpx;
+  margin-left: -46rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(160deg, #4a72c4 0%, #33518f 55%, #274070 100%);
+  border: 3rpx solid #f3c14b;
+  box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.35), 0 0 10rpx rgba(243, 193, 75, 0.35);
+  box-sizing: border-box;
+  animation: grab-card-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.grab-anim__card:first-child {
+  margin-left: 0;
+}
+
+/* 飞走标记：该牌已从中央堆发出 → 立即隐藏（由飞牌元素接管运动） */
+.grab-anim__card--gone {
+  visibility: hidden;
+}
+
+@keyframes grab-card-pop {
+  0% { opacity: 0; transform: translateY(-36rpx) scale(0.6); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 底牌计数标签 */
+.grab-anim__label {
+  margin-top: 10rpx;
+  padding: 4rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #5c3d00;
+  background: linear-gradient(180deg, #f7d478, #f3c14b);
+  border: 2rpx solid #caa235;
+  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.25);
+}

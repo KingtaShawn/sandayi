@@ -90,53 +90,30 @@
   left: 4rpx;
 }
 
-.card--dense .card__joker-star {
-  font-size: 28rpx;
+/* ========== v1.2 王：边角星形显示（大王=实心★ 红 / 小王=空心☆ 黑） ========== */
+/* 星占牌面位（rank 行）、王占花色位——结构与普通牌完全同构，dense 下随全局字号缩放 */
+.card__rank--star {
+  font-size: 30rpx;
+  line-height: 1.1;
 }
 
-.card--dense .card__joker-text {
-  font-size: 17rpx;
-  letter-spacing: 0;
+/* 小王空心星描边微加粗，避免小字号下空心轮廓不清 */
+.card--joker .card__rank--star {
+  font-weight: 700;
+  text-shadow: 0 0 2rpx currentColor;
 }
 
-/* ========== v1.1 王牌专用牌面 ========== */
+.card--dense .card__rank--star {
+  font-size: 24rpx;
+}
+
+/* ========== v1.1 王牌底色（星形角标版保留淡金/淡橙底以示区分） ========== */
 .card--joker {
   background: linear-gradient(160deg, #fffef7 0%, #ffe9b8 100%);
 }
 
 .card--joker-big {
   background: linear-gradient(160deg, #fff5f3 0%, #ffd9c2 55%, #ffb98a 100%);
-}
-
-.card__joker-face {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2rpx;
-}
-
-.card__joker-star {
-  font-size: 40rpx;
-  color: #e54d42;
-  text-shadow: 0 2rpx 4rpx rgba(229, 77, 66, 0.35);
-}
-
-.card--joker-big .card__joker-star {
-  color: #d0342c;
-  font-size: 46rpx;
-  text-shadow: 0 0 10rpx rgba(211, 52, 44, 0.5);
-}
-
-.card__joker-text {
-  font-size: 22rpx;
-  font-weight: 700;
-  color: #8a5a2b;
-  letter-spacing: 2rpx;
-}
-
-.card--joker-big .card__joker-text {
-  color: #b03a2e;
 }
 
 /* ========== v1.1 分牌角标（5/10/K 分值徽章） ========== */

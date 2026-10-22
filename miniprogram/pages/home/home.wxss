@@ -46,10 +46,6 @@
   border-radius: 999rpx;
 }
 
-.home__resume {
-  margin-bottom: 24rpx;
-}
-
 .home__actions {
   display: flex;
   flex-direction: column;

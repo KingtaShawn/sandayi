@@ -29,12 +29,14 @@ function allInHand(hand, cards_) {
  * @param {Array<object>} cards
  * @param {object} cfg
  */
-function validateLead(state, playerIdx, cards_, cfg) {
+function validateLead(state, playerIdx, cards_, cfg, opts) {
   const combo = parseCombo(cards_, state.trumpInfo, cfg);
   if (!combo) {
     return result(false, '出牌必须同域（一门副牌或全主牌）', 'E112');
   }
-  if (combo.type === 'throw') {
+  // skipThrowValidation：R14 罚则路径——罚出的该门最小牌不再做成立性二次校验
+  //（最小牌几乎必然可被压，二次校验会死锁罚则；同域/张数等基础校验仍全量执行）
+  if (combo.type === 'throw' && !(opts && opts.skipThrowValidation)) {
     const t = validateThrow(state, combo, playerIdx, cfg);
     if (!t.ok) return t;
   }
@@ -48,7 +50,7 @@ function validateLead(state, playerIdx, cards_, cfg) {
  * @param {Array<object>} cards
  * @returns {{ok: boolean, reason?: string, errorCode?: string, meta?: object}}
  */
-function validatePlay(state, playerIdx, cards_) {
+function validatePlay(state, playerIdx, cards_, opts) {
   const cfg = state.config;
   if (!cards_ || cards_.length === 0) {
     return result(false, '请选择要出的牌', 'E101');
@@ -59,7 +61,7 @@ function validatePlay(state, playerIdx, cards_) {
   }
   const isLead = !state.currentTrick || state.currentTrick.plays.length === 0;
   if (isLead) {
-    return validateLead(state, playerIdx, cards_, cfg);
+    return validateLead(state, playerIdx, cards_, cfg, opts);
   }
   const lead = state.currentTrick.leadCombo;
   if (cards_.length !== lead.n) {

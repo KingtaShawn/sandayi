@@ -98,8 +98,10 @@ module.exports = {
 
   /* ══════════ 甩牌 ══════════ */
 
-  // R14 甩牌不成立时：reject=禁止出 | smallest=强制换成最小牌 | penalty_smallest=罚10分/张给对方+强制出最小（三打一推荐）
-  throwPenalty: 'reject',
+  // R14 甩牌不成立时：reject=禁止出 | smallest=强制换成最小牌 | penalty_smallest=罚10分/张给对方+强制出最小
+  // 2026-10-22 用户确认：甩牌不成立不弹禁止提示，按线下规则自然罚分（10分/张+强制出该门最小）；
+  // 混花色（跨域）不属于甩牌范畴，仍走 E112「出牌必须同域」直接禁止
+  throwPenalty: 'penalty_smallest',
 
   /* ══════════ 流程 ══════════ */
 

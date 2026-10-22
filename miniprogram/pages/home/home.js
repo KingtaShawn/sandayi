@@ -1,5 +1,5 @@
 /**
- * pages/home/home.js —— 首页：开始对局 / 规则速查 / 设置 / 继续对局。
+ * pages/home/home.js —— 首页：开始对局 / 规则速查 / 设置。
  */
 
 'use strict';
@@ -7,12 +7,12 @@
 const storage = require('../../storage/adapter');
 const { STORAGE_KEYS } = require('../../storage/keys');
 const { summarize } = require('../../services/stats');
+const ruleConfig = require('../../rule-config');
 
 Page({
   data: {
-    hasResumable: false,
-    resumeRound: 0,
     hasHistory: false,
+    isSanDaYi: ruleConfig.gameMode === 'san_da_yi',
     myLevel: '2',
     enemyLevel: '2',
     statsText: ''
@@ -20,8 +20,6 @@ Page({
 
   onShow() {
     const app = getApp();
-    const saved = storage.get(STORAGE_KEYS.CURRENT_GAME);
-    const hasResumable = !!(saved && saved.phase && saved.phase !== 'GAME_OVER');
     const records = storage.get(STORAGE_KEYS.STATS) || [];
     const stats = summarize(records);
     // 读取上局结束时的级数进度（结算存档）
@@ -29,9 +27,8 @@ Page({
     const myLevel = progress && progress.levels ? progress.levels.team0 : '2';
     const enemyLevel = progress && progress.levels ? progress.levels.team1 : '2';
     this.setData({
-      hasResumable,
-      resumeRound: saved ? saved.roundNo || 1 : 1,
       hasHistory: records.length > 0,
+      isSanDaYi: ruleConfig.gameMode === 'san_da_yi',
       myLevel,
       enemyLevel,
       statsText: stats.totalRounds
@@ -45,10 +42,6 @@ Page({
     // 新开局清除旧存档
     storage.remove(STORAGE_KEYS.CURRENT_GAME);
     wx.navigateTo({ url: '/pages/table/table?mode=new' });
-  },
-
-  onResume() {
-    wx.navigateTo({ url: '/pages/table/table?mode=resume' });
   },
 
   onRules() {

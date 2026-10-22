@@ -132,9 +132,25 @@ class GameService {
    */
   play(playerIdx, cards_) {
     const v = validatePlay(this.state, playerIdx, cards_);
-    if (!v.ok) return v;
+    // R14 罚则模式（smallest/penalty_smallest）：甩牌不成立（E102）不拦截——
+    // 引擎 doPlay 将强制替换为该门最小等量牌（+罚分记账），符合线下"甩错自然罚分"规则；
+    // 其余错误（跨域 E112/张数不符 E106/不在手牌 E105 等）仍直接拒绝
+    if (!v.ok && v.errorCode !== 'E102') return v;
+    if (!v.ok && v.errorCode === 'E102' && this.state.config.throwPenalty === 'reject') return v;
     try {
       this.dispatch({ type: 'PLAY', playerIdx, cards: cards_, ts: Date.now() });
+      // 罚则触达提示：实际出牌与所选不一致（被替换为最小牌）
+      const st = this.state;
+      if (st.currentTrick && st.currentTrick.plays.length) {
+        const last = st.currentTrick.plays[st.currentTrick.plays.length - 1];
+        if (last.playerIdx === playerIdx) {
+          const chosenIds = cards_.map((c) => c.id).sort().join(',');
+          const playedIds = last.cards.map((c) => c.id).sort().join(',');
+          if (chosenIds !== playedIds) {
+            return { ok: true, replaced: true, playedCards: last.cards };
+          }
+        }
+      }
       return { ok: true };
     } catch (e) {
       return { ok: false, reason: e.message, errorCode: e.code };
