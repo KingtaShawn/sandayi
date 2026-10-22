@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<title>三打一</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== 首页 ===== -->
+  <section id="view-home" class="home view">
+    <div class="home__logo">
+      <div class="home__title" id="home-title">三打一</div>
+      <div class="home__subtitle" id="home-subtitle">1 庄 vs 3 家 · 报分 90 起</div>
+    </div>
+    <div class="home__actions">
+      <button class="btn btn--primary home__start" id="btn-start">开始对局</button>
+      <div class="home__secondary">
+        <button class="btn btn--ghost" id="btn-rules">规则速查</button>
+      </div>
+    </div>
+    <div class="home__stats" id="home-stats"></div>
+  </section>
+
+  <!-- ===== 规则页 ===== -->
+  <section id="view-rules" class="rules view" hidden>
+    <div class="rules__nav"><button class="btn btn--ghost" id="btn-rules-back">← 返回</button></div>
+    <div class="rules__body" id="rules-body"></div>
+  </section>
+
+  <!-- ===== 牌桌 ===== -->
+  <section id="view-table" class="table view" hidden>
+    <!-- 顶部：北家 -->
+    <div class="table__north" id="seat-2"></div>
+
+    <!-- 中部：西 | 中央 | 东 -->
+    <div class="table__mid">
+      <div class="table__side" id="seat-3"></div>
+      <div class="table__center">
+        <div class="status-bar" id="status-bar"></div>
+        <div class="trick-area" id="trick-area"></div>
+        <!-- v2.0 发牌动画层 -->
+        <div class="deal-anim" id="deal-anim" hidden>
+          <div class="deal-anim__deck">
+            <div class="deal-anim__deck-card deal-anim__deck-card--3"></div>
+            <div class="deal-anim__deck-card deal-anim__deck-card--2"></div>
+            <div class="deal-anim__deck-card deal-anim__deck-card--1"></div>
+          </div>
+          <div class="deal-anim__fly-wrap" id="deal-anim-fly"></div>
+        </div>
+        <!-- v2.1 抓底牌动画层 -->
+        <div class="grab-anim" id="grab-anim" hidden>
+          <div class="grab-anim__glow"></div>
+          <div class="grab-anim__pile">
+            <div class="grab-anim__cards" id="grab-anim-cards"></div>
+            <div class="grab-anim__label">底牌 ×8</div>
+          </div>
+          <div class="deal-anim__fly-wrap" id="grab-anim-fly"></div>
+        </div>
+        <!-- 叫分气泡 -->
+        <div class="table__bid-bubbles" id="bid-bubbles" hidden></div>
+        <!-- 底牌明示（低叫分） -->
+        <div class="table__bottom-reveal" id="bottom-reveal" hidden>
+          <div class="table__bottom-reveal-label">底牌（公开）</div>
+          <div class="table__bottom-reveal-cards" id="bottom-reveal-cards"></div>
+        </div>
+        <!-- 收墩飘分 -->
+        <div class="table__float-layer"><div class="table__float-points" id="float-points" hidden></div></div>
+      </div>
+      <div class="table__side" id="seat-1"></div>
+    </div>
+
+    <!-- 工具条 -->
+    <div class="table__tools">
+      <button class="btn btn--ghost table__tool-btn" id="btn-hint">提示</button>
+      <div class="table__trump-chip" id="trump-chip"></div>
+      <button class="btn btn--ghost table__tool-btn" id="btn-history">历史</button>
+    </div>
+
+    <!-- 我方手牌 -->
+    <div class="table__hand">
+      <div class="hand-area">
+        <div class="hand-area__label" id="hand-label"></div>
+        <div class="hand-area__row" id="hand-row"></div>
+      </div>
+    </div>
+
+    <!-- 操作条插槽（固定高度防抖动） -->
+    <div class="table__action-slot" id="action-slot"></div>
+
+    <!-- 结算弹层 -->
+    <div class="result-modal" id="result-modal" hidden>
+      <div class="result-modal__mask"></div>
+      <div class="result-modal__panel">
+        <div class="result-modal__banner" id="result-banner"></div>
+        <div class="result-modal__scores" id="result-scores"></div>
+        <div class="result-modal__bottom" id="result-bottom" hidden>
+          <div class="result-modal__bottom-title">底牌翻开</div>
+          <div class="result-modal__bottom-cards" id="result-bottom-cards"></div>
+        </div>
+        <div class="result-modal__actions">
+          <button class="btn btn--ghost" id="btn-result-home">返回首页</button>
+          <button class="btn btn--primary" id="btn-result-next">下一局</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 历史弹层 -->
+    <div class="history-modal" id="history-modal" hidden>
+      <div class="history-modal__mask" id="history-mask"></div>
+      <div class="history-modal__panel">
+        <div class="history-modal__title" id="history-title"></div>
+        <div class="history-modal__list" id="history-list"></div>
+        <button class="btn btn--ghost history-modal__close" id="btn-history-close">关闭</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- toast -->
+  <div class="toast" id="toast" hidden></div>
+</div>
+
+<script src="js/game-bundle.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
