@@ -8,6 +8,25 @@
 'use strict';
 
 (function () {
+  // ===== 加载自检与错误显示（真机无控制台，页面顶部红条直显错误） =====
+  function showErrBar(msg) {
+    let bar = document.getElementById('err-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'err-bar';
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#d0342c;color:#fff;font-size:12px;padding:8px 12px;word-break:break-all;';
+      (document.body || document.documentElement).appendChild(bar);
+    }
+    bar.textContent = '⚠ ' + msg;
+  }
+  window.addEventListener('error', (e) => {
+    showErrBar((e.message || '脚本错误') + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : ''));
+  });
+  if (!window.GameCore) {
+    showErrBar('游戏引擎(game-bundle.js)未加载成功——请刷新重试；若反复出现请检查网络');
+    return;
+  }
+
   const C = window.GameCore;
   const { GameService, createConfig, DEFAULT_CONFIG, getHint, fmt, storage, STORAGE_KEYS, stats, createRng, ruleConfig, scoreBidOptions } = C;
 
@@ -176,7 +195,7 @@
     const visible = all.slice(0, Math.max(0, G.handVisibleCount));
     const n = visible.length;
     const dense = n > 24;
-    const usable = 93.33; // vw（700rpx）
+    const usable = 93.33; // rem（700rpx，满宽=100rem）
     const cardW = dense ? 8.53 : 11.73;
     let margin = n > 1 ? Math.floor(((usable - cardW) / (n - 1)) * 100) / 100 - cardW : 0;
     if (margin > -0.8) margin = -0.8;
@@ -203,7 +222,7 @@
         const isTrumpHead = c.isTrump && !firstTrumpSeen;
         if (isTrumpHead) firstTrumpSeen = true;
         if (isTrumpHead && i > 0) row.appendChild(el('div', 'hand-area__divider'));
-        const styleText = i === 0 ? '' : `margin-left:${isTrumpHead ? Math.max(margin, -5.33) : margin}vw`;
+        const styleText = i === 0 ? '' : `margin-left:${isTrumpHead ? Math.max(margin, -5.33) : margin}rem`;
         const playIn = isDealing || newIdSet.has(c.id);
         const d = cardEl(c, {
           selected: G.selectedIds.includes(c.id),
@@ -244,7 +263,7 @@
     const seatRow = (cards) => {
       const s = el('div', 'trick-area__seat');
       cards.forEach((c, i) => {
-        s.appendChild(cardEl(c, { playIn: !dim, styleText: `margin-left:${i === 0 ? 0 : -5.33}vw` }));
+        s.appendChild(cardEl(c, { playIn: !dim, styleText: `margin-left:${i === 0 ? 0 : -5.33}rem` }));
       });
       return s;
     };
@@ -367,7 +386,7 @@
       bottomWrap.hidden = false;
       const wrap = $('result-bottom-cards');
       wrap.innerHTML = '';
-      bc.forEach((c, i) => wrap.appendChild(cardEl(decorateCard(st, c), { styleText: `margin-left:${i === 0 ? 0 : -6.13}vw` })));
+      bc.forEach((c, i) => wrap.appendChild(cardEl(decorateCard(st, c), { styleText: `margin-left:${i === 0 ? 0 : -6.13}rem` })));
     } else {
       bottomWrap.hidden = true;
     }
