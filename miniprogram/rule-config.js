@@ -15,6 +15,9 @@ module.exports = {
 
   /* ══════════ 三打一参数（gameMode='san_da_yi' 时生效） ══════════ */
 
+  // 默认不打拖拉机：连对也按多副对子甩牌；必须每个对子都不被更大的同门对子压住
+  sanDaYiAllowTractor: false,
+
   // 起叫分（90 起）
   sanDaYiBidStart: 90,
 
@@ -98,8 +101,8 @@ module.exports = {
 
   /* ══════════ 甩牌 ══════════ */
 
-  // R14 甩牌不成立时：reject=禁止出 | smallest=强制换成最小牌 | penalty_smallest=罚10分/张给对方+强制出最小
-  // 2026-10-22 用户确认：甩牌不成立不弹禁止提示，按线下规则自然罚分（10分/张+强制出该门最小）；
+  // R14 甩牌不成立时：reject=禁止出 | smallest=只出被压住的最小单元 | penalty_smallest=再罚10分/原甩牌张
+  // 失败只出本次甩牌中被压住的最小单张/对子，其余收回；不会抽取未选手牌或拆散对子。
   // 混花色（跨域）不属于甩牌范畴，仍走 E112「出牌必须同域」直接禁止
   throwPenalty: 'penalty_smallest',
 

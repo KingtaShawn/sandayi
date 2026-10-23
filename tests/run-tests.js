@@ -14,6 +14,7 @@ const TEST_FILES = [
   'test-combo.js',
   'test-bid.js',
   'test-validate-play.js',
+  'test-throw-regressions.js',
   'test-trick.js',
   'test-settle.js',
   'test-statemachine.js',

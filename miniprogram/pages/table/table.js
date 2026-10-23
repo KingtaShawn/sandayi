@@ -917,8 +917,7 @@ Page({
       return;
     }
     if (r.replaced) {
-      // R14 罚则：甩牌不成立 → 已强制改为该门最小牌并罚 10 分/张（非阻断告知）
-      wx.showToast({ title: `甩牌不成立：改为出最小牌，罚 ${cards.length * 10} 分`, icon: 'none' });
+      wx.showToast({ title: r.reason || '甩牌失败，已改出被压住的最小牌组', icon: 'none', duration: 3000 });
     }
     this.setData({ selectedIds: [] });
     this.render();

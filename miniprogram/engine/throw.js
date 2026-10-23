@@ -1,21 +1,19 @@
 /**
  * engine/throw.js —— 甩牌成立性校验（PRD §5.8 / R14）。
  *
- * 领出甩牌成立条件：所甩每个单元都比其他三家手中该门牌的最大单元大。
- * 判定采用"逐单元最大单元拆解比较"：
- *   对其余三家，将该门牌按 decomposeDomain 拆成最大单元组合，
- *   若任何一家的任一同型单元 ≥ 甩牌对应单元（按张数配对，同张数单元中最大者比较），
- *   则甩牌不成立。
+ * 领出甩牌成立条件：其他三家没有同门、同结构且严格更大的单元。
+ * 相同大小不能压住先出的牌；对子、拖拉机中的牌也必须参与拆分比较。
  *
  * R14：
  *   reject  → 返回 E102（UI/AI 直接禁止，不出现该组合）；
- *   smallest → 返回罚则替换牌（该门最小等量牌，meta.replacement）。
+ *   smallest → 只出本次甩牌中被压住的最小单元，其余牌收回。
+ *   penalty_smallest → 在 smallest 基础上按原甩牌张数罚分。
  */
 
 'use strict';
 
-const { decomposeDomain, domainOf, pointsOf } = require('./combo');
-const { cardKey, sortHand, sortKey } = require('./card');
+const { decomposeDomain, domainOf } = require('./combo');
+const { SUIT_SYMBOLS } = require('./card');
 const { result } = require('./errors');
 
 /**
@@ -34,34 +32,19 @@ function maxUnitsOfHand(hand, domain, trumpInfo, cfg) {
 
 /**
  * 单元组比较：跟牌方最大单元是否能压过甩牌单元。
- * 同张数单元取跟牌方最大者比大小；跟牌方无同张数单元 → 视同张数的更小单元？
- * 约定（保守，符合线下习惯）：对子单元要求对方无更大对子（两张同名单张在 deckCount=2 下即对子，decompose 已合并）。
+ * 单张可被对子/拖拉机中的单牌压；对子可被拖拉机拆出的对子压。
+ * 必须检查全部单元，不能因已有较小的同型单元而漏掉较大的组合。
  * @param {object} throwUnit 甩牌单元
  * @param {Array<object>} defenseUnits 防客单元集合
  * @returns {boolean} true = 防守可压（甩牌不成立）
  */
 function unitCovered(throwUnit, defenseUnits) {
-  const sameSize = defenseUnits.filter((u) => u.size === throwUnit.size);
-  if (sameSize.length > 0) {
-    const biggest = sameSize.reduce((m, u) => (u.strength > m.strength ? u : m));
-    return biggest.strength >= throwUnit.strength;
-  }
-  // 防守无同张数单元：若防守有更大张数单元（如拖 vs 对），拖含的对子可能拆压——
-  // 保守认定：更大单元必然包含 ≥ 对子强度的牌，能压对子/单张单元。
-  const bigger = defenseUnits.filter((u) => u.size > throwUnit.size);
-  if (bigger.length > 0 && throwUnit.size >= 1) {
-    // 拖拉机拆解含相邻对，其中最大对 ≥ 其头对；对甩出的对子单元，取拖头对比较
-    if (throwUnit.type === 'pair') {
-      const headPairStrength = bigger.reduce((m, u) => Math.max(m, u.strength), -1);
-      return headPairStrength >= throwUnit.strength;
-    }
-    if (throwUnit.type === 'single') {
-      // 任何防守单元的头牌 ≥ 甩单张 → 可压
-      const maxHead = defenseUnits.reduce((m, u) => Math.max(m, u.strength), -1);
-      return maxHead >= throwUnit.strength;
-    }
-  }
-  return false;
+  return defenseUnits.some((u) => {
+    if (u.strength <= throwUnit.strength) return false;
+    if (throwUnit.type === 'single') return true;
+    if (throwUnit.type === 'pair') return u.type === 'pair' || u.type === 'tractor';
+    return u.type === 'tractor' && u.size >= throwUnit.size;
+  });
 }
 
 /**
@@ -71,38 +54,35 @@ function unitCovered(throwUnit, defenseUnits) {
  * @param {number} leaderIdx 领出者
  * @param {object} cfg
  * @returns {{ok: boolean, reason?: string, errorCode?: string, meta?: object}}
- *   meta: { failUnit, coverBy, replacement?(R14=smallest 时该门最小等量牌) }
+ *   meta: { failUnit, coverBy, replacement?, penaltyPoints? }
  */
 function validateThrow(state, combo, leaderIdx, cfg) {
   const domain = combo.suit; // 'TRUMP' 或花色
-  const opponents = state.players
-    .map((p, i) => i)
-    .filter((i) => i !== leaderIdx);
-  const unitsDesc = combo.units.slice().sort((a, b) => (b.size - a.size) || (b.strength - a.strength));
-  for (const u of unitsDesc) {
-    for (const oi of opponents) {
-      const defense = maxUnitsOfHand(state.players[oi].hand, domain, state.trumpInfo, cfg);
-      if (unitCovered(u, defense)) {
+  const opponents = state.players.map((p, i) => ({
+    idx: i,
+    units: i === leaderIdx ? [] : maxUnitsOfHand(p.hand, domain, state.trumpInfo, cfg)
+  })).filter((p) => p.idx !== leaderIdx);
+  // 先找被压住的最小单张，再找最小对子/拖拉机，保持原单元完整。
+  const unitsAsc = combo.units.slice().sort((a, b) => (a.size - b.size) || (a.strength - b.strength));
+  for (const u of unitsAsc) {
+    for (const opponent of opponents) {
+      if (unitCovered(u, opponent.units)) {
+        const oi = opponent.idx;
         const byName = `第${oi + 1}位玩家`;
         if (cfg.throwPenalty === 'smallest' || cfg.throwPenalty === 'penalty_smallest') {
-          const hand = state.players[leaderIdx].hand;
-          const domainCards = sortHand(
-            hand.filter((c) => domainOf(c, state.trumpInfo) === domain),
-            state.trumpInfo
-          );
-          if (domainCards.length < combo.n) {
-            return result(false, '甩牌不成立且该门牌不足以罚出等量牌', 'E102');
-          }
-          const replacement = domainCards.slice(0, combo.n);
+          const replacement = u.cards.slice();
+          const shownCards = replacement.map((c) => c.isJoker
+            ? (c.rank === 'BJ' ? '大王' : '小王')
+            : `${SUIT_SYMBOLS[c.suit]}${c.rank}`).join(' ');
           const isPenalty = cfg.throwPenalty === 'penalty_smallest';
-          return result(false, isPenalty
-            ? `甩牌不成立（${byName}可压）：罚 ${combo.n * 10} 分给对方，并改为出该门最小 ${combo.n} 张`
-            : `甩牌不成立（${byName}可压），改为出该门最小 ${combo.n} 张`, 'E102', {
+          const penaltyPoints = isPenalty ? combo.n * 10 : 0;
+          return result(false,
+            `甩牌失败：改出 ${shownCards}，其余收回${penaltyPoints ? `，罚 ${penaltyPoints} 分` : ''}`, 'E102', {
             failUnit: u,
             coverBy: oi,
             replacement,
             // penalty_smallest：罚 10 分/张（对方阵营），由状态机出牌时记入 penaltyPoints
-            penaltyPoints: isPenalty ? combo.n * 10 : 0
+            penaltyPoints
           });
         }
         return result(false, `甩牌不成立（${byName}有更大的牌可压）`, 'E102', { failUnit: u, coverBy: oi });

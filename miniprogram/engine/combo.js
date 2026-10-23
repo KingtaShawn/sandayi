@@ -92,7 +92,8 @@ function isPair(cards_, trumpInfo) {
 }
 
 /**
- * 将同域牌集合拆解为最大单元组合（拖拉机优先合并）。
+ * 将同域牌集合拆解为最大单元组合。
+ * 三打一默认不合并拖拉机：连对作为多副对子逐对检查甩牌；其他模式优先合并。
  * @param {Array<object>} cards 同域牌
  * @param {object} trumpInfo
  * @param {object} cfg
@@ -116,6 +117,10 @@ function decomposeDomain(cards_, trumpInfo, cfg) {
       singles.push(makeUnit('single', [list.shift()], trumpInfo));
     }
   });
+  // 旧三打一存档未携带此配置时也按默认无拖拉机处理。
+  if (cfg && cfg.gameMode === 'san_da_yi' && cfg.sanDaYiAllowTractor !== true) {
+    return pairs.concat(singles).sort((a, b) => (b.size - a.size) || (b.strength - a.strength));
+  }
   // 对子按域内强度降序，贪心合并最长相邻链 → 拖拉机
   pairs.sort((x, y) => y.strength - x.strength);
   const used = new Array(pairs.length).fill(false);

@@ -859,7 +859,7 @@
       window.wx.vibrateShort();
       return;
     }
-    if (r.replaced) toast(`甩牌不成立：改为出最小牌，罚 ${cards.length * 10} 分`);
+    if (r.replaced) toast(r.reason || '甩牌失败，已改出被压住的最小牌组');
     G.selectedIds = [];
     render();
     driveAI();
@@ -952,8 +952,9 @@
       <li>成交后庄家拿 8 张底牌（手牌 33 张），再自选一个花色做主牌</li>
       <li>主牌 = 大小王 + 全部 2 + 所选花色全部</li>
       <h3>出牌</h3>
-      <li>庄家埋 8 张底牌后领出，可出单张/对子/拖拉机/甩牌（同域组合）</li>
-      <li>甩牌不成立：罚 10 分/张给对方，并强制改出该门最小等量牌</li>
+      <li>庄家埋 8 张底牌后领出，可出单张/对子${cfg.sanDaYiAllowTractor ? '/拖拉机' : ''}/甩牌（同域组合）</li>
+      ${cfg.sanDaYiAllowTractor ? '' : '<li>默认不打拖拉机：连对按多副对子甩牌，每个对子都必须无人能压；同样大不能压住先出的牌</li>'}
+      <li>${cfg.throwPenalty === 'reject' ? '甩牌不成立时禁止出牌' : `甩牌失败只出本次甩牌中被压住的最小单张或对子，其余收回${cfg.throwPenalty === 'penalty_smallest' ? '；按原甩牌张数每张罚 10 分给对方' : '，不罚分'}`}</li>
       <h3>胜负</h3>
       <li>庄家得分 ≥ 合同分 → 庄家胜；否则三家胜</li>
       <li>最后一墩赢家收底牌分 ×1（不翻倍）</li>

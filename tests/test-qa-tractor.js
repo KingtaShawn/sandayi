@@ -196,7 +196,7 @@ test('QA-甩7：主域甩牌——对单元被对手主拖拆头压（H33 对 vs
   assert.equal(r.errorCode, 'E102');
 });
 
-test('QA-甩8：R14=smallest——甩牌不成立返回该门最小等量替换牌', () => {
+test('QA-甩8：R14=smallest——只返回所选牌中被压住的最小单张', () => {
   const cfg = createConfig({ throwPenalty: 'smallest' });
   const hands = [
     [...cards('SK', 'SQ', 'S3', 'S4'), ...cards('H9')],
@@ -210,6 +210,6 @@ test('QA-甩8：R14=smallest——甩牌不成立返回该门最小等量替换�
   assert.equal(r.ok, false);
   assert.equal(r.errorCode, 'E102');
   assert.ok(r.meta.replacement);
-  assert.equal(r.meta.replacement.length, 2);
-  assert.deepEqual(r.meta.replacement.map((c) => c.rank).sort(), ['3', '4']);
+  assert.equal(r.meta.replacement.length, 1);
+  assert.deepEqual(r.meta.replacement.map((c) => c.rank), ['Q']);
 });

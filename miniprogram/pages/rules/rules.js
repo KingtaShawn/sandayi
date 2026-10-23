@@ -48,7 +48,9 @@ Page({
         bidder_always: '每局定主者坐庄'
       }[cfg.dealerPassRule] || cfg.dealerPassRule,
       noBidText: cfg.noBidFallback === 'flip_bottom' ? '翻开底牌第一张定主，庄家随机' : '重新发牌',
-      throwText: cfg.throwPenalty === 'reject' ? '不成立时界面直接禁止（须每个单元都最大）' : '不成立时罚出该门最小等量牌'
+      throwText: (cfg.gameMode === 'san_da_yi' && !cfg.sanDaYiAllowTractor ? '默认不含拖拉机，连对按多副对子逐对检查；' : '')
+        + (cfg.throwPenalty === 'reject' ? '不成立时直接禁止；同样大不算压住' : '失败只出本次甩牌中被压住的最小单元，其余收回')
+        + (cfg.throwPenalty === 'penalty_smallest' ? '，按原甩牌张数每张罚10分' : '')
     });
   }
 });

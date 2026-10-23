@@ -477,7 +477,8 @@ function isPair(cards_, trumpInfo) {
 }
 
 /**
- * 将同域牌集合拆解为最大单元组合（拖拉机优先合并）。
+ * 将同域牌集合拆解为最大单元组合。
+ * 三打一默认不合并拖拉机：连对作为多副对子逐对检查甩牌；其他模式优先合并。
  * @param {Array<object>} cards 同域牌
  * @param {object} trumpInfo
  * @param {object} cfg
@@ -501,6 +502,10 @@ function decomposeDomain(cards_, trumpInfo, cfg) {
       singles.push(makeUnit('single', [list.shift()], trumpInfo));
     }
   });
+  // 旧三打一存档未携带此配置时也按默认无拖拉机处理。
+  if (cfg && cfg.gameMode === 'san_da_yi' && cfg.sanDaYiAllowTractor !== true) {
+    return pairs.concat(singles).sort((a, b) => (b.size - a.size) || (b.strength - a.strength));
+  }
   // 对子按域内强度降序，贪心合并最长相邻链 → 拖拉机
   pairs.sort((x, y) => y.strength - x.strength);
   const used = new Array(pairs.length).fill(false);
@@ -738,6 +743,7 @@ const DEFAULT_CONFIG = {
   offSuitRankPairAsTractor: false,   // R22 不同花色副级牌对是否构成拖拉机
 
   // —— 三打一（R26，gameMode='san_da_yi' 时生效） ——
+  sanDaYiAllowTractor: false,        // 默认不打拖拉机：连对视为多副对子甩牌，逐对检查成立性
   sanDaYiBidStart: 90,               // 起叫分（用户规则：90 起）
   sanDaYiBidStep: 10,                // 叫分档位（90→100→110…→200，每档 +10）
   sanDaYiBidCap: 200,                // 叫分上限（=总分）
@@ -853,6 +859,9 @@ function validateConfig(cfg) {
   }
   // R26 三打一
   if (cfg.gameMode === 'san_da_yi') {
+    if (typeof cfg.sanDaYiAllowTractor !== 'boolean') {
+      errors.push('R26 sanDaYiAllowTractor 必须为布尔');
+    }
     const start = cfg.sanDaYiBidStart;
     const step = cfg.sanDaYiBidStep;
     if (!Number.isFinite(start) || start <= 0) errors.push('R26 sanDaYiBidStart 必须为正数');
@@ -1550,21 +1559,19 @@ __def("engine/throw", function (exports, __require, module) {
 /**
  * engine/throw.js —— 甩牌成立性校验（PRD §5.8 / R14）。
  *
- * 领出甩牌成立条件：所甩每个单元都比其他三家手中该门牌的最大单元大。
- * 判定采用"逐单元最大单元拆解比较"：
- *   对其余三家，将该门牌按 decomposeDomain 拆成最大单元组合，
- *   若任何一家的任一同型单元 ≥ 甩牌对应单元（按张数配对，同张数单元中最大者比较），
- *   则甩牌不成立。
+ * 领出甩牌成立条件：其他三家没有同门、同结构且严格更大的单元。
+ * 相同大小不能压住先出的牌；对子、拖拉机中的牌也必须参与拆分比较。
  *
  * R14：
  *   reject  → 返回 E102（UI/AI 直接禁止，不出现该组合）；
- *   smallest → 返回罚则替换牌（该门最小等量牌，meta.replacement）。
+ *   smallest → 只出本次甩牌中被压住的最小单元，其余牌收回。
+ *   penalty_smallest → 在 smallest 基础上按原甩牌张数罚分。
  */
 
 'use strict';
 
-const { decomposeDomain, domainOf, pointsOf } = __require('engine/combo');
-const { cardKey, sortHand, sortKey } = __require('engine/card');
+const { decomposeDomain, domainOf } = __require('engine/combo');
+const { SUIT_SYMBOLS } = __require('engine/card');
 const { result } = __require('engine/errors');
 
 /**
@@ -1583,34 +1590,19 @@ function maxUnitsOfHand(hand, domain, trumpInfo, cfg) {
 
 /**
  * 单元组比较：跟牌方最大单元是否能压过甩牌单元。
- * 同张数单元取跟牌方最大者比大小；跟牌方无同张数单元 → 视同张数的更小单元？
- * 约定（保守，符合线下习惯）：对子单元要求对方无更大对子（两张同名单张在 deckCount=2 下即对子，decompose 已合并）。
+ * 单张可被对子/拖拉机中的单牌压；对子可被拖拉机拆出的对子压。
+ * 必须检查全部单元，不能因已有较小的同型单元而漏掉较大的组合。
  * @param {object} throwUnit 甩牌单元
  * @param {Array<object>} defenseUnits 防客单元集合
  * @returns {boolean} true = 防守可压（甩牌不成立）
  */
 function unitCovered(throwUnit, defenseUnits) {
-  const sameSize = defenseUnits.filter((u) => u.size === throwUnit.size);
-  if (sameSize.length > 0) {
-    const biggest = sameSize.reduce((m, u) => (u.strength > m.strength ? u : m));
-    return biggest.strength >= throwUnit.strength;
-  }
-  // 防守无同张数单元：若防守有更大张数单元（如拖 vs 对），拖含的对子可能拆压——
-  // 保守认定：更大单元必然包含 ≥ 对子强度的牌，能压对子/单张单元。
-  const bigger = defenseUnits.filter((u) => u.size > throwUnit.size);
-  if (bigger.length > 0 && throwUnit.size >= 1) {
-    // 拖拉机拆解含相邻对，其中最大对 ≥ 其头对；对甩出的对子单元，取拖头对比较
-    if (throwUnit.type === 'pair') {
-      const headPairStrength = bigger.reduce((m, u) => Math.max(m, u.strength), -1);
-      return headPairStrength >= throwUnit.strength;
-    }
-    if (throwUnit.type === 'single') {
-      // 任何防守单元的头牌 ≥ 甩单张 → 可压
-      const maxHead = defenseUnits.reduce((m, u) => Math.max(m, u.strength), -1);
-      return maxHead >= throwUnit.strength;
-    }
-  }
-  return false;
+  return defenseUnits.some((u) => {
+    if (u.strength <= throwUnit.strength) return false;
+    if (throwUnit.type === 'single') return true;
+    if (throwUnit.type === 'pair') return u.type === 'pair' || u.type === 'tractor';
+    return u.type === 'tractor' && u.size >= throwUnit.size;
+  });
 }
 
 /**
@@ -1620,38 +1612,35 @@ function unitCovered(throwUnit, defenseUnits) {
  * @param {number} leaderIdx 领出者
  * @param {object} cfg
  * @returns {{ok: boolean, reason?: string, errorCode?: string, meta?: object}}
- *   meta: { failUnit, coverBy, replacement?(R14=smallest 时该门最小等量牌) }
+ *   meta: { failUnit, coverBy, replacement?, penaltyPoints? }
  */
 function validateThrow(state, combo, leaderIdx, cfg) {
   const domain = combo.suit; // 'TRUMP' 或花色
-  const opponents = state.players
-    .map((p, i) => i)
-    .filter((i) => i !== leaderIdx);
-  const unitsDesc = combo.units.slice().sort((a, b) => (b.size - a.size) || (b.strength - a.strength));
-  for (const u of unitsDesc) {
-    for (const oi of opponents) {
-      const defense = maxUnitsOfHand(state.players[oi].hand, domain, state.trumpInfo, cfg);
-      if (unitCovered(u, defense)) {
+  const opponents = state.players.map((p, i) => ({
+    idx: i,
+    units: i === leaderIdx ? [] : maxUnitsOfHand(p.hand, domain, state.trumpInfo, cfg)
+  })).filter((p) => p.idx !== leaderIdx);
+  // 先找被压住的最小单张，再找最小对子/拖拉机，保持原单元完整。
+  const unitsAsc = combo.units.slice().sort((a, b) => (a.size - b.size) || (a.strength - b.strength));
+  for (const u of unitsAsc) {
+    for (const opponent of opponents) {
+      if (unitCovered(u, opponent.units)) {
+        const oi = opponent.idx;
         const byName = `第${oi + 1}位玩家`;
         if (cfg.throwPenalty === 'smallest' || cfg.throwPenalty === 'penalty_smallest') {
-          const hand = state.players[leaderIdx].hand;
-          const domainCards = sortHand(
-            hand.filter((c) => domainOf(c, state.trumpInfo) === domain),
-            state.trumpInfo
-          );
-          if (domainCards.length < combo.n) {
-            return result(false, '甩牌不成立且该门牌不足以罚出等量牌', 'E102');
-          }
-          const replacement = domainCards.slice(0, combo.n);
+          const replacement = u.cards.slice();
+          const shownCards = replacement.map((c) => c.isJoker
+            ? (c.rank === 'BJ' ? '大王' : '小王')
+            : `${SUIT_SYMBOLS[c.suit]}${c.rank}`).join(' ');
           const isPenalty = cfg.throwPenalty === 'penalty_smallest';
-          return result(false, isPenalty
-            ? `甩牌不成立（${byName}可压）：罚 ${combo.n * 10} 分给对方，并改为出该门最小 ${combo.n} 张`
-            : `甩牌不成立（${byName}可压），改为出该门最小 ${combo.n} 张`, 'E102', {
+          const penaltyPoints = isPenalty ? combo.n * 10 : 0;
+          return result(false,
+            `甩牌失败：改出 ${shownCards}，其余收回${penaltyPoints ? `，罚 ${penaltyPoints} 分` : ''}`, 'E102', {
             failUnit: u,
             coverBy: oi,
             replacement,
             // penalty_smallest：罚 10 分/张（对方阵营），由状态机出牌时记入 penaltyPoints
-            penaltyPoints: isPenalty ? combo.n * 10 : 0
+            penaltyPoints
           });
         }
         return result(false, `甩牌不成立（${byName}有更大的牌可压）`, 'E102', { failUnit: u, coverBy: oi });
@@ -1957,14 +1946,12 @@ function allInHand(hand, cards_) {
  * @param {Array<object>} cards
  * @param {object} cfg
  */
-function validateLead(state, playerIdx, cards_, cfg, opts) {
+function validateLead(state, playerIdx, cards_, cfg) {
   const combo = parseCombo(cards_, state.trumpInfo, cfg);
   if (!combo) {
     return result(false, '出牌必须同域（一门副牌或全主牌）', 'E112');
   }
-  // skipThrowValidation：R14 罚则路径——罚出的该门最小牌不再做成立性二次校验
-  //（最小牌几乎必然可被压，二次校验会死锁罚则；同域/张数等基础校验仍全量执行）
-  if (combo.type === 'throw' && !(opts && opts.skipThrowValidation)) {
+  if (combo.type === 'throw') {
     const t = validateThrow(state, combo, playerIdx, cfg);
     if (!t.ok) return t;
   }
@@ -1978,7 +1965,7 @@ function validateLead(state, playerIdx, cards_, cfg, opts) {
  * @param {Array<object>} cards
  * @returns {{ok: boolean, reason?: string, errorCode?: string, meta?: object}}
  */
-function validatePlay(state, playerIdx, cards_, opts) {
+function validatePlay(state, playerIdx, cards_) {
   const cfg = state.config;
   if (!cards_ || cards_.length === 0) {
     return result(false, '请选择要出的牌', 'E101');
@@ -1989,7 +1976,7 @@ function validatePlay(state, playerIdx, cards_, opts) {
   }
   const isLead = !state.currentTrick || state.currentTrick.plays.length === 0;
   if (isLead) {
-    return validateLead(state, playerIdx, cards_, cfg, opts);
+    return validateLead(state, playerIdx, cards_, cfg);
   }
   const lead = state.currentTrick.leadCombo;
   if (cards_.length !== lead.n) {
@@ -3385,28 +3372,9 @@ function doBury(s, action) {
   return s;
 }
 
-/**
- * 甩牌罚则预检（R14 非 reject 模式）：领出甩牌不成立时返回替换牌与罚分。
- * @returns {{replace: boolean, replacement?: Array, penaltyPoints: number}}
- */
-function preCheckThrowPenalty(s, idx, cards_) {
-  const isLead = !s.currentTrick || s.currentTrick.plays.length === 0;
-  if (!isLead) return { replace: false, penaltyPoints: 0 };
-  const combo = parseCombo(cards_, s.trumpInfo, s.config);
-  if (!combo || combo.type !== 'throw') return { replace: false, penaltyPoints: 0 };
-  const { validateThrow } = __require('engine/throw');
-  const t = validateThrow(s, combo, idx, s.config);
-  if (t.ok) return { replace: false, penaltyPoints: 0 };
-  if (t.meta && t.meta.replacement) {
-    return { replace: true, replacement: t.meta.replacement, penaltyPoints: t.meta.penaltyPoints || 0 };
-  }
-  // 无替换（该门牌不足）→ 原样抛错
-  return { replace: false, penaltyPoints: 0 };
-}
-
 /** 三打一罚分记账：出牌者被罚 → 分加给对方阵营 */
 function addPenaltyPoints(s, payerIdx, points) {
-  if (!s.penaltyPoints) s.penaltyPoints = { dealer: 0, attackers: 0 };
+  s.penaltyPoints = Object.assign({ dealer: 0, attackers: 0 }, s.penaltyPoints);
   const teams = s.sanDaYiTeams;
   if (teams) {
     // 三打一：payer 是庄家 → 罚分给攻方；否则给庄家
@@ -3443,21 +3411,19 @@ function doPlay(s, action) {
   }
   const cfg = s.config;
   let cards_ = action.cards;
-  // R14=smallest/penalty_smallest：甩牌不成立 → 引擎强制替换为该门最小等量牌（+罚分记账）
-  if (cfg.throwPenalty !== 'reject') {
-    const pre = preCheckThrowPenalty(s, idx, cards_);
-    if (pre.replace) {
-      if (pre.penaltyPoints > 0) {
-        addPenaltyPoints(s, idx, pre.penaltyPoints);
-      }
-      cards_ = pre.replacement;
-    }
+  // 先校验原选牌，只有成立性失败才允许替换；不在手中/跨域等错误不能被罚则掩盖。
+  let v = validatePlay(s, idx, cards_);
+  let penaltyPoints = 0;
+  if (!v.ok && v.errorCode === 'E102' && cfg.throwPenalty !== 'reject' && v.meta && v.meta.replacement) {
+    cards_ = v.meta.replacement;
+    penaltyPoints = v.meta.penaltyPoints || 0;
+    // 替换牌是原甩牌中的一个完整单元，正常校验即可，不再绕过甩牌检查。
+    v = validatePlay(s, idx, cards_);
   }
-  // 罚则替换牌不做甩牌成立性二次校验（最小牌必然可被压，二次校验会死锁罚则）
-  const v = validatePlay(s, idx, cards_, { skipThrowValidation: true });
   if (!v.ok) {
     throw new RuleError(v.errorCode || 'E101', v.reason);
   }
+  if (penaltyPoints > 0) addPenaltyPoints(s, idx, penaltyPoints);
   // 从手牌移除
   const ids = new Set(cards_.map((c) => c.id));
   s.players[idx].hand = s.players[idx].hand.filter((c) => !ids.has(c.id));
@@ -4328,7 +4294,7 @@ class GameService {
   play(playerIdx, cards_) {
     const v = validatePlay(this.state, playerIdx, cards_);
     // R14 罚则模式（smallest/penalty_smallest）：甩牌不成立（E102）不拦截——
-    // 引擎 doPlay 将强制替换为该门最小等量牌（+罚分记账），符合线下"甩错自然罚分"规则；
+    // 引擎 doPlay 将只出本次甩牌中被压住的最小单元（+罚分记账）；
     // 其余错误（跨域 E112/张数不符 E106/不在手牌 E105 等）仍直接拒绝
     if (!v.ok && v.errorCode !== 'E102') return v;
     if (!v.ok && v.errorCode === 'E102' && this.state.config.throwPenalty === 'reject') return v;
@@ -4342,7 +4308,10 @@ class GameService {
           const chosenIds = cards_.map((c) => c.id).sort().join(',');
           const playedIds = last.cards.map((c) => c.id).sort().join(',');
           if (chosenIds !== playedIds) {
-            return { ok: true, replaced: true, playedCards: last.cards };
+            return {
+              ok: true, replaced: true, playedCards: last.cards,
+              penaltyPoints: v.meta.penaltyPoints || 0, reason: v.reason
+            };
           }
         }
       }
@@ -4907,6 +4876,9 @@ module.exports = {
 
   /* ══════════ 三打一参数（gameMode='san_da_yi' 时生效） ══════════ */
 
+  // 默认不打拖拉机：连对也按多副对子甩牌；必须每个对子都不被更大的同门对子压住
+  sanDaYiAllowTractor: false,
+
   // 起叫分（90 起）
   sanDaYiBidStart: 90,
 
@@ -4990,8 +4962,8 @@ module.exports = {
 
   /* ══════════ 甩牌 ══════════ */
 
-  // R14 甩牌不成立时：reject=禁止出 | smallest=强制换成最小牌 | penalty_smallest=罚10分/张给对方+强制出最小
-  // 2026-10-22 用户确认：甩牌不成立不弹禁止提示，按线下规则自然罚分（10分/张+强制出该门最小）；
+  // R14 甩牌不成立时：reject=禁止出 | smallest=只出被压住的最小单元 | penalty_smallest=再罚10分/原甩牌张
+  // 失败只出本次甩牌中被压住的最小单张/对子，其余收回；不会抽取未选手牌或拆散对子。
   // 混花色（跨域）不属于甩牌范畴，仍走 E112「出牌必须同域」直接禁止
   throwPenalty: 'penalty_smallest',
 

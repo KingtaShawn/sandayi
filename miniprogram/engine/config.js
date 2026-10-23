@@ -75,6 +75,7 @@ const DEFAULT_CONFIG = {
   offSuitRankPairAsTractor: false,   // R22 不同花色副级牌对是否构成拖拉机
 
   // —— 三打一（R26，gameMode='san_da_yi' 时生效） ——
+  sanDaYiAllowTractor: false,        // 默认不打拖拉机：连对视为多副对子甩牌，逐对检查成立性
   sanDaYiBidStart: 90,               // 起叫分（用户规则：90 起）
   sanDaYiBidStep: 10,                // 叫分档位（90→100→110…→200，每档 +10）
   sanDaYiBidCap: 200,                // 叫分上限（=总分）
@@ -190,6 +191,9 @@ function validateConfig(cfg) {
   }
   // R26 三打一
   if (cfg.gameMode === 'san_da_yi') {
+    if (typeof cfg.sanDaYiAllowTractor !== 'boolean') {
+      errors.push('R26 sanDaYiAllowTractor 必须为布尔');
+    }
     const start = cfg.sanDaYiBidStart;
     const step = cfg.sanDaYiBidStep;
     if (!Number.isFinite(start) || start <= 0) errors.push('R26 sanDaYiBidStart 必须为正数');

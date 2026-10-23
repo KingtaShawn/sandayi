@@ -420,28 +420,9 @@ function doBury(s, action) {
   return s;
 }
 
-/**
- * 甩牌罚则预检（R14 非 reject 模式）：领出甩牌不成立时返回替换牌与罚分。
- * @returns {{replace: boolean, replacement?: Array, penaltyPoints: number}}
- */
-function preCheckThrowPenalty(s, idx, cards_) {
-  const isLead = !s.currentTrick || s.currentTrick.plays.length === 0;
-  if (!isLead) return { replace: false, penaltyPoints: 0 };
-  const combo = parseCombo(cards_, s.trumpInfo, s.config);
-  if (!combo || combo.type !== 'throw') return { replace: false, penaltyPoints: 0 };
-  const { validateThrow } = require('../engine/throw');
-  const t = validateThrow(s, combo, idx, s.config);
-  if (t.ok) return { replace: false, penaltyPoints: 0 };
-  if (t.meta && t.meta.replacement) {
-    return { replace: true, replacement: t.meta.replacement, penaltyPoints: t.meta.penaltyPoints || 0 };
-  }
-  // 无替换（该门牌不足）→ 原样抛错
-  return { replace: false, penaltyPoints: 0 };
-}
-
 /** 三打一罚分记账：出牌者被罚 → 分加给对方阵营 */
 function addPenaltyPoints(s, payerIdx, points) {
-  if (!s.penaltyPoints) s.penaltyPoints = { dealer: 0, attackers: 0 };
+  s.penaltyPoints = Object.assign({ dealer: 0, attackers: 0 }, s.penaltyPoints);
   const teams = s.sanDaYiTeams;
   if (teams) {
     // 三打一：payer 是庄家 → 罚分给攻方；否则给庄家
@@ -478,21 +459,19 @@ function doPlay(s, action) {
   }
   const cfg = s.config;
   let cards_ = action.cards;
-  // R14=smallest/penalty_smallest：甩牌不成立 → 引擎强制替换为该门最小等量牌（+罚分记账）
-  if (cfg.throwPenalty !== 'reject') {
-    const pre = preCheckThrowPenalty(s, idx, cards_);
-    if (pre.replace) {
-      if (pre.penaltyPoints > 0) {
-        addPenaltyPoints(s, idx, pre.penaltyPoints);
-      }
-      cards_ = pre.replacement;
-    }
+  // 先校验原选牌，只有成立性失败才允许替换；不在手中/跨域等错误不能被罚则掩盖。
+  let v = validatePlay(s, idx, cards_);
+  let penaltyPoints = 0;
+  if (!v.ok && v.errorCode === 'E102' && cfg.throwPenalty !== 'reject' && v.meta && v.meta.replacement) {
+    cards_ = v.meta.replacement;
+    penaltyPoints = v.meta.penaltyPoints || 0;
+    // 替换牌是原甩牌中的一个完整单元，正常校验即可，不再绕过甩牌检查。
+    v = validatePlay(s, idx, cards_);
   }
-  // 罚则替换牌不做甩牌成立性二次校验（最小牌必然可被压，二次校验会死锁罚则）
-  const v = validatePlay(s, idx, cards_, { skipThrowValidation: true });
   if (!v.ok) {
     throw new RuleError(v.errorCode || 'E101', v.reason);
   }
+  if (penaltyPoints > 0) addPenaltyPoints(s, idx, penaltyPoints);
   // 从手牌移除
   const ids = new Set(cards_.map((c) => c.id));
   s.players[idx].hand = s.players[idx].hand.filter((c) => !ids.has(c.id));

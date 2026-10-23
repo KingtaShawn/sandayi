@@ -67,7 +67,7 @@ test('领出甩牌：有人可压 → reject 模式 E102', () => {
   assert.equal(r.errorCode, 'E102');
 });
 
-test('R14=smallest：甩牌不成立给出最小等量替换牌', () => {
+test('R14=smallest：甩牌不成立只出所选牌中被压住的最小单张', () => {
   const cfg = createConfig({ throwPenalty: 'smallest' });
   const hands = [
     cards('SA', 'SK', 'S3', 'S4'),
@@ -80,8 +80,8 @@ test('R14=smallest：甩牌不成立给出最小等量替换牌', () => {
   const r = validatePlay(st, 0, cards('SA', 'SK'));
   assert.equal(r.ok, false);
   assert.ok(r.meta.replacement);
-  assert.equal(r.meta.replacement.length, 2);
-  assert.equal(r.meta.replacement.map((c) => c.rank).join(','), '3,4'); // 该门最小 2 张
+  assert.equal(r.meta.replacement.length, 1);
+  assert.equal(r.meta.replacement.map((c) => c.rank).join(','), 'K'); // A 同大不能压 A，但能压 K
 });
 
 test('跟单张：缺门时垫非主牌为 discard', () => {
@@ -270,7 +270,7 @@ test('validateBury：张数/庄家/在手校验', () => {
 test('主牌域领出甩牌成立性：主单甩被更大主压 → E102', () => {
   const hands = [
     cards('BJ', 'H2'), // 领出者：大王+主级牌甩
-    cards('BJ', 'RJ'), // 对手有大王 → BJ 单元被压
+    cards('BJ', 'RJ'), // 对手大王不能压同大的大王，但能压主级牌 H2
     cards('H5', 'H4'),
     cards('H3', 'C9')
   ];
@@ -283,12 +283,12 @@ test('主牌域领出甩牌成立性：主单甩被更大主压 → E102', () =>
 test('主牌甩牌成立：各单元最大', () => {
   const hands = [
     cards('BJ', 'RJ'), // 对王甩（两单元）
-    cards('H2', 'RJ'), // 对手 RJ
+    [C('H', '2'), C('JOKER', 'RJ', 1)], // 对手有另一张同大的小王
     cards('H5', 'H4'),
     cards('H3', 'C9')
   ];
   const st = makeState({ hands });
-  // BJ+RJ 是两个单单元；对手1 有 RJ ≥ RJ → 不成立
+  // BJ+RJ 是两个单张单元；对手另一张 RJ 同大，不能压先出的小王。
   const r = validatePlay(st, 0, cards('BJ', 'RJ'));
-  assert.equal(r.ok, false);
+  assert.equal(r.ok, true);
 });
