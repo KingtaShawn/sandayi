@@ -25,7 +25,7 @@ function collect() {
     const dir = path.join(ROOT, d);
     if (!fs.existsSync(dir)) continue;
     for (const f of fs.readdirSync(dir)) {
-      if (f.endsWith('.js')) mods.set(`${d}/${f.slice(0, -3)}`, fs.readFileSync(path.join(dir, f), 'utf8'));
+      if (f.endsWith('.js') && !f.startsWith('.')) mods.set(`${d}/${f.slice(0, -3)}`, fs.readFileSync(path.join(dir, f), 'utf8'));
     }
   }
   for (const f of ROOT_FILES) {

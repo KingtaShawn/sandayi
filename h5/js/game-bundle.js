@@ -742,7 +742,7 @@ const DEFAULT_CONFIG = {
   sanDaYiAllowTractor: false,        // 默认不打拖拉机：连对视为多副对子甩牌，逐对检查成立性
   sanDaYiBidStart: 90,               // 起叫分（用户规则：90 起）
   sanDaYiBidStep: 10,                // 叫分最小步长（加价可跳档，如 90→130）
-  sanDaYiBidCap: 200,                // 叫分上限（=总分）
+  sanDaYiBidCap: 160,                // 叫分上限（报满即成交坐庄）
   sanDaYiNoBidAction: 'redeal',      // 全员不叫（重发，首报者轮到原首报者下家；force_lowest=首位强制打最低分）
   sanDaYiPeekBottomMaxBid: -1,       // 成交分 ≤ 此值时闲家可看底牌（-1=不公开；本玩法不适用看底规则）
 
@@ -3658,7 +3658,8 @@ __def("ai/strategy-greedy", function (exports, __require, module) {
  *   - 埋底：主强（≥1/3 手牌为主或有大拖）→ 分牌埋底藏分；主弱 → 埋短门废牌；
  *   - 出牌（贪心打分）：
  *     · 领出：庄家/主多 → 大拖/大对清主；有绝对大主 → 出主收墩；
- *       攻方末墩意识（剩 1 墩且能赢 → 最大牌抠底）；
+ *       攻方末墩意识（剩 1 墩且能赢 → 最大牌抠底）+ 末墩储备
+ *       （剩 ≤5 墩不把无敌大主花在小分墩上，留力抠底）；
  *     · 跟牌：末家必赢 → 甩分牌收分；能小赢 → 最小能赢牌；赢不了 → 垫最小/喂分给稳赢队友；
  *     · 缺门：墩内分 ≥ threshold → 主牌将吃（结构对应优先），否则垫分/垫小。
  */
@@ -3672,6 +3673,9 @@ const { buildMemory } = __require('ai/memory');
 
 /** 将吃意愿门槛（墩内已有分） */
 const TRUMP_IN_THRESHOLD = 10;
+
+/** 末墩储备：攻方看不见底牌，按庄家「全埋副牌分」实测平均埋底 ~36 分估 */
+const BOTTOM_POINTS_EXP = 35;
 
 class GreedyStrategy {
   /**
@@ -3744,9 +3748,11 @@ class GreedyStrategy {
   /* ------------------------- 三打一：报分 ------------------------- */
 
   /**
-   * 三打一报分决策（可反复加价）。
-   * 估算手牌强度（大王/2/对王/长门 → 预期能拿的分），报出可选项中 ≤ 预期分的最高价；
-   * 预期分不足起报分 → 不报（返回 null，由调用方 PASS）。
+   * 三打一报分决策（可反复加价）——英式拍卖：从低往高小步抬价。
+   * 首报一律最低档（90，强牌不跳档，防一上来就报高分）；加价每次只抬
+   * 最小步长（options[0] = 当前最高 + step），且实打实（估算 ≥ 叫分 + 2）；
+   * 估算不足门槛 → 不报（返回 null，由调用方 PASS）。
+   * 合同价由多家竞价自然抬出（≈ 次强估价 + 步长），而非直接拍出自己的估价。
    * @param {object} state
    * @param {number} playerIdx
    * @param {Array<number>} options 可报分值（升序）
@@ -3758,16 +3764,14 @@ class GreedyStrategy {
     const estimate = this.estimateSanDaYiPoints(state, playerIdx);
     // 估价已标定 ≈ 当庄期望得分（含全埋副牌分埋底）：
     //   首报 90 放宽 15 分门槛（估算≥75）——单家约 43% 开叫、全 AI 桌
-    //   90% 直接成交（防弃叫重发拖节奏），达标率约 44%；
+    //   90% 有人开叫（防弃叫重发拖节奏）；
     //   加价必须实打实（估算≥叫分+2），只有真强牌才抬价
     const opened = (state.bids || []).some((b) => b.type === 'score_bid');
     const floorNeed = options[0] - 15;
-    let best = null;
-    for (const v of options) {
-      if (estimate >= (!opened && v === options[0] ? floorNeed : v + 2)) best = v;
-    }
+    const ok = estimate >= (!opened ? floorNeed : options[0] + 2);
+    if (!ok) return null;
     if (rng && this.difficulty === 'easy' && rng.next() < 0.2) return null;
-    return best;
+    return options[0];
   }
 
   /**
@@ -3990,6 +3994,12 @@ class GreedyStrategy {
       score += 50 + this._maxStrength(cards_, ti) / 100;
     }
 
+    // 三打一攻方领出：末墩储备——剩墩 ≤5 时别把「剩余牌无敌」的大主领出去送墩，
+    // 留着末墩将吃抠底（升级模式无记牌上下文，维持基线）
+    if (ctx && !ctx.sdy.isDealer) {
+      score -= this._lastTrickReserve(state, playerIdx, cards_, ctx, 0);
+    }
+
     if (combo.isTrump) {
       // 主牌领出
       if (trumps.length > hand.length / 2) {
@@ -3997,6 +4007,7 @@ class GreedyStrategy {
       }
       if (combo.type === 'tractor') score += 12;
       if (combo.type === 'pair') score += 6;
+      if (combo.type === 'pair' && cards_[0].rank === 'BJ') score += 12; // 对大王整对必赢：别拆成两单送墩
       if (combo.type === 'single' && cards_[0].rank === 'BJ') score += 8; // 大王控场
     } else {
       // 副牌领出
@@ -4147,6 +4158,28 @@ class GreedyStrategy {
   }
 
   /**
+   * 末墩储备惩罚（三打一攻方）：底分归末墩赢家 ×1，庄家埋底几乎必埋分，
+   * 攻方要为末墩留住「剩余未见牌中无敌」的大主。剩墩 ≤5 且候选动了这张资本：
+   * 罚 = (期望底分 - 墩内可得) × 接近度（剩 2 墩 4/5、剩 3 墩 3/5、剩 5 墩 1/5）；
+   * 末墩本身不罚（该用就用），墩分 ≥ 期望底分不罚（稳赚不亏）。
+   * 实测（400 局同种子 A/B，攻方新 AI vs 庄家 baseline）：
+   *   攻抠底率 36.0% → 38.0%，庄守底率 64.0% → 62.0%，
+   *   庄胜率 51.2% → 50.0%（攻方变强的合理代价）。
+   */
+  _lastTrickReserve(state, playerIdx, cards_, ctx, trickValue) {
+    if (!ctx) return 0;
+    const ti = state.trumpInfo;
+    const hand = state.players[playerIdx].hand;
+    const tricksLeft = hand.length / cards_.length;
+    if (tricksLeft > 5 || tricksLeft <= 1) return 0;
+    const { di } = ctx;
+    const hitsReserve = cards_.some((c) => domainOf(c, ti) === 'TRUMP'
+      && this._unseenHigher(di, 'TRUMP', strengthInDomain(c, ti)) <= 1);
+    if (!hitsReserve) return 0;
+    return Math.max(0, BOTTOM_POINTS_EXP - trickValue) * (6 - tricksLeft) / 5;
+  }
+
+  /**
    * 三打一庄家领出打分（v3，基准实测校准）：
    * 基线骨架不动（领出手里大单/大对逼对手消耗拦牌——实测有效，保留其
    * 「手牌内最大」判定），在其上叠加真·稳赢（记牌器未见更大牌）加成、
@@ -4178,6 +4211,7 @@ class GreedyStrategy {
       else if (trumps.length > hand.length / 3) score += 8;
       if (combo.type === 'tractor') score += 12;
       if (combo.type === 'pair') score += 6;
+      if (combo.type === 'pair' && cards_[0].rank === 'BJ') score += 12; // 对大王整对必赢：别拆成两单送墩
       if (combo.type === 'single' && cards_[0].rank === 'BJ') score += 8; // 大王控场
       score += strength / 200; // 同型先出大主
     } else {
@@ -4205,8 +4239,9 @@ class GreedyStrategy {
 
   /**
    * 三打一跟牌打分（v2，基准实测校准）：
-   * 攻方 = 贪心基线原逻辑（自对弈实测优于全面位置感知版）+ 一处升级：
+   * 攻方 = 贪心基线原逻辑（自对弈实测优于全面位置感知版）+ 两处升级：
    *   庄家已出且队友领先 → 喂分系数 1.5 → 3（此时喂分 100% 安全）；
+   *   末墩储备——剩 ≤5 墩不把「剩余牌无敌」大主花在小分墩（_lastTrickReserve）；
    * 庄家 = 合同意识版：有分墩出强牌锁墩（身后攻方专压小赢牌），
    *   稳赢组合再加成；白墩仍最小赢；输墩绝不送分。
    */
@@ -4255,6 +4290,8 @@ class GreedyStrategy {
           if (teamWinning && trickPts >= TRUMP_IN_THRESHOLD) score += 8;
         }
         score += trickPts / 2 + pts; // 攻方收分意识
+        // 末墩储备：剩墩 ≤5 时，花无敌大主只赢回小分 → 罚，留着抠底
+        score -= this._lastTrickReserve(state, playerIdx, cards_, ctx, trickPts + pts);
         // 主牌经济：赢墩要花主牌时按墩内分值「付费」——
         // 无分墩不烧主（主牌留着后手将吃大分墩），小分墩少烧
         if (allTrump && !lead.isTrump) {
@@ -5128,11 +5165,11 @@ module.exports = {
   // 起叫分（90 起）
   sanDaYiBidStart: 90,
 
-  // 叫分最小步长（90→100→110…→200；加价可跳档，如 90→130）
+  // 叫分最小步长（90→100→110…→160；加价可跳档，如 90→130）
   sanDaYiBidStep: 10,
 
-  // 叫分上限（=总分 200，报满即成交坐庄）
-  sanDaYiBidCap: 200,
+  // 叫分上限（160，报满即成交坐庄）
+  sanDaYiBidCap: 160,
 
   // 全员不叫时：redeal=重新发牌（首报者轮到原首报者下家） | force_lowest=首位强制打最低分
   sanDaYiNoBidAction: 'redeal',
