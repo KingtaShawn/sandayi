@@ -61,8 +61,8 @@ Component({
       const red = isJoker ? card.rank === 'BJ' : card.suit === 'H' || card.suit === 'D';
       const levelRank = this.properties.levelRank;
       this.setData({
-        // 王：大王=实心星★（红），小王=空心星☆（黑）——与普通牌同构的边角显示（星占牌面位、王占花色位）
-        displayRank: isJoker ? (card.rank === 'BJ' ? '★' : '☆') : card.rank,
+        // 王：大王=正（红），小王=副（黑）——与普通牌同构的边角显示（正/副占牌面位、王占花色位）
+        displayRank: isJoker ? (card.rank === 'BJ' ? '正' : '副') : card.rank,
         suitSymbol: isJoker ? '王' : (SUIT_SYMBOLS[card.suit] || ''),
         red,
         isTrump: !!card.isTrump,

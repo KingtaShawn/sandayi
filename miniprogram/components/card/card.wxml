@@ -1,11 +1,11 @@
-<!-- components/card/card.wxml —— 单张牌（花色/字面/级牌高亮/主牌高亮/选中态/置灰/王=边角实心★/空心☆/分牌角标） -->
+<!-- components/card/card.wxml —— 单张牌（花色/字面/级牌高亮/主牌高亮/选中态/置灰/王=边角正/副/分牌角标） -->
 <view
   class="card {{red ? 'card--red' : 'card--black'}} {{isJoker ? 'card--joker' : ''}} {{isJoker && isBigJoker ? 'card--joker-big' : ''}} {{isTrump ? 'card--trump' : ''}} {{isLevel ? 'card--level' : ''}} {{selected ? 'card--selected' : ''}} {{disabled ? 'card--disabled' : ''}} {{shaking ? 'anim-shake' : ''}} {{glowing ? 'anim-glow' : ''}} {{playIn ? 'anim-play-in' : ''}} {{dense ? 'card--dense' : ''}}"
   style="{{styleText}}; {{playInDelay ? 'animation-delay:' + playInDelay + 'ms' : ''}}"
   bind:tap="onTap"
 >
   <view class="card__corner">
-    <text class="card__rank {{isJoker ? 'card__rank--star' : ''}}">{{displayRank}}</text>
+    <text class="card__rank {{isJoker ? 'card__rank--joker' : ''}}">{{displayRank}}</text>
     <text class="card__suit">{{suitSymbol}}</text>
   </view>
 </view>
