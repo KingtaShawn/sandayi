@@ -232,7 +232,7 @@
         });
         d.dataset.cardId = c.id;
         d.addEventListener('click', () => onCardTap(c));
-        // 桌面端右键直接出牌（e.button===2 过滤，避免吃掉手机长按的系统菜单）
+        // 桌面端右键选牌/出牌（e.button===2 过滤，避免吃掉手机长按的系统菜单）
         d.addEventListener('contextmenu', (e) => onCardContext(e, c));
         row.appendChild(d);
       });
@@ -445,7 +445,7 @@
     hl.textContent = (G._grabAnimating && G.grabBottom.active)
       ? (st.players[st.dealerIdx].isHuman ? '底牌飞入你的手牌…' : `${st.players[st.dealerIdx].name}拿底牌中…`)
       : (st.phase === 'PLAYING'
-        ? (st.turnIdx === 0 ? '轮到你出牌（点牌智能成组，双击/右键出牌）' : '等待其他玩家…')
+        ? (st.turnIdx === 0 ? '轮到你出牌（点牌智能成组；双击直接出，右键已选牌出）' : '等待其他玩家…')
         : (st.phase === 'BIDDING'
           ? (isSDY
             ? (st.turnIdx === 0 && !(st.passedBidders || []).includes(0)
@@ -798,7 +798,8 @@
     return ids;
   }
 
-  // 右键出牌：与双击同语义——右键的牌未选中则先智能选入，随后立即出牌
+  // 右键：先选牌再出牌——右键未选中的牌仅智能选入（成组），不出；
+  // 右键已选中的牌才出当前选中组合（双击仍是直接出牌）
   function onCardContext(e, card) {
     if (e.button !== 2) return;               // 只认鼠标右键
     const st = G.service.getState();
@@ -807,6 +808,11 @@
     if (!G.selectedIds.includes(card.id)) {
       G.selectedIds = smartToggle(st, card, false);
       renderHand(st, []);
+      renderActionBar(st, {
+        needPlayCount: (st.currentTrick && st.currentTrick.leadCombo) ? st.currentTrick.leadCombo.n : G.selectedIds.length,
+        isHumanTurnBid: false, isHumanDealer: false, needBuryCount: st.config.bottomCards
+      });
+      return;
     }
     onPlay();
   }
