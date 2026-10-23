@@ -109,44 +109,58 @@ class GreedyStrategy {
   decideScoreBid(state, playerIdx, options, rng) {
     if (!options || options.length === 0) return null;
     const estimate = this.estimateSanDaYiPoints(state, playerIdx);
-    // 90 起叫（庄家需拿 45% 分）：估算高出卖价 10 分以内也敢叫
-    // （估算本身偏保守：1v3 下庄家实际能拿的分通常高于模型估算）
+    // 估价已标定 ≈ 当庄期望得分（含全埋副牌分埋底）：
+    //   首报 90 放宽 15 分门槛（估算≥75）——单家约 43% 开叫、全 AI 桌
+    //   90% 直接成交（防弃叫重发拖节奏），达标率约 44%；
+    //   加价必须实打实（估算≥叫分+2），只有真强牌才抬价
+    const opened = (state.bids || []).some((b) => b.type === 'score_bid');
+    const floorNeed = options[0] - 15;
     let best = null;
     for (const v of options) {
-      if (estimate >= v - 10) best = v;
+      if (estimate >= (!opened && v === options[0] ? floorNeed : v + 2)) best = v;
     }
     if (rng && this.difficulty === 'easy' && rng.next() < 0.2) return null;
     return best;
   }
 
   /**
-   * 三打一手牌强度估算（0~200，直接标定=1v3 可期望拿到的分）：
-   * 核心洞察：1v3 下副牌大牌会被三家主牌围杀，庄家牌力≈主牌控制力。
-   * 标定：主牌数 × 控制分 + 长门补偿，输出即预期得分。
+   * 三打一竞价手牌估价（0~200，标定≈新 AI 自对弈当庄期望得分）。
+   * 数据：1000 局随机手牌强制当庄（报 90，含「全埋副牌分」埋底策略）回归拟合，
+   * r≈0.49、分位严格单调；旧模型（主牌数×6+长门档位）r 仅 0.15 且低估 14 分。
    */
   estimateSanDaYiPoints(state, playerIdx) {
     const hand = state.players[playerIdx].hand;
-    // 三打一主牌 = 王 + 2（竞价阶段 trumpInfo 未建，手动识别）
-    let bj = 0, rj = 0, twos = 0;
-    const bySuit = new Map();
+    // 竞价阶段 trumpInfo 未建：固定主牌 = 王 + 2，最长门 ≈ 未来主花色
+    let bj = 0, rj = 0;
+    const twoBySuit = new Map();
+    const bySuit = { S: [], H: [], C: [], D: [] };
     hand.forEach((c) => {
       if (c.isJoker) { if (c.rank === 'BJ') bj++; else rj++; return; }
-      if (c.rank === '2') { twos++; return; }
-      bySuit.set(c.suit, (bySuit.get(c.suit) || 0) + 1);
+      if (c.rank === '2') { twoBySuit.set(c.suit, (twoBySuit.get(c.suit) || 0) + 1); return; }
+      bySuit[c.suit].push(c.rank);
     });
-    const trumps = bj + rj + twos;
-    // 主牌控制力：每张主 ≈ 6 分基础；王更强
-    let pts = trumps * 6 + bj * 5 + rj * 3;
-    // 主牌对子（两张同 2 / 对王）额外控制
-    pts += Math.max(0, twos - 1) * 2 + (bj >= 1 && rj >= 1 ? 6 : 0);
-    // 长门（≥6 张副门）可立套收墩
-    bySuit.forEach((n) => {
-      if (n >= 7) pts += 16;
-      else if (n >= 6) pts += 9;
-      else if (n >= 5) pts += 4;
+    let trumps = bj + rj;
+    twoBySuit.forEach((n) => { trumps += n; });
+    // 最长门（并列取 AKQ 多者，贴近选主逻辑）：长度/AKQ/对子都是主门控制力
+    let L1 = null;
+    Object.keys(bySuit).forEach((su) => {
+      const rs = bySuit[su];
+      const akq = rs.filter((r) => r === 'A' || r === 'K' || r === 'Q').length;
+      if (!L1 || rs.length > L1.len || (rs.length === L1.len && akq > L1.akq)) {
+        L1 = { suit: su, len: rs.length, akq, pairs: rs.length - new Set(rs).size };
+      }
     });
-    // 25 张基准修正（手牌 25 张，主牌均值 3 张；低于均值惩罚）
-    if (trumps <= 2) pts -= 10;
+    const lens = Object.keys(bySuit).map((su) => bySuit[su].length).sort((a, b) => b - a);
+    const L2 = lens[1] || 0;
+    let offA = 0;
+    Object.keys(bySuit).forEach((su) => {
+      if (su === L1.suit) return;
+      offA += bySuit[su].filter((r) => r === 'A').length;
+    });
+    const jokerPair = (bj >= 2 ? 1 : 0) + (rj >= 2 ? 1 : 0);
+    const pts = -60 + trumps * 13.5 + jokerPair * 11
+      + L1.len * 7.5 + L1.akq * 3.8 + L1.pairs * 3.7
+      + L2 * 3.3 + offA * 3;
     return Math.max(0, Math.min(200, Math.round(pts)));
   }
 
