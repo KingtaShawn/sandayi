@@ -159,10 +159,10 @@ function tractorWindowsOf(domainCards_, trumpInfo, cfg) {
   return windows;
 }
 
-/** 域内强度（复用 combo.strengthInDomain 语义） */
+/** 域内强度（复用 combo.strengthInDomain 语义）：升序排序 → 小牌在前 */
 function strengthSortKey(card, trumpInfo) {
   const { strengthInDomain } = require('./combo');
-  return -strengthInDomain(card, trumpInfo); // 升序排序 → 强度降序
+  return strengthInDomain(card, trumpInfo);
 }
 
 /**
@@ -224,8 +224,12 @@ function followCandidates(state, playerIdx) {
     if (avail.length < n) {
       const rest = hand.filter((c) => domainOf(c, ti) !== domain)
         .sort((a, b) => strengthSortKey(a, ti) - strengthSortKey(b, ti));
-      const fill = rest.slice(0, n - avail.length);
-      push(avail.concat(fill));
+      const k = n - avail.length;
+      push(avail.concat(rest.slice(0, k))); // 最小垫牌
+      // 分牌垫：队友稳赢时喂分（是否值得由 scorer 权衡）
+      push(avail.concat(rest.slice().sort(
+        (a, b) => pointsOf([b], cfg) - pointsOf([a], cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)
+      ).slice(0, k)));
       return out;
     }
     if (n === 1) {
@@ -256,7 +260,7 @@ function followCandidates(state, playerIdx) {
       tractorWindowsOf(avail, ti, cfg).forEach((t) => push(t));
       // 对子 + 最小单补齐（j 对 + 2(k-j) 单）
       const pairs = pairsOf(avail, ti)
-        .sort((a, b) => strengthSortKey(b[0], ti) - strengthSortKey(a[0], ti));
+        .sort((a, b) => strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti));
       const singles = avail.slice().sort((a, b) => strengthSortKey(a, ti) - strengthSortKey(b, ti));
       const usedKeys = new Set();
       for (let j = k; j >= 0; j--) {
@@ -281,7 +285,7 @@ function followCandidates(state, playerIdx) {
     // 甩牌领出：结构自由 → 最小 n 张、保对去单组合、最大 n 张
     const sorted = avail.slice().sort((a, b) => strengthSortKey(a, ti) - strengthSortKey(b, ti));
     push(sorted.slice(0, n)); // 最小垫
-    push(sorted.slice(0, n).reverse()); // 最大
+    push(sorted.slice(-n).reverse()); // 最大
     const units = decomposeDomain(avail, ti, cfg);
     const keep = [];
     const singlesLeft = [];
@@ -321,13 +325,18 @@ function followCandidates(state, playerIdx) {
     for (let i = 0; i < singles.length && i < 6; i++) {
       for (let j = i + 1; j < singles.length && j < 8; j++) push([singles[i], singles[j]]);
     }
+    // 分牌垫：队友稳赢时喂分（是否值得由 scorer 权衡）
+    push(hand.slice().sort(
+      (a, b) => pointsOf([b], cfg) - pointsOf([a], cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)
+    ).slice(0, n));
     return out;
   }
   if (lead.type === 'tractor') {
     tractorWindowsOf(trumps, ti, cfg).forEach((t) => push(t)); // 主拖将吃
     tractorWindowsOf(hand, ti, cfg).forEach((t) => push(t));
     const k = lead.units[0].cards.length / 2;
-    const pairs = pairsOf(hand, ti);
+    const pairs = pairsOf(hand, ti)
+      .sort((a, b) => strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti));
     const singles = hand.slice().sort((a, b) => strengthSortKey(a, ti) - strengthSortKey(b, ti));
     const chosen = [];
     for (let x = 0; x < k && x < pairs.length; x++) chosen.push(...pairs[x]);
@@ -338,6 +347,10 @@ function followCandidates(state, playerIdx) {
     }
     if (chosen.length === n) push(chosen);
     push(singles.slice(0, n));
+    // 分牌垫：队友稳赢时喂分（是否值得由 scorer 权衡）
+    push(hand.slice().sort(
+      (a, b) => pointsOf([b], cfg) - pointsOf([a], cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)
+    ).slice(0, n));
     return out;
   }
   // 甩牌缺门：主牌全压组合 / 最小垫
