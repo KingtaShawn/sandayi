@@ -146,6 +146,7 @@
     is-win="{{settleIsWin}}"
     mode="{{gameMode}}"
     dealer-points="{{settle.dealerPoints}}"
+    attacker-points="{{settle.attackerPoints}}"
     contract-score="{{settle.contractScore}}"
     penalty-total="{{settle.penaltyTotal}}"
     attack-points="{{settle.attackPoints}}"

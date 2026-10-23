@@ -13,6 +13,7 @@ Component({
     mode: { type: String, value: 'shengji' },
     /** 三打一 */
     dealerPoints: { type: Number, value: 0 },
+    attackerPoints: { type: Number, value: 0 },
     contractScore: { type: Number, value: 0 },
     penaltyTotal: { type: Number, value: 0 },
     /** 升级模式 */

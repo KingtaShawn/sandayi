@@ -135,6 +135,54 @@ test('无对可跟两单', () => {
   assert.equal(validatePlay(st, 1, cards('S9', 'S2')).ok, true);
 });
 
+test('跟甩牌：领出含对、该门有对 → 有对必逐对跟（拆对垫单 E103）', () => {
+  // 领出 ♠AA+♠K（对+单甩，n=3）；玩家1 有 ♠99 对 → 打出的 3 张须含一个对子
+  const st = stateWithLead([...cardsD('SA'), ...cards('SK')], [
+    [...cardsD('SA'), ...cards('SK')],
+    [...cardsD('S9'), ...cards('S7', 'S8')],
+    cards('H5', 'H6'), cards('D5', 'D6')
+  ]);
+  assert.equal(validatePlay(st, 1, cards('S9', 'S7', 'S8')).ok, false);
+  assert.equal(validatePlay(st, 1, cards('S9', 'S7', 'S8')).errorCode, 'E103');
+  assert.equal(validatePlay(st, 1, [...cardsD('S9'), ...cards('S7')]).ok, true);
+  // legalMoves 至少给出一个满足逐对跟的候选（AI 真值源）
+  assert.ok(legalMoves(st, 1).length >= 1);
+  assert.ok(legalMoves(st, 1).some((p) => parseCombo(p, st.trumpInfo, DEFAULT_CONFIG).units.some((u) => u.type === 'pair')));
+});
+
+test('跟甩牌：领出两对、手上只有一对 → 须跟出该对（min(k,m)）', () => {
+  // 领出 ♠AA+♠99（两对甩，n=4）；玩家1 只有 ♠KK 一对 → 4 张须含 KK
+  const st = stateWithLead([...cardsD('SA', 'S9')], [
+    [...cardsD('SA', 'S9')],
+    [...cardsD('SK'), ...cards('S7', 'S8', 'S6')],
+    cards('H5', 'H6'), cards('D5', 'D6')
+  ]);
+  // 拆对出 K+三单 → E103；对 K + 两单 → 合法
+  assert.equal(validatePlay(st, 1, cards('SK', 'S7', 'S8', 'S6')).ok, false);
+  assert.equal(validatePlay(st, 1, cards('SK', 'S7', 'S8', 'S6')).errorCode, 'E103');
+  assert.equal(validatePlay(st, 1, cardsD('SK').concat(cards('S7', 'S8'))).ok, true);
+});
+
+test('跟甩牌：领出全单 → 结构自由，有对也可垫单', () => {
+  // 领出 ♠A+K+Q（三单甩）；玩家1 有 ♠99 对仍可出 9+7+8
+  const st = stateWithLead(cards('SA', 'SK', 'SQ'), [
+    cards('SA', 'SK', 'SQ'),
+    [...cardsD('S9'), ...cards('S7', 'S8')],
+    cards('H5', 'H6'), cards('D5', 'D6')
+  ]);
+  assert.equal(validatePlay(st, 1, cards('S9', 'S7', 'S8')).ok, true);
+});
+
+test('跟甩牌：该门不足 n 张 → 全出+垫牌，不做对子结构要求', () => {
+  // 领出 ♠AA+♠99（n=4）；玩家1 ♠ 只有 99 两张 → 全出 99 + 垫两张（合法）
+  const st = stateWithLead([...cardsD('SA', 'S9')], [
+    [...cardsD('SA', 'S9')],
+    [...cardsD('S9'), ...cards('H7', 'H8')],
+    cards('H5', 'H6'), cards('D5', 'D6')
+  ]);
+  assert.equal(validatePlay(st, 1, cardsD('S9').concat(cards('H7', 'H8'))).ok, true);
+});
+
 test('R12 有拖必跟拖：有拖不跟拖 → E103；无拖跟对+单合法', () => {
   const st = stateWithLead(cardsD('S7', 'S8'), [
     cardsD('S7', 'S8'), [...cardsD('S9', 'S10'), ...cards('S3', 'S4')], cards('S5', 'S6'), cards('S3', 'H7')

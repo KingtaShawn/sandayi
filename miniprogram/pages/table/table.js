@@ -276,7 +276,7 @@ Page({
         ? (st.turnIdx === 0 ? '轮到你出牌（点牌智能成组，双击出牌）' : '等待其他玩家…')
         : (st.phase === 'BIDDING'
           ? (isSanDaYi
-            ? (st.turnIdx === 0 && !(st.passedBidders || []).includes(0) && !(st.bids || []).some((b) => b.type === 'score_bid' && b.playerIdx === 0)
+            ? (st.turnIdx === 0 && !(st.passedBidders || []).includes(0)
               ? '轮到你叫分'
               : '等待其他玩家叫分…')
             : '亮主阶段')
@@ -310,6 +310,7 @@ Page({
       view.settle = {
         attackPoints: sl.attackPoints,
         dealerPoints: sl.dealerPoints,
+        attackerPoints: sl.attackerPoints,
         contractScore: sl.contractScore,
         penaltyTotal: sl.penaltyPoints ? (sl.penaltyPoints.dealer + sl.penaltyPoints.attackers) : 0,
         bottomGained: sl.bottomGained,
@@ -333,13 +334,12 @@ Page({
         view.scoreOptionsView = scoreBidOptions(st, 0, st.config);
         const highest = st.scoreBidHighest;
         const myPassed = (st.passedBidders || []).includes(0);
-        const myBidded = (st.bids || []).some((b) => b.type === 'score_bid' && b.playerIdx === 0);
-        if (myPassed || myBidded) {
-          // 已用掉机会：等待他人
+        if (myPassed) {
+          // 已放弃：等待他人（循环加价下已叫过者轮回来仍可再加，仅 pass 才出局）
           view.isHumanTurnBid = false;
           view.bidTipText = highest ? `等待他人……当前最高 ${highest.score} 分（P${highest.playerIdx + 1}）` : '等待他人叫分……';
         } else {
-          view.bidTipText = highest ? `当前最高 ${highest.score} 分（P${highest.playerIdx + 1}）——加 10 分或放弃（放弃后本局不能再叫）` : '三打一叫分：从 90 分起，每档 +10（叫分 = 承诺拿到的分数）';
+          view.bidTipText = highest ? `当前最高 ${highest.score} 分（P${highest.playerIdx + 1}）——加价（可跳档）或放弃（放弃后本局不能再叫）` : '三打一叫分：从 90 分起，步长 10，可跳档（叫分 = 承诺拿到的分数）';
         }
         view.passLabel = highest ? '不叫（放弃）' : '不叫';
         // 叫分气泡记录（各家叫过的分）

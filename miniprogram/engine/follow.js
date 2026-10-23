@@ -7,7 +7,8 @@
  *      - 领出单张：任意 1 张该域牌；
  *      - 领出对子（R11）：有该域对必跟对；无对出 2 单（不足全出）；
  *      - 领出 k 对拖（R12）：优先同域 k 对拖 → 同域对子补（不足单补）→ 全单；
- *      - 领出甩牌：结构自由（出该域任意 n 张），合法性=域与张数即可。
+ *      - 领出甩牌：有对必逐对跟（R11 延伸）——领出含 k 对、该门有 m 对须跟 min(k,m) 对，
+ *        其余张自由；无对则该域任意 n 张。
  *   3. 无领出域（缺门）：任意 n 张（垫牌或将吃）；
  *      将吃争胜需结构对应（对→主对 / k对拖→主k对拖 / 甩→全压），不对应视为垫牌（合法但不争胜）。
  *
@@ -91,8 +92,27 @@ function checkFollowStructure(leadCombo, playedCards, handBefore, trumpInfo, cfg
       ? { ok: true }
       : { ok: false, reason: `有拖必跟拖（R12）：领出 ${k} 对拖拉机时须跟出同长拖拉机（允许拆更长）` };
   }
-  // 甩牌跟牌：结构自由
-  return { ok: playedCards.length === n };
+  // 甩牌跟牌：有对必逐对跟（R11 延伸到甩牌）——
+  // 领出含 k 个对子（含拖拉机拆出的对子）、该门手上有 m 对 → 须跟出 min(k,m) 个对子，其余张自由
+  if (!cfg.mustFollowPairAsPair) {
+    return { ok: playedCards.length === n };
+  }
+  const pairsOfUnits = (units) => units.reduce(
+    (cnt, u) => cnt + (u.type === 'single' ? 0 : u.cards.length / 2), 0
+  );
+  const leadPairs = pairsOfUnits(leadCombo.units);
+  if (leadPairs === 0) {
+    return { ok: playedCards.length === n };
+  }
+  const myPairs = pairsOfUnits(handUnits(handBefore, domain, trumpInfo, cfg));
+  const required = Math.min(leadPairs, myPairs);
+  if (required === 0) {
+    return { ok: playedCards.length === n };
+  }
+  const playedPairs = pairsOfUnits(decomposeDomain(playedCards, trumpInfo, cfg));
+  return playedPairs >= required
+    ? { ok: true }
+    : { ok: false, reason: `跟甩牌有对必逐对跟：领出含 ${leadPairs} 对，须至少跟 ${required} 个对子` };
 }
 
 /**

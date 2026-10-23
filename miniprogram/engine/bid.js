@@ -139,8 +139,9 @@ module.exports = {
 /* ==================== 三打一：叫分竞价（R26） ==================== */
 
 /**
- * 叫分可选项（用户规则：90 起，每档 +10，到 200 封顶）。
- * 每人只叫一次，放弃者出局；下一位叫分必须比当前最高高一档。
+ * 叫分可选项（用户规则：90 起，步长 10，到 200 封顶）。
+ * 放弃者出局；未放弃者可循环加价（已被超过者轮回来仍可再加）。
+ * 加价必须高于当前最高，步长为最小单位（可跳档，如 90→130）。
  * @param {object} state GameState（bids 中 score_bid 记录）
  * @param {number} playerIdx
  * @param {object} cfg
@@ -155,19 +156,14 @@ function scoreBidOptions(state, playerIdx, cfg) {
     if (b.type === 'score_bid' && b.score > cur) cur = b.score;
   });
   const opts = [];
-  if (cur === 0) {
-    // 无人叫分：全部档位可选（90..200）
-    for (let v = start; v <= cap; v += step) opts.push(v);
-    return opts;
-  }
-  // 有人叫分：只能叫比当前最高高一档（+10）
-  const next = cur + step;
-  if (next <= cap) opts.push(next);
+  const from = cur === 0 ? start : cur + step;
+  // 无人叫分：全部档位可选；有人叫过：全部更高档位可选（可跳档）
+  for (let v = from; v <= cap; v += step) opts.push(v);
   return opts;
 }
 
 /**
- * 报分校验（可反复加价）。
+ * 报分校验（未放弃者可循环加价）。
  * @param {object} state
  * @param {number} playerIdx
  * @param {number} score 报的分值
@@ -178,7 +174,7 @@ function canScoreBid(state, playerIdx, score, cfg) {
   if (state.phase !== 'BIDDING') {
     return result(false, '报分窗口已关闭', 'E111');
   }
-  // 已 pass 者失去本局叫分资格（QQ 规则：放弃后不可再叫；被强制打最低除外）
+  // 已 pass 者失去本局叫分资格（放弃后不可再叫）
   if ((state.passedBidders || []).includes(playerIdx)) {
     return result(false, '已放弃叫分，本局不可再报', 'E114');
   }

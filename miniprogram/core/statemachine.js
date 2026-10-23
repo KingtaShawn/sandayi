@@ -191,11 +191,10 @@ function doScoreBid(s, action) {
   if (action.score >= s.config.sanDaYiBidCap) {
     return enterSanDaYiPlay(s);
   }
-  // QQ 规则：每人只叫一次，叫过即用掉机会；放弃者出局。
-  // 剩余有资格者 = 未 pass 且未叫过 且 不是自己
+  // 循环加价：放弃者出局；未放弃者（含已被超过者）轮回来仍可再加。
+  // 有资格者 = 未 pass 且不是当前最高报价者
   const eligible = [0, 1, 2, 3].filter((i) =>
-    i !== idx && !(s.passedBidders || []).includes(i)
-    && !(s.bids || []).some((b) => b.type === 'score_bid' && b.playerIdx === i));
+    i !== idx && !(s.passedBidders || []).includes(i));
   if (eligible.length === 0) {
     return enterSanDaYiPlay(s); // 其他人全出局 → 成交
   }
@@ -242,17 +241,19 @@ function doPassBid(s, action) {
   return s;
 }
 
-/** 三打一：pass（放弃叫分，本局出局）——QQ：全放弃则首位强制打最低分（或 redeal） */
+/** 三打一：pass（放弃叫分，本局出局）——全员放弃则重发（或 force_lowest 强制打最低分） */
 function doPassScoreBid(s, idx) {
   if (!s.passedBidders.includes(idx)) {
     s.passedBidders.push(idx);
   }
   const hasBid = (s.bids || []).some((b) => b.type === 'score_bid');
   if (!hasBid && s.passedBidders.length >= 4) {
-    // 全员放弃：force_lowest（QQ 默认）= 首位叫分者强制打最低分；redeal = 重发
+    // 全员放弃：redeal = 重发（首报者轮到原首报者的下家）；force_lowest = 首位强制打最低分
     if (s.config.sanDaYiNoBidAction === 'redeal') {
       s.phase = 'INIT_DEAL';
-      s.turnIdx = s.sanDaYiFirstBidder !== undefined ? s.sanDaYiFirstBidder : 0;
+      const first = s.sanDaYiFirstBidder !== undefined ? s.sanDaYiFirstBidder : 0;
+      s.sanDaYiFirstBidder = nextSeat(s, first);
+      s.turnIdx = s.sanDaYiFirstBidder;
       s.bids = [];
       s.passedBidders = [];
       s.scoreBidHighest = null;
@@ -265,19 +266,17 @@ function doPassScoreBid(s, idx) {
     return enterSanDaYiPlay(s);
   }
   if (hasBid) {
-    // 成交判定：除最高报价者外，其余人全部出局（pass 或已叫过且被超过）
+    // 成交判定：除最高报价者外，其余人全部 pass（循环加价下"叫过"≠出局）
     const highest = s.scoreBidHighest;
-    const bidded = (s.bids || []).filter((b) => b.type === 'score_bid').map((b) => b.playerIdx);
     const allOut = [0, 1, 2, 3].every((i) =>
-      i === highest.playerIdx || s.passedBidders.includes(i) || bidded.includes(i));
+      i === highest.playerIdx || s.passedBidders.includes(i));
     if (allOut) {
       return enterSanDaYiPlay(s);
     }
-    // 轮到下一位有资格者（未 pass 且未叫过）
+    // 轮到下一位有资格者（未 pass 且非当前最高者）
     let next = nextSeat(s, idx);
     let guard = 0;
-    while (guard++ < 4 && (s.passedBidders.includes(next)
-      || (s.bids || []).some((b) => b.type === 'score_bid' && b.playerIdx === next))) {
+    while (guard++ < 4 && (next === highest.playerIdx || s.passedBidders.includes(next))) {
       next = nextSeat(s, next);
     }
     s.turnIdx = next;

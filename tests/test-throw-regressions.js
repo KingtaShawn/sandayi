@@ -170,6 +170,24 @@ test('甩牌罚分：累计罚分不能修改出牌前的原始状态', () => {
   assert.deepEqual(next.penaltyPoints, { dealer: 0, attackers: 30 });
 });
 
+test('三打一跟甩牌：领出连对（两对甩）、该门有对 → 有对必逐对跟（min(k,m)）', () => {
+  const lead = [...cardsD('SA', 'S9')]; // AA+99 连对（三打一无拖拉机 → 两对甩，n=4）
+  const st = state([lead, [...cardsD('SK'), ...cards('S7', 'S8', 'S6')], cards('D9'), cards('C9')]);
+  const combo = parseCombo(lead, st.trumpInfo, st.config);
+  assert.equal(combo.type, 'throw'); // 两对单元，非拖拉机
+  st.currentTrick = {
+    leadPlayerIdx: 0,
+    leadCombo: combo,
+    plays: [{ playerIdx: 0, cards: lead, combo, isDiscard: false, isEffectiveTrump: false }],
+    winnerIdx: 0,
+    points: 0
+  };
+  // 玩家1 只有 KK 一对（m=1 < k=2）→ 须含 KK；拆对出 K+三单 → E103
+  assert.equal(validatePlay(st, 1, cards('SK', 'S7', 'S8', 'S6')).ok, false);
+  assert.equal(validatePlay(st, 1, cards('SK', 'S7', 'S8', 'S6')).errorCode, 'E103');
+  assert.equal(validatePlay(st, 1, cardsD('SK').concat(cards('S7', 'S8'))).ok, true);
+});
+
 test('网页引擎与小程序一致：同大不误罚，连对默认逐对检查，失败只出原甩牌中的对子', () => {
   const h5 = require('../h5/js/game-bundle');
   assert.equal(h5.createConfig(h5.ruleConfig).sanDaYiAllowTractor, false);

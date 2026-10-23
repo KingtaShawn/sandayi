@@ -44,7 +44,7 @@ test('SDY-配置1：默认参数合法', () => {
   assert.equal(cfg.sanDaYiBidStart, 90);
   assert.equal(cfg.sanDaYiBidStep, 10);
   assert.equal(cfg.sanDaYiBidCap, 200);
-  assert.equal(cfg.sanDaYiNoBidAction, 'force_lowest');
+  assert.equal(cfg.sanDaYiNoBidAction, 'redeal');
   assert.equal(cfg.sanDaYiPeekBottomMaxBid, -1);
   assert.equal(validateConfig(cfg).ok, true);
 });
@@ -56,7 +56,7 @@ test('SDY-配置2：非法参数被拦截', () => {
   })(), true, 'step=0 应被拦截');
 });
 
-/* ========== 2. 叫分竞价（用户规则：90 起 +10 一档，每人一叫，放弃出局） ========== */
+/* ========== 2. 叫分竞价（用户规则：90 起，步长 10 可跳档，循环加价直到无人再加，放弃出局） ========== */
 
 test('SDY-叫分1：起叫 90，全档 90~200 步 10', () => {
   const cfg = sdyCfg();
@@ -67,15 +67,15 @@ test('SDY-叫分1：起叫 90，全档 90~200 步 10', () => {
   assert.equal(opts[opts.length - 1], 200);
 });
 
-test('SDY-叫分2：有人叫后只能加一档（+10）', () => {
+test('SDY-叫分2：有人叫后可加价（+10 或跳档），必须高于当前最高', () => {
   const cfg = sdyCfg();
   let s = dealToBidding(cfg, 2);
   s = transition(s, { type: 'SCORE_BID', playerIdx: 0, score: 90 });
   const opts = scoreBidOptions(s, s.turnIdx, cfg);
-  assert.deepEqual(opts, [100]);
-  // 叫 90（不高于当前）应失败
-  const r = canScoreBid(s, s.turnIdx, 90, cfg);
-  assert.equal(r.ok, false);
+  assert.deepEqual(opts, [100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]);
+  // 叫 90（不高于当前最高）应失败；跳档 130 合法
+  assert.equal(canScoreBid(s, s.turnIdx, 90, cfg).ok, false);
+  assert.equal(canScoreBid(s, s.turnIdx, 130, cfg).ok, true);
 });
 
 test('SDY-叫分3：放弃者出局（本局不可再叫）', () => {
@@ -97,16 +97,24 @@ test('SDY-叫分4：轮次校验（非本家叫分被拒）', () => {
   assert.throws(() => transition(s, { type: 'SCORE_BID', playerIdx: 2, score: 90 }), /轮到/);
 });
 
-test('SDY-叫分5：每人只叫一次，全部用过后最高者成交', () => {
+test('SDY-叫分5：循环加价——已叫过者被超过后轮回来仍可再加，直到无人再加', () => {
   const cfg = sdyCfg();
   let s = dealToBidding(cfg, 5);
   s = transition(s, { type: 'SCORE_BID', playerIdx: 0, score: 90 });
   s = transition(s, { type: 'SCORE_BID', playerIdx: 1, score: 100 });
   s = transition(s, { type: 'SCORE_BID', playerIdx: 2, score: 110 });
   s = transition(s, { type: 'SCORE_BID', playerIdx: 3, score: 120 });
-  // 四人都叫过 → 120 成交
+  // 已叫过者未 pass → 轮回来仍可再加（120 叫过一圈，turn 回到 0）
+  assert.equal(s.phase, 'BIDDING');
+  assert.equal(s.turnIdx, 0);
+  s = transition(s, { type: 'SCORE_BID', playerIdx: 0, score: 130 }); // 反超
+  // 其余三家 pass → 130 成交（P0 坐庄）
+  s = transition(s, { type: 'PASS_BID', playerIdx: 1 });
+  s = transition(s, { type: 'PASS_BID', playerIdx: 2 });
+  s = transition(s, { type: 'PASS_BID', playerIdx: 3 });
   assert.equal(s.phase, 'CHOOSE_TRUMP');
-  assert.equal(s.contractScore, 120);
+  assert.equal(s.contractScore, 130);
+  assert.equal(s.dealerIdx, 0);
 });
 
 /* ========== 3. 竞价成交 ========== */
@@ -152,8 +160,27 @@ test('SDY-成交2：报 200 封顶即成交 → 选主 → 埋底', () => {
 
 /* ========== 4. 全员不报 → 重发 ========== */
 
-test('SDY-重发1：四家全 pass → 首位强制打最低分', () => {
+test('SDY-重发1：四家全 pass → 重发，首报者轮到原首报者的下家', () => {
   const cfg = sdyCfg();
+  let s = dealToBidding(cfg, 7);
+  const first = s.turnIdx;
+  s = transition(s, { type: 'PASS_BID', playerIdx: 0 });
+  s = transition(s, { type: 'PASS_BID', playerIdx: 1 });
+  s = transition(s, { type: 'PASS_BID', playerIdx: 2 });
+  s = transition(s, { type: 'PASS_BID', playerIdx: 3 });
+  // redeal：回 INIT_DEAL，首报者 = 原首报者下家
+  assert.equal(s.phase, 'INIT_DEAL');
+  assert.equal(s.sanDaYiFirstBidder, (first + 1) % 4);
+  assert.equal(s.redEalCount, 1);
+  // 重新发牌 → 新一局叫分从下家开始
+  s = transition(s, { type: 'DEAL', rng: createRng(8) });
+  assert.equal(s.phase, 'BIDDING');
+  assert.equal(s.turnIdx, (first + 1) % 4);
+  assert.equal(s.bids.length, 0);
+});
+
+test('SDY-重发2：force_lowest 覆盖配置仍有效（首位强制打最低分）', () => {
+  const cfg = sdyCfg({ sanDaYiNoBidAction: 'force_lowest' });
   let s = dealToBidding(cfg, 7);
   const first = s.turnIdx;
   s = transition(s, { type: 'PASS_BID', playerIdx: 0 });

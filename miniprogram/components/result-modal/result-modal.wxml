@@ -12,6 +12,10 @@
           <text class="result-modal__score-value">{{dealerPoints}}</text>
         </view>
         <view class="result-modal__score-item">
+          <text class="result-modal__score-label">闲家得分</text>
+          <text class="result-modal__score-value">{{attackerPoints}}</text>
+        </view>
+        <view class="result-modal__score-item">
           <text class="result-modal__score-label">合同分</text>
           <text class="result-modal__score-value result-modal__score-value--gold">{{contractScore}}</text>
         </view>

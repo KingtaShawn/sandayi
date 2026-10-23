@@ -160,8 +160,9 @@ module.exports = {
 /* ==================== 三打一：叫分竞价（R26） ==================== */
 
 /**
- * 叫分可选项（用户规则：90 起，每档 +10，到 200 封顶）。
- * 每人只叫一次，放弃者出局；下一位叫分必须比当前最高高一档。
+ * 叫分可选项（用户规则：90 起，步长 10，到 200 封顶）。
+ * 放弃者出局；未放弃者可循环加价（已被超过者轮回来仍可再加）。
+ * 加价必须高于当前最高，步长为最小单位（可跳档，如 90→130）。
  * @param {object} state GameState（bids 中 score_bid 记录）
  * @param {number} playerIdx
  * @param {object} cfg
@@ -176,19 +177,14 @@ function scoreBidOptions(state, playerIdx, cfg) {
     if (b.type === 'score_bid' && b.score > cur) cur = b.score;
   });
   const opts = [];
-  if (cur === 0) {
-    // 无人叫分：全部档位可选（90..200）
-    for (let v = start; v <= cap; v += step) opts.push(v);
-    return opts;
-  }
-  // 有人叫分：只能叫比当前最高高一档（+10）
-  const next = cur + step;
-  if (next <= cap) opts.push(next);
+  const from = cur === 0 ? start : cur + step;
+  // 无人叫分：全部档位可选；有人叫过：全部更高档位可选（可跳档）
+  for (let v = from; v <= cap; v += step) opts.push(v);
   return opts;
 }
 
 /**
- * 报分校验（可反复加价）。
+ * 报分校验（未放弃者可循环加价）。
  * @param {object} state
  * @param {number} playerIdx
  * @param {number} score 报的分值
@@ -199,7 +195,7 @@ function canScoreBid(state, playerIdx, score, cfg) {
   if (state.phase !== 'BIDDING') {
     return result(false, '报分窗口已关闭', 'E111');
   }
-  // 已 pass 者失去本局叫分资格（QQ 规则：放弃后不可再叫；被强制打最低除外）
+  // 已 pass 者失去本局叫分资格（放弃后不可再叫）
   if ((state.passedBidders || []).includes(playerIdx)) {
     return result(false, '已放弃叫分，本局不可再报', 'E114');
   }
@@ -745,9 +741,9 @@ const DEFAULT_CONFIG = {
   // —— 三打一（R26，gameMode='san_da_yi' 时生效） ——
   sanDaYiAllowTractor: false,        // 默认不打拖拉机：连对视为多副对子甩牌，逐对检查成立性
   sanDaYiBidStart: 90,               // 起叫分（用户规则：90 起）
-  sanDaYiBidStep: 10,                // 叫分档位（90→100→110…→200，每档 +10）
+  sanDaYiBidStep: 10,                // 叫分最小步长（加价可跳档，如 90→130）
   sanDaYiBidCap: 200,                // 叫分上限（=总分）
-  sanDaYiNoBidAction: 'force_lowest',// 全员不叫（首位强制打最低分；redeal=重发）
+  sanDaYiNoBidAction: 'redeal',      // 全员不叫（重发，首报者轮到原首报者下家；force_lowest=首位强制打最低分）
   sanDaYiPeekBottomMaxBid: -1,       // 成交分 ≤ 此值时闲家可看底牌（-1=不公开；本玩法不适用看底规则）
 
   // —— 体验 ——
@@ -1070,7 +1066,8 @@ __def("engine/follow", function (exports, __require, module) {
  *      - 领出单张：任意 1 张该域牌；
  *      - 领出对子（R11）：有该域对必跟对；无对出 2 单（不足全出）；
  *      - 领出 k 对拖（R12）：优先同域 k 对拖 → 同域对子补（不足单补）→ 全单；
- *      - 领出甩牌：结构自由（出该域任意 n 张），合法性=域与张数即可。
+ *      - 领出甩牌：有对必逐对跟（R11 延伸）——领出含 k 对、该门有 m 对须跟 min(k,m) 对，
+ *        其余张自由；无对则该域任意 n 张。
  *   3. 无领出域（缺门）：任意 n 张（垫牌或将吃）；
  *      将吃争胜需结构对应（对→主对 / k对拖→主k对拖 / 甩→全压），不对应视为垫牌（合法但不争胜）。
  *
@@ -1154,8 +1151,27 @@ function checkFollowStructure(leadCombo, playedCards, handBefore, trumpInfo, cfg
       ? { ok: true }
       : { ok: false, reason: `有拖必跟拖（R12）：领出 ${k} 对拖拉机时须跟出同长拖拉机（允许拆更长）` };
   }
-  // 甩牌跟牌：结构自由
-  return { ok: playedCards.length === n };
+  // 甩牌跟牌：有对必逐对跟（R11 延伸到甩牌）——
+  // 领出含 k 个对子（含拖拉机拆出的对子）、该门手上有 m 对 → 须跟出 min(k,m) 个对子，其余张自由
+  if (!cfg.mustFollowPairAsPair) {
+    return { ok: playedCards.length === n };
+  }
+  const pairsOfUnits = (units) => units.reduce(
+    (cnt, u) => cnt + (u.type === 'single' ? 0 : u.cards.length / 2), 0
+  );
+  const leadPairs = pairsOfUnits(leadCombo.units);
+  if (leadPairs === 0) {
+    return { ok: playedCards.length === n };
+  }
+  const myPairs = pairsOfUnits(handUnits(handBefore, domain, trumpInfo, cfg));
+  const required = Math.min(leadPairs, myPairs);
+  if (required === 0) {
+    return { ok: playedCards.length === n };
+  }
+  const playedPairs = pairsOfUnits(decomposeDomain(playedCards, trumpInfo, cfg));
+  return playedPairs >= required
+    ? { ok: true }
+    : { ok: false, reason: `跟甩牌有对必逐对跟：领出含 ${leadPairs} 对，须至少跟 ${required} 个对子` };
 }
 
 /**
@@ -3143,11 +3159,10 @@ function doScoreBid(s, action) {
   if (action.score >= s.config.sanDaYiBidCap) {
     return enterSanDaYiPlay(s);
   }
-  // QQ 规则：每人只叫一次，叫过即用掉机会；放弃者出局。
-  // 剩余有资格者 = 未 pass 且未叫过 且 不是自己
+  // 循环加价：放弃者出局；未放弃者（含已被超过者）轮回来仍可再加。
+  // 有资格者 = 未 pass 且不是当前最高报价者
   const eligible = [0, 1, 2, 3].filter((i) =>
-    i !== idx && !(s.passedBidders || []).includes(i)
-    && !(s.bids || []).some((b) => b.type === 'score_bid' && b.playerIdx === i));
+    i !== idx && !(s.passedBidders || []).includes(i));
   if (eligible.length === 0) {
     return enterSanDaYiPlay(s); // 其他人全出局 → 成交
   }
@@ -3194,17 +3209,19 @@ function doPassBid(s, action) {
   return s;
 }
 
-/** 三打一：pass（放弃叫分，本局出局）——QQ：全放弃则首位强制打最低分（或 redeal） */
+/** 三打一：pass（放弃叫分，本局出局）——全员放弃则重发（或 force_lowest 强制打最低分） */
 function doPassScoreBid(s, idx) {
   if (!s.passedBidders.includes(idx)) {
     s.passedBidders.push(idx);
   }
   const hasBid = (s.bids || []).some((b) => b.type === 'score_bid');
   if (!hasBid && s.passedBidders.length >= 4) {
-    // 全员放弃：force_lowest（QQ 默认）= 首位叫分者强制打最低分；redeal = 重发
+    // 全员放弃：redeal = 重发（首报者轮到原首报者的下家）；force_lowest = 首位强制打最低分
     if (s.config.sanDaYiNoBidAction === 'redeal') {
       s.phase = 'INIT_DEAL';
-      s.turnIdx = s.sanDaYiFirstBidder !== undefined ? s.sanDaYiFirstBidder : 0;
+      const first = s.sanDaYiFirstBidder !== undefined ? s.sanDaYiFirstBidder : 0;
+      s.sanDaYiFirstBidder = nextSeat(s, first);
+      s.turnIdx = s.sanDaYiFirstBidder;
       s.bids = [];
       s.passedBidders = [];
       s.scoreBidHighest = null;
@@ -3217,19 +3234,17 @@ function doPassScoreBid(s, idx) {
     return enterSanDaYiPlay(s);
   }
   if (hasBid) {
-    // 成交判定：除最高报价者外，其余人全部出局（pass 或已叫过且被超过）
+    // 成交判定：除最高报价者外，其余人全部 pass（循环加价下"叫过"≠出局）
     const highest = s.scoreBidHighest;
-    const bidded = (s.bids || []).filter((b) => b.type === 'score_bid').map((b) => b.playerIdx);
     const allOut = [0, 1, 2, 3].every((i) =>
-      i === highest.playerIdx || s.passedBidders.includes(i) || bidded.includes(i));
+      i === highest.playerIdx || s.passedBidders.includes(i));
     if (allOut) {
       return enterSanDaYiPlay(s);
     }
-    // 轮到下一位有资格者（未 pass 且未叫过）
+    // 轮到下一位有资格者（未 pass 且非当前最高者）
     let next = nextSeat(s, idx);
     let guard = 0;
-    while (guard++ < 4 && (s.passedBidders.includes(next)
-      || (s.bids || []).some((b) => b.type === 'score_bid' && b.playerIdx === next))) {
+    while (guard++ < 4 && (next === highest.playerIdx || s.passedBidders.includes(next))) {
       next = nextSeat(s, next);
     }
     s.turnIdx = next;
@@ -4883,14 +4898,14 @@ module.exports = {
   // 起叫分（90 起）
   sanDaYiBidStart: 90,
 
-  // 叫分档位步长（90→100→110…→200，每档 +10；有人叫后只能加一档）
+  // 叫分最小步长（90→100→110…→200；加价可跳档，如 90→130）
   sanDaYiBidStep: 10,
 
   // 叫分上限（=总分 200，报满即成交坐庄）
   sanDaYiBidCap: 200,
 
-  // 全员不叫时：force_lowest=首位强制打最低分 | redeal=重新发牌
-  sanDaYiNoBidAction: 'force_lowest',
+  // 全员不叫时：redeal=重新发牌（首报者轮到原首报者下家） | force_lowest=首位强制打最低分
+  sanDaYiNoBidAction: 'redeal',
 
   // 成交分 ≤ 此值时闲家可看底牌（-1=不公开看底）
   sanDaYiPeekBottomMaxBid: -1,

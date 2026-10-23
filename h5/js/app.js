@@ -377,6 +377,7 @@
         `<span class="result-modal__score-label">${label}</span><span class="result-modal__score-value${gold ? ' result-modal__score-value--gold' : ''}">${value}</span>`));
     };
     addItem('庄家得分', view.settle.dealerPoints);
+    if (view.settle.attackerPoints !== undefined) addItem('闲家得分', view.settle.attackerPoints);
     addItem('合同分', view.settle.contractScore, true);
     if (view.settle.bottomGained > 0) addItem('收底 +' + view.settle.bottomGained, '×1', true);
     if (view.settle.penaltyTotal > 0) addItem('罚分', view.settle.penaltyTotal);
@@ -445,7 +446,7 @@
         ? (st.turnIdx === 0 ? '轮到你出牌（点牌智能成组，双击出牌）' : '等待其他玩家…')
         : (st.phase === 'BIDDING'
           ? (isSDY
-            ? (st.turnIdx === 0 && !(st.passedBidders || []).includes(0) && !(st.bids || []).some((b) => b.type === 'score_bid' && b.playerIdx === 0)
+            ? (st.turnIdx === 0 && !(st.passedBidders || []).includes(0)
               ? '轮到你叫分' : '等待其他玩家叫分…')
             : '亮主阶段')
           : (st.phase === 'CHOOSE_TRUMP' ? (st.players[st.dealerIdx].isHuman ? '轮到你选主牌花色' : '庄家选主中…') : (st.phase === 'BURYING' ? '埋底阶段' : ''))));
@@ -477,13 +478,13 @@
     }
 
     // 操作条（含报分选项计算）
-    if (isHumanTurnBid && isSDY && !( (st.passedBidders || []).includes(0) || (st.bids || []).some((b) => b.type === 'score_bid' && b.playerIdx === 0) )) {
+    if (isHumanTurnBid && isSDY && !(st.passedBidders || []).includes(0)) {
       view.bidMode = 'score';
       view.scoreOptions = scoreBidOptions(st, 0, st.config);
       const highest = st.scoreBidHighest;
       view.bidTipText = highest
-        ? `当前最高 ${highest.score} 分（${['南', '东', '北', '西'][highest.playerIdx]}）——加 10 分或放弃`
-        : '三打一叫分：从 90 分起，每档 +10';
+        ? `当前最高 ${highest.score} 分（${['南', '东', '北', '西'][highest.playerIdx]}）——加价（可跳档）或放弃`
+        : '三打一叫分：从 90 分起，步长 10，可跳档';
       view.passLabel = highest ? '不叫（放弃）' : '不叫';
     } else if (isHumanTurnBid && isSDY) {
       const highest = st.scoreBidHighest;
@@ -506,6 +507,7 @@
       const sl = st.lastSettle;
       settleView.settle = {
         dealerPoints: sl.dealerPoints,
+        attackerPoints: sl.attackerPoints,
         contractScore: sl.contractScore,
         penaltyTotal: sl.penaltyPoints ? (sl.penaltyPoints.dealer + sl.penaltyPoints.attackers) : 0,
         bottomGained: sl.bottomGained
@@ -945,9 +947,9 @@
       <h3>三打一规则速查</h3>
       <p>两副牌 108 张，1 庄家 vs 3 闲家，每人 25 张，底牌 8 张。</p>
       <h3>叫分</h3>
-      <li>从 90 分起叫，每档 +10，最高 200 分（报 200 直接成交）</li>
-      <li>每人只叫一次机会，放弃后本局不能再叫</li>
-      <li>四家全不叫 → 首位强制打最低分 90</li>
+      <li>从 90 分起叫，步长 10，最高 200 分（报 200 直接成交；加价可跳档）</li>
+      <li>未放弃者可循环加价，直到无人再加；放弃后本局不能再叫</li>
+      <li>四家全不叫 → 重新发牌（首报者轮到下家）</li>
       <h3>主牌</h3>
       <li>成交后庄家拿 8 张底牌（手牌 33 张），再自选一个花色做主牌</li>
       <li>主牌 = 大小王 + 全部 2 + 所选花色全部</li>
