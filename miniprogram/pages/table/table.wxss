@@ -120,28 +120,6 @@
   align-items: center;
 }
 
-/* v1.7 三打一：叫分气泡 */
-.table__bid-bubbles {
-  position: absolute;
-  top: 8rpx;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  gap: 12rpx;
-  z-index: 5;
-}
-
-.table__bid-bubble {
-  padding: 6rpx 18rpx;
-  border-radius: 999rpx;
-  font-size: 22rpx;
-  color: #5c3d00;
-  background: linear-gradient(180deg, #f7d478, #f3c14b);
-  border: 2rpx solid #caa235;
-  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.25);
-}
-
 /* 操作条插槽：固定高度，阶段内（报分/选主/埋底/出牌）互斥切换时高度恒定，消除抖动 */
 .table__action-slot {
   min-height: 180rpx;

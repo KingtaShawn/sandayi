@@ -19,7 +19,11 @@ Component({
     /** v1.1：竖排模式（东西家侧栏） */
     vertical: { type: Boolean, value: false },
     /** v1.1：思考气泡（AI 行动中） */
-    thinking: { type: Boolean, value: true }
+    thinking: { type: Boolean, value: true },
+    /** v1.7：三打一报分气泡——该座位最新叫分（0=无） */
+    bidScore: { type: Number, value: 0 },
+    /** v1.7：该座位已放弃叫分（显示"不叫"） */
+    bidPass: { type: Boolean, value: false }
   },
   data: {
     seatLabel: ''

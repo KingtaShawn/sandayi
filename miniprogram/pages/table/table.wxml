@@ -3,14 +3,16 @@
   <!-- 顶部：北家（升级=队友 / 三打一=对手） -->
   <view class="table__north">
     <seat-info player-idx="{{2}}" name="{{players[2].name}}" hand-count="{{players[2].handCount}}"
-      is-dealer="{{dealerIdx === 2}}" is-turn="{{turnIdx === 2}}" camp-label="{{players[2].campLabel}}" />
+      is-dealer="{{dealerIdx === 2}}" is-turn="{{turnIdx === 2}}" camp-label="{{players[2].campLabel}}"
+      bid-score="{{seatBids[2].score}}" bid-pass="{{seatBids[2].pass}}" />
   </view>
 
   <!-- 中部：西家 | 中央出牌区 | 东家 -->
   <view class="table__mid">
     <view class="table__side">
       <seat-info vertical player-idx="{{3}}" name="{{players[3].name}}" hand-count="{{players[3].handCount}}"
-        is-dealer="{{dealerIdx === 3}}" is-turn="{{turnIdx === 3}}" camp-label="{{players[3].campLabel}}" />
+        is-dealer="{{dealerIdx === 3}}" is-turn="{{turnIdx === 3}}" camp-label="{{players[3].campLabel}}"
+        bid-score="{{seatBids[3].score}}" bid-pass="{{seatBids[3].pass}}" />
     </view>
 
     <view class="table__center">
@@ -61,12 +63,6 @@
           </block>
         </view>
       </view>
-      <!-- v1.7 三打一：叫分气泡（各家叫分记录） -->
-      <view class="table__bid-bubbles" wx:if="{{bidBubble.length && phase === 'BIDDING'}}">
-        <view class="table__bid-bubble table__bid-bubble--p{{item.idx}}" wx:for="{{bidBubble}}" wx:key="index">
-          <text>P{{item.idx + 1}} 叫 {{item.score}}</text>
-        </view>
-      </view>
       <!-- v1.1 收墩飘分 -->
       <view class="table__float-layer">
         <view class="table__float-points {{floatPoints.anim ? 'anim-float-up' : ''}}" wx:if="{{floatPoints.visible}}">
@@ -77,7 +73,8 @@
 
     <view class="table__side">
       <seat-info vertical player-idx="{{1}}" name="{{players[1].name}}" hand-count="{{players[1].handCount}}"
-        is-dealer="{{dealerIdx === 1}}" is-turn="{{turnIdx === 1}}" camp-label="{{players[1].campLabel}}" />
+        is-dealer="{{dealerIdx === 1}}" is-turn="{{turnIdx === 1}}" camp-label="{{players[1].campLabel}}"
+        bid-score="{{seatBids[1].score}}" bid-pass="{{seatBids[1].pass}}" />
     </view>
   </view>
 

@@ -342,11 +342,6 @@ Page({
           view.bidTipText = highest ? `当前最高 ${highest.score} 分（P${highest.playerIdx + 1}）——加价（可跳档）或放弃（放弃后本局不能再叫）` : '三打一叫分：从 90 分起，步长 10，可跳档（叫分 = 承诺拿到的分数）';
         }
         view.passLabel = highest ? '不叫（放弃）' : '不叫';
-        // 叫分气泡记录（各家叫过的分）
-        view.bidBubble = (st.bids || []).filter((b) => b.type === 'score_bid').map((b) => ({
-          idx: b.playerIdx,
-          score: b.score
-        }));
       } else {
         const opts = this.service.bidOptions(0);
         view.bidMode = 'classic';
@@ -378,6 +373,15 @@ Page({
     view.bottomRevealCards = (isSanDaYi && st.bottomPeekable && st.phase !== 'BIDDING' && st.phase !== 'INIT_DEAL' && st.bottomCards.length && !st.bottomMerged)
       ? st.bottomCards.map((c, i) => ({ id: 'peek-' + i, suit: c.suit, rank: c.rank, isJoker: !!c.isJoker }))
       : [];
+    // 三打一报分：各座位最新叫分/不叫（气泡挂座位旁，去中心化；非报分阶段清空）
+    view.seatBids = [0, 1, 2, 3].map((i) => {
+      if (!isSanDaYi || st.phase !== 'BIDDING') return { score: 0, pass: false };
+      const mine = (st.bids || []).filter((b) => b.type === 'score_bid' && b.playerIdx === i);
+      return {
+        score: mine.length ? mine[mine.length - 1].score : 0,
+        pass: !mine.length && (st.passedBidders || []).includes(i)
+      };
+    });
     try {
       this.setData(view);
     } catch (e) {

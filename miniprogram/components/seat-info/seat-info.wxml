@@ -1,5 +1,5 @@
 <!-- components/seat-info/seat-info.wxml —— 座位信息（头像/剩余牌数/庄徽标/阵营标签） -->
-<view class="seat-info {{vertical ? 'seat-info--vertical' : ''}} {{isTurn ? 'seat-info--turn' : ''}}">
+<view class="seat-info seat-info--p{{playerIdx}} {{vertical ? 'seat-info--vertical' : ''}} {{isTurn ? 'seat-info--turn' : ''}}">
   <view class="seat-info__avatar">
     <text class="seat-info__avatar-text">{{seatLabel}}</text>
     <view class="seat-info__dealer-badge anim-badge-float" wx:if="{{isDealer}}">庄</view>
@@ -18,4 +18,7 @@
   </view>
   <view class="seat-info__badge seat-info__badge--turn" wx:if="{{isTurn && !thinking}}">行动中</view>
   <text class="seat-info__camp {{campLabel === '对手' ? 'seat-info__camp--foe' : ''}}" wx:if="{{campLabel}}">{{campLabel}}</text>
+  <!-- v1.7 三打一：叫分气泡（挂座位旁） -->
+  <view class="seat-info__bid-bubble" wx:if="{{bidScore > 0}}">叫 {{bidScore}}</view>
+  <view class="seat-info__bid-bubble seat-info__bid-bubble--pass" wx:elif="{{bidPass}}">不叫</view>
 </view>

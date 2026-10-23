@@ -112,6 +112,13 @@
     let cls = 'seat-info' + (vertical ? ' seat-info--vertical' : '') + (isTurn ? ' seat-info--turn' : '');
     const d = el('div', cls);
     const badge = (st.dealerIdx === i) ? '<div class="seat-info__dealer-badge">庄</div>' : '';
+    // 三打一报分阶段：本座位最新报分/不叫 挂在座位旁（去中心化，不占中央）
+    let bidChip = '';
+    if (isSDY && st.phase === 'BIDDING') {
+      const mine = (st.bids || []).filter((b) => b.type === 'score_bid' && b.playerIdx === i);
+      if (mine.length) bidChip = `<div class="seat-info__bid-bubble">叫 ${mine[mine.length - 1].score}</div>`;
+      else if ((st.passedBidders || []).includes(i)) bidChip = '<div class="seat-info__bid-bubble seat-info__bid-bubble--pass">不叫</div>';
+    }
     d.innerHTML = `
       <div class="seat-info__avatar"><span class="seat-info__avatar-text">${SEAT_LABELS[i]}</span>${badge}</div>
       <div class="seat-info__meta">
@@ -120,6 +127,7 @@
       </div>
       ${isTurn ? '<div class="seat-info__thinking"><span class="seat-info__dot"></span><span class="seat-info__dot seat-info__dot--2"></span><span class="seat-info__dot seat-info__dot--3"></span></div>' : ''}
       ${camp ? `<span class="seat-info__camp${camp === '对手' ? ' seat-info__camp--foe' : ''}">${camp}</span>` : ''}
+      ${bidChip}
     `;
     return d;
   }
@@ -442,6 +450,7 @@
 
     // 手牌提示
     const hl = $('hand-label');
+    const myBid = (st.bids || []).filter((b) => b.type === 'score_bid' && b.playerIdx === 0).pop();
     hl.textContent = (G._grabAnimating && G.grabBottom.active)
       ? (st.players[st.dealerIdx].isHuman ? '底牌飞入你的手牌…' : `${st.players[st.dealerIdx].name}拿底牌中…`)
       : (st.phase === 'PLAYING'
@@ -449,7 +458,9 @@
         : (st.phase === 'BIDDING'
           ? (isSDY
             ? (st.turnIdx === 0 && !(st.passedBidders || []).includes(0)
-              ? '轮到你叫分' : '等待其他玩家叫分…')
+              ? '轮到你叫分'
+              : (myBid ? `你叫 ${myBid.score} 分，等待其他玩家…`
+                : ((st.passedBidders || []).includes(0) ? '已不叫，等待其他玩家…' : '等待其他玩家叫分…')))
             : '亮主阶段')
           : (st.phase === 'CHOOSE_TRUMP' ? (st.players[st.dealerIdx].isHuman ? '轮到你选主牌花色' : '庄家选主中…') : (st.phase === 'BURYING' ? '埋底阶段' : ''))));
 
@@ -470,14 +481,6 @@
     renderHand(st, newIds);
     renderTrick(st);
     renderAnim(st);
-
-    // 叫分气泡
-    const bubbles = $('bid-bubbles');
-    const bidList = (st.bids || []).filter((b) => b.type === 'score_bid');
-    bubbles.hidden = !(bidList.length && st.phase === 'BIDDING');
-    if (!bubbles.hidden) {
-      bubbles.innerHTML = bidList.map((b) => `<div class="table__bid-bubble">${['南', '东', '北', '西'][b.playerIdx]} 叫 ${b.score}</div>`).join('');
-    }
 
     // 操作条（含报分选项计算）
     if (isHumanTurnBid && isSDY && !(st.passedBidders || []).includes(0)) {
