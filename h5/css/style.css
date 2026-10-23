@@ -171,6 +171,12 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .table__tool-btn { padding: 0.8rem 3.2rem; font-size: 2.67rem; }
 /* 音效开关：单字符图标，收窄内边距免挤占工具条 */
 .table__tool-btn--sound { padding: 0.8rem 2.13rem; }
+/* 重发二次确认：首点染红示警，2.5s 内再点才整局重发，超时自动复位 */
+.table__tool-btn--armed {
+  background: rgba(229, 77, 66, 0.25);
+  border-color: var(--color-danger);
+  color: #ffd9d5;
+}
 
 .table__trump-chip {
   padding: 0.8rem 2.67rem;
@@ -188,16 +194,17 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
    横屏 90rem 里 20rem 固定插槽会把出牌区挤爆。报分/选主/埋底阶段中央出牌区是空的，
    悬浮不遮挡；出牌阶段按钮出现时南家尚未出牌，同样无遮挡 */
 .table__action-slot {
+  /* 全宽铺开再由 justify-content 居中子项：不能写 left:50%+translateX(-50%)，
+     那样 shrink-to-fit 可用宽只有包含块的一半，叫分条会被挤成三行 */
   position: absolute;
-  left: 50%;
+  left: 0;
+  right: 0;
   bottom: 0;
-  transform: translateX(-50%);
   z-index: 6;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   gap: 3.73rem;
-  max-width: 100%;
   pointer-events: none; /* 空槽不挡牌桌 */
 }
 .table__action-slot > * { pointer-events: auto; }
@@ -391,28 +398,30 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .seat-info--vertical .seat-info__camp { font-size: 2.13rem; padding: 0.4rem 1.07rem; }
 
 /* ========== 报分/选主/埋底/出牌操作条 ========== */
+/* 横屏压扁：提示语/选项/不叫同行横排换行，窄屏两行也只占 ~16rem 高，不碰状态栏与北家 */
 .bid-bar {
-  display: flex; flex-direction: column; align-items: center;
-  background: rgba(0, 0, 0, 0.35); border-radius: 2.13rem; padding: 2.13rem;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 1.07rem;
+  background: rgba(0, 0, 0, 0.35); border-radius: 2.13rem; padding: 1.6rem;
 }
-.bid-bar__tip { font-size: 3.2rem; color: var(--color-gold); margin-bottom: 1.6rem; text-align: center; }
-.bid-bar__options { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.6rem; }
+.bid-bar__tip { font-size: 2.93rem; color: var(--color-gold); }
+.bid-bar__options { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.07rem; }
 .bid-bar__option {
   background: linear-gradient(180deg, #f7d478, var(--color-primary));
-  border-radius: 1.6rem; padding: 1.6rem 3.2rem;
+  border-radius: 1.6rem; padding: 0.8rem 2.67rem;
   display: flex; flex-direction: column; align-items: center;
   border: 0.27rem solid #caa235;
 }
 .bid-bar__option:active { transform: scale(0.95); }
-.bid-bar__option-label { font-size: 3.73rem; font-weight: 700; color: #5c3d00; }
+.bid-bar__option-label { font-size: 3.2rem; font-weight: 700; color: #5c3d00; }
 .bid-bar__option-sub { font-size: 2.67rem; color: #7a5a1a; }
 .bid-bar__pass {
-  margin-top: 1.6rem; padding: 1.07rem 4.27rem; border-radius: 999rem;
+  padding: 0.8rem 4.27rem; border-radius: 999rem;
   background: rgba(255, 255, 255, 0.12); border: 0.27rem solid rgba(255, 255, 255, 0.3);
-  color: var(--color-text-light); font-size: 3.2rem;
+  color: var(--color-text-light); font-size: 2.93rem;
 }
-.bid-bar__option--suit { min-width: 18.67rem; padding: 2.13rem 3.73rem; }
-.bid-bar__suit-symbol { font-size: 7.47rem; font-weight: 700; color: #222; line-height: 1.2; }
+.bid-bar__option--suit { min-width: 16rem; padding: 1.6rem 3.73rem; }
+.bid-bar__suit-symbol { font-size: 6.4rem; font-weight: 700; color: #222; line-height: 1.2; }
 .bid-bar__option--red .bid-bar__suit-symbol { color: #d0342c; }
 
 .bury-bar {
@@ -678,7 +687,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 }
 .toast--hidden { opacity: 0; pointer-events: none; }
 
-/* ========== 竖屏旋转提示（横屏游戏，竖屏手机引导旋转） ========== */
+/* ========== 竖屏旋转提示（仅横屏游戏：竖屏一律引导旋转） ========== */
 .rotate-tip {
   position: fixed;
   inset: 0;
@@ -694,8 +703,8 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .rotate-tip__icon { font-size: 10.67rem; line-height: 1; animation: rotate-phone 1.8s ease-in-out infinite; }
 .rotate-tip__text { font-size: 4rem; color: var(--color-text-light); }
 .rotate-tip__sub { font-size: 2.93rem; color: var(--color-text-dim); }
-/* 仅触屏设备竖屏时提示（桌面窄窗照常缩放游玩，不打扰） */
-@media (orientation: portrait) and (pointer: coarse) {
+/* 竖屏一律提示旋转（不限触屏）：游戏仅支持横屏 */
+@media (orientation: portrait) {
   .rotate-tip { display: flex; }
 }
 @keyframes rotate-phone {

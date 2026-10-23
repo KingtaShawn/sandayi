@@ -28,7 +28,7 @@
   }
 
   const C = window.GameCore;
-  const { GameService, createConfig, DEFAULT_CONFIG, getHint, fmt, storage, STORAGE_KEYS, stats, createRng, ruleConfig, scoreBidOptions } = C;
+  const { GameService, createConfig, DEFAULT_CONFIG, fmt, storage, STORAGE_KEYS, stats, createRng, ruleConfig, scoreBidOptions } = C;
   // 音效模块（sound.js 未加载时静默降级为空操作，游戏不受影响）
   const Sfx = window.SoundFx || { play() {}, unlock() {}, state: () => 'idle', isEnabled: () => false, toggle: () => false, isMusicOn: () => false, toggleMusic: () => false };
 
@@ -175,6 +175,13 @@
   }
 
   function startGame() {
+    // 重发可在任意时刻触发：先掐掉进行中的发牌/拿底动画与定时器（否则 _dealAnimating/_grabAnimating 残留会卡住 driveAI）
+    if (G._dealTimer) { clearInterval(G._dealTimer); G._dealTimer = null; }
+    if (G._dealWatchdog) { clearTimeout(G._dealWatchdog); G._dealWatchdog = null; }
+    G._dealAnimating = false;
+    if (G._grabTimer) { clearTimeout(G._grabTimer); G._grabTimer = null; }
+    G._grabAnimating = false;
+    G.grabBottom = { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [] };
     G.service = new GameService({ config: buildConfig(), rng: createRng() });
     G.selectedIds = [];
     G.lastAdded = null;
@@ -994,15 +1001,30 @@
     driveAI();
   }
 
-  function onHint() {
-    const st = G.service.getState();
-    if (st.phase !== 'PLAYING' || st.turnIdx !== 0) { toast('当前无需出牌'); return; }
-    const hint = getHint(st, 0);
-    if (!hint.cards) { toast(hint.reason); return; }
-    G.selectedIds = hint.cards.map((c) => c.id);
-    Sfx.play('select');
-    render();
-    if (hint.reason) toast(hint.reason);
+  /* ---------- 重发（牌不好整局重来；替换原「提示」按钮） ---------- */
+  let redealArmedTimer = null;
+  function disarmRedeal() {
+    if (redealArmedTimer) { clearTimeout(redealArmedTimer); redealArmedTimer = null; }
+    const btn = $('btn-redeal');
+    btn.textContent = '重发';
+    btn.classList.remove('table__tool-btn--armed');
+  }
+
+  function onRedeal() {
+    const btn = $('btn-redeal');
+    // 两段确认防误触：首点只染红示警，2.5s 内再点才整局重发，超时自动复位
+    if (!btn.classList.contains('table__tool-btn--armed')) {
+      btn.textContent = '确认重发';
+      btn.classList.add('table__tool-btn--armed');
+      if (redealArmedTimer) clearTimeout(redealArmedTimer);
+      redealArmedTimer = setTimeout(disarmRedeal, 2500);
+      Sfx.play('select');
+      return;
+    }
+    disarmRedeal();
+    storage.remove(STORAGE_KEYS.CURRENT_GAME); // 旧局存档即刻作废（persist 只在结算/页面隐藏时写，不删会复活弃局）
+    startGame();
+    toast('已重新发牌');
   }
 
   function onHistory() {
@@ -1107,7 +1129,7 @@
   });
   $('btn-rules').addEventListener('click', () => { renderRules(); showView('rules'); });
   $('btn-rules-back').addEventListener('click', () => showView('home'));
-  $('btn-hint').addEventListener('click', onHint);
+  $('btn-redeal').addEventListener('click', onRedeal);
   $('btn-history').addEventListener('click', onHistory);
   // 音效开关：状态持久化在 tractor:settings.sound，随局切换保持
   const updateSoundBtn = () => { $('btn-sound').textContent = Sfx.isEnabled() ? '🔊' : '🔇'; };
@@ -1173,6 +1195,9 @@
       driveAI();
     }
   });
+
+  // 测试钩子：e2e 读对局状态驱动真人侧（__probe + GameCore.getHint），生产无副作用
+  window.__probe = () => G.service && G.service.getState();
 
   renderHome();
 })();

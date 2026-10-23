@@ -6,7 +6,16 @@
 'use strict';
 
 const path = require('path');
-const { JSDOM } = require(path.join('C:', 'Users', 'baicells', '.workbuddy', 'binaries', 'node', 'workspace', 'node_modules', 'jsdom'));
+// jsdom 解析：项目 node_modules 优先，退回 JSDOM_WS 目录，最后留原 Windows 机绝对路径
+let JSDOM = null;
+try { JSDOM = require('jsdom').JSDOM; }
+catch {
+  const fallbacks = process.env.JSDOM_WS
+    ? [path.resolve(process.env.JSDOM_WS, 'jsdom')]
+    : [path.join('C:', 'Users', 'baicells', '.workbuddy', 'binaries', 'node', 'workspace', 'node_modules', 'jsdom')];
+  for (const dir of fallbacks) { try { JSDOM = require(dir).JSDOM; break; } catch (e) { /* 试下一个 */ } }
+}
+if (!JSDOM) { console.error('未找到 jsdom：npm i -D jsdom，或设 JSDOM_WS=<含 jsdom 的 node_modules 目录>'); process.exit(1); }
 
 const BASE = 'http://127.0.0.1:8930';
 
@@ -58,6 +67,20 @@ function check(name, cond, detail) {
   const handCards = doc.querySelectorAll('#hand-row .card').length;
   check('发牌动画完成手牌 25 张', handCards === 25, `got ${handCards}`);
   check('发牌动画层关闭', doc.getElementById('deal-anim').hidden);
+
+  // 重发按钮（替换原「提示」）：首点只进确认态、2.5s 超时复位、再点才整局重发
+  const redealBtn = doc.getElementById('btn-redeal');
+  check('重发按钮存在（提示按钮已移除）', !!redealBtn && !doc.getElementById('btn-hint'));
+  redealBtn.click();
+  await sleep(120);
+  check('重发首点进确认态不立即重发', redealBtn.textContent.includes('确认') && doc.querySelectorAll('#hand-row .card').length === 25);
+  await sleep(2600);
+  check('确认态 2.5s 超时自动复位', !redealBtn.textContent.includes('确认'));
+  redealBtn.click();
+  await sleep(120);
+  redealBtn.click();
+  await sleep(4200);
+  check('确认后整局重发（新手牌 25 张）', doc.querySelectorAll('#hand-row .card').length === 25, `got ${doc.querySelectorAll('#hand-row .card').length}`);
 
   // 走完 BIDDING（真人侧：如果轮到就报分或 pass；等 AI 走完）
   const state = () => window.__probe && window.__probe();
@@ -114,9 +137,16 @@ function check(name, cond, detail) {
       if (confirm && !confirm.classList.contains('btn--disabled')) confirm.click();
       await sleep(250);
     } else if (label.includes('轮到你出牌')) {
-      // 出牌：点「提示」自动选牌再点「出牌」
-      doc.getElementById('btn-hint').click();
-      await sleep(120);
+      // 出牌：__probe 拿状态 → GameCore.getHint 算提示牌 → 逐张点选再点「出牌」（提示按钮已换「重发」）
+      const st = window.__probe && window.__probe();
+      const hint = st && window.GameCore.getHint(st, 0);
+      if (hint && hint.cards) {
+        hint.cards.forEach((c) => {
+          const cardEl = doc.querySelector('#hand-row [data-card-id="' + c.id + '"]');
+          if (cardEl) cardEl.click();
+        });
+        await sleep(120);
+      }
       const playBtn = Array.from(doc.querySelectorAll('#action-slot .btn--primary')).find((b) => b.textContent.includes('出牌'));
       if (playBtn && !playBtn.classList.contains('btn--disabled')) playBtn.click();
       await sleep(200);
