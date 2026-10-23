@@ -55,7 +55,7 @@ function main() {
   const ver = version();
   let html = fs.readFileSync(path.join(H5, 'index.html'), 'utf8');
   html = html.replace(
-    /((?:href|src)="(?:css\/style\.css|js\/game-bundle\.js|js\/app\.js|manifest\.webmanifest))"/g,
+    /((?:href|src)="(?:css\/style\.css|js\/game-bundle\.js|js\/sound\.js|js\/app\.js|manifest\.webmanifest))"/g,
     `$1?v=${ver}"`
   );
   fs.writeFileSync(path.join(DIST, 'index.html'), html, 'utf8');

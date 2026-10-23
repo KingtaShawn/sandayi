@@ -29,6 +29,8 @@
 
   const C = window.GameCore;
   const { GameService, createConfig, DEFAULT_CONFIG, getHint, fmt, storage, STORAGE_KEYS, stats, createRng, ruleConfig, scoreBidOptions } = C;
+  // 音效模块（sound.js 未加载时静默降级为空操作，游戏不受影响）
+  const Sfx = window.SoundFx || { play() {}, unlock() {}, isEnabled: () => false, toggle: () => false };
 
   /* ========== wx 等价物 ========== */
   // storage/adapter 检测 wx.setStorageSync —— 注入 localStorage 版 wx 垫片后存档直接持久化
@@ -153,7 +155,9 @@
     lastFloatKey: '',
     lastTapCardId: '',
     lastTapAt: 0,
-    lastHandKey: ''
+    lastHandKey: '',
+    lastTrickPlaysLen: undefined, // 出牌音效：上一帧墩内出牌数
+    lastTrickCompletedLen: 0      // 出牌音效：上一帧已完成墩数
   };
   const DOUBLE_TAP_MS = 320;
 
@@ -281,6 +285,19 @@
       trick = st.completedTricks[st.completedTricks.length - 1];
       dim = true;
     }
+    // 出牌音效：墩内出牌数增长（含领出）或墩收齐（末位那声在收墩瞬间）→ 拍牌声；
+    // 真人/AI 统一在此捕捉，多张牌逐张错峰。首帧（undefined）不响。
+    const plays = st.currentTrick && st.currentTrick.plays ? st.currentTrick.plays : null;
+    if (plays && plays.length > G.lastTrickPlaysLen) {
+      const p = plays[plays.length - 1];
+      Sfx.play('play', { count: p ? p.cards.length : 1 });
+    } else if (st.completedTricks.length > G.lastTrickCompletedLen) {
+      const t = st.completedTricks[st.completedTricks.length - 1];
+      const p = t && t.plays && t.plays[t.plays.length - 1];
+      Sfx.play('play', { count: p ? p.cards.length : 1 });
+    }
+    G.lastTrickPlaysLen = plays ? plays.length : 0;
+    G.lastTrickCompletedLen = st.completedTricks.length;
     area.className = 'trick-area' + (dim ? ' trick-area--dim' : '');
     area.innerHTML = '';
     if (!trick || !trick.plays) return;
@@ -392,7 +409,9 @@
       modal.hidden = true;
       return;
     }
+    const wasHidden = modal.hidden;
     modal.hidden = false;
+    if (wasHidden) Sfx.play(view.settleIsWin ? 'win' : 'lose'); // 弹层首次出现才响（重渲不重复）
     const banner = $('result-banner');
     banner.textContent = view.settleBanner;
     banner.className = 'result-modal__banner' + (view.settleIsWin ? ' result-modal__banner--win' : '');
@@ -579,11 +598,13 @@
     G._dealAnimating = true;
     G.handVisibleCount = 0;
     G.dealAnim = { active: true, counts: [0, 0, 0, 0], flyCards: [] };
+    Sfx.play('shuffle');
     const counts = [0, 0, 0, 0];
     const flyCards = [];
     let dealt = 0, flySeq = 0;
     G._dealTimer = setInterval(() => {
       try {
+        Sfx.play('deal');
         for (let k = 0; k < 4 && dealt < per * 4; k++) {
           const seat = dealt % 4;
           counts[seat] += 1;
@@ -631,6 +652,7 @@
     const bottomCount = st.config.bottomCards || 8;
     const dealerIsHuman = !!st.players[dealerIdx].isHuman;
     G._grabAnimating = true;
+    Sfx.play('grab');
     const cards = [];
     for (let i = 0; i < bottomCount; i++) cards.push({ id: 'bottom-' + i, delay: i * 40 });
     if (dealerIsHuman) G.handVisibleCount = st.players[0].hand.length - bottomCount;
@@ -644,6 +666,7 @@
 
   function grabFlyTick(flown, total, dealerIdx, dealerIsHuman, flyCards) {
     const next = flown + 1;
+    Sfx.play('deal'); // 底牌逐张飞入的轻响
     const newFly = flyCards.concat([{ id: 'grab-fly-' + next, seat: dealerIdx }]);
     while (newFly.length > 3) newFly.shift();
     G.grabBottom = {
@@ -705,8 +728,9 @@
     const last = st.completedTricks[st.completedTricks.length - 1];
     const lastKey = `${st.roundNo}-${st.completedTricks.length}`;
     if (G.lastFloatKey === lastKey) return;
-    if (!last.points || last.points <= 0) { G.lastFloatKey = lastKey; return; }
+    if (!last.points || last.points <= 0) { G.lastFloatKey = lastKey; Sfx.play('collect'); return; }
     G.lastFloatKey = lastKey;
+    Sfx.play('score');
     const winnerTeam = st.players[last.winnerIdx].team;
     const mine = winnerTeam === 0;
     const fp = $('float-points');
@@ -778,6 +802,7 @@
   function onChooseTrump(suit) {
     const r = G.service.chooseTrump(suit);
     if (!r.ok) { toast(r.reason || '选主失败'); return; }
+    Sfx.play('trump');
     render();
     driveAI();
   }
@@ -785,11 +810,13 @@
   function onScoreBid(score) {
     const r = G.service.scoreBid(0, score);
     if (!r.ok) { toast(r.reason || '报分失败'); return; }
+    Sfx.play('bid');
     render();
     driveAI();
   }
 
   function onPassBid() {
+    Sfx.play('pass');
     G.service.dispatch({ type: 'PASS_BID', playerIdx: 0 });
     render();
     driveAI();
@@ -830,6 +857,7 @@
     e.preventDefault();
     if (!G.selectedIds.includes(card.id)) {
       G.selectedIds = smartToggle(st, card, false);
+      Sfx.play('select');
       renderHand(st, []);
       renderActionBar(st, {
         needPlayCount: (st.currentTrick && st.currentTrick.leadCombo) ? st.currentTrick.leadCombo.n : G.selectedIds.length,
@@ -849,6 +877,7 @@
       else if (ids.length < st.config.bottomCards) ids.push(card.id);
       else { toast(`最多选 ${st.config.bottomCards} 张`); return; }
       G.selectedIds = ids;
+      Sfx.play('select');
       render();
       return;
     }
@@ -867,6 +896,7 @@
         return;
       }
       G.selectedIds = smartToggle(st, card, selected);
+      Sfx.play('select');
       renderHand(st, []);
       renderActionBar(st, {
         needPlayCount: (st.currentTrick && st.currentTrick.leadCombo) ? st.currentTrick.leadCombo.n : G.selectedIds.length,
@@ -890,6 +920,7 @@
     const cards = G.selectedIds.map((id) => st.players[0].hand.find((c) => c.id === id)).filter(Boolean);
     const r = G.service.bury(cards);
     if (!r.ok) { toast(r.reason || '埋底失败'); return; }
+    Sfx.play('collect'); // 埋底：一叠牌收入底堆
     G.selectedIds = [];
     render();
     driveAI();
@@ -903,6 +934,7 @@
     const r = G.service.play(0, cards);
     if (!r.ok) {
       toast(r.reason || '非法出牌');
+      Sfx.play('error');
       window.wx.vibrateShort();
       return;
     }
@@ -919,6 +951,7 @@
     const hint = getHint(st, 0);
     if (!hint.cards) { toast(hint.reason); return; }
     G.selectedIds = hint.cards.map((c) => c.id);
+    Sfx.play('select');
     render();
     if (hint.reason) toast(hint.reason);
   }
@@ -1027,6 +1060,17 @@
   $('btn-rules-back').addEventListener('click', () => showView('home'));
   $('btn-hint').addEventListener('click', onHint);
   $('btn-history').addEventListener('click', onHistory);
+  // 音效开关：状态持久化在 tractor:settings.sound，随局切换保持
+  const updateSoundBtn = () => { $('btn-sound').textContent = Sfx.isEnabled() ? '🔊' : '🔇'; };
+  $('btn-sound').addEventListener('click', () => {
+    const on = Sfx.toggle();
+    updateSoundBtn();
+    toast(on ? '音效已开' : '音效已关');
+  });
+  updateSoundBtn();
+  // 音效解锁：首次任意手势（iOS/Chrome 自动播放策略——手势前 AudioContext 处于挂起态）；
+  // click 兜底键盘触发（Enter/Space 无 pointerdown）
+  ['pointerdown', 'touchstart', 'click'].forEach((evt) => document.addEventListener(evt, () => Sfx.unlock(), { once: true, passive: true }));
   $('btn-history-close').addEventListener('click', () => { $('history-modal').hidden = true; });
   $('history-mask').addEventListener('click', () => { $('history-modal').hidden = true; });
   $('btn-result-next').addEventListener('click', onNextRound);
