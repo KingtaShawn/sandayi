@@ -30,7 +30,12 @@ const server = http.createServer((req, res) => {
   if (!f.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
   fs.readFile(f, (e, data) => {
     if (e) { res.writeHead(404); res.end('not found'); return; }
-    res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' });
+    // 一律 no-store：开发服务器无 ETag/版本号可协商，浏览器启发式缓存会把旧 index.html
+    // （连同它引用的旧 ?v= 资源）一直留在手机/微信 webview 里，改完代码刷新不生效
+    res.writeHead(200, {
+      'Content-Type': MIME[path.extname(f)] || 'application/octet-stream',
+      'Cache-Control': 'no-store'
+    });
     res.end(data);
   });
 });
