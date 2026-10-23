@@ -1,0 +1,41 @@
+# H5 自动发布到 GitHub Pages：push 到 main 即构建 h5/dist 并上线
+# 首次使用需在仓库 Settings → Pages 把 Source 设为 "GitHub Actions"（一次性）
+name: Deploy H5 to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ['h5/**', 'miniprogram/**', 'tools/build-h5.js', 'package.json']
+  workflow_dispatch: # 支持手动触发
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: npm run build:h5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: h5/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
