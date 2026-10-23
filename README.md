@@ -42,9 +42,11 @@ npm run build:h5   # 重打 game-bundle → h5/dist/（只含发布文件，注�
 
 ## 音乐素材
 
-背景音乐（`h5/music/bgm.m4a`）：[Eastern Thought — Kevin MacLeod](https://incompetech.com/music/royalty-free/)，
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。取原曲前 72 秒做循环段（首尾淡入淡出遮接缝，
-单声道 64kbps AAC，约 570KB）。🎵 开关状态与音效独立，存 `tractor:settings.music`。
+背景音乐（`h5/music/bgm.m4a`）：[Celebration In China — Steve Oxen / Fesliyan Studios]
+(https://www.fesliyanstudios.com/royalty-free-music/download/celebration-in-china/1631)。
+免费使用（非商业，按要求署名于此）。取原曲能量最饱满的 72 秒（84s~156s 段）做循环
+（首尾淡入淡出遮接缝，单声道 64kbps AAC，约 570KB）。🎵 开关状态与音效独立，存
+`tractor:settings.music`。
 
 EdgeOne Pages 控制台导入 GitHub 仓库：构建命令 `npm run build:h5`，输出目录 `h5/dist`。
 push 即自动部署；默认域名 `*.edgeone.app` 无需备案。
