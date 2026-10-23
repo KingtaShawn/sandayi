@@ -10,9 +10,11 @@
  *   - 亮主：对级牌/对王必抢；单级牌首局倾向早亮；
  *   - 埋底：主强（≥1/3 手牌为主或有大拖）→ 分牌埋底藏分；主弱 → 埋短门废牌；
  *   - 出牌（贪心打分）：
- *     · 领出：庄家/主多 → 大拖/大对清主；有绝对大主 → 出主收墩；
+ *     · 领出：庄家/主多 → 大拖/大对清主；顶主守底（非末墩不领「剩余牌
+ *       无敌」的顶主——单大王换不来分，留作后手压分墩与末墩抠底）；
  *       攻方末墩意识（剩 1 墩且能赢 → 最大牌抠底）+ 末墩储备
- *       （剩 ≤5 墩不把无敌大主花在小分墩上，留力抠底）；
+ *       （剩 ≤5 墩不把无敌大主花在小分墩上，留力抠底）
+ *       + 配合领出（往庄家示缺门领空牌逼烧主——三家主牌碾压一家）；
  *     · 跟牌：末家必赢 → 甩分牌收分；能小赢 → 最小能赢牌；赢不了 → 垫最小/喂分给稳赢队友；
  *     · 缺门：墩内分 ≥ threshold → 主牌将吃（结构对应优先），否则垫分/垫小。
  */
@@ -351,6 +353,13 @@ class GreedyStrategy {
     // 留着末墩将吃抠底（升级模式无记牌上下文，维持基线）
     if (ctx && !ctx.sdy.isDealer) {
       score -= this._lastTrickReserve(state, playerIdx, cards_, ctx, 0);
+      // 配合领出（v4，实测校准）：庄家示缺门的副牌 → 领空牌逼庄烧主
+      // （三家主牌总量碾压一家，庄主耗尽即攻方收割；400 局同种子 A/B
+      // 对比「避让缺门 58.8% → 逼烧主 43.0% 庄胜率」，方向相反收益巨大）；
+      // 领分仍罚——被将吃等于白送庄家分。
+      if (!combo.isTrump && ctx.sdy.voids && ctx.sdy.voids.dealer.has(combo.suit)) {
+        score += 6 - pointsOf(cards_, cfg) * 1.5;
+      }
     }
 
     if (combo.isTrump) {
@@ -466,7 +475,28 @@ class GreedyStrategy {
       if (!di.byDomain.has(d)) di.byDomain.set(d, []);
       di.byDomain.get(d).push({ s: strengthInDomain(fake, ti), unseen });
     });
-    return { mem, di, sdy: this._sdyCtx(state, playerIdx) };
+    const sdy = this._sdyCtx(state, playerIdx);
+    sdy.voids = this._voidSuitsOf(state, ti);
+    return { mem, di, sdy };
+  }
+
+  /**
+   * 缺门情报（三打一配合核心）：扫已完墩——某门被领出时该家未跟这门
+   * （垫牌/将吃）→ 该家从此缺这门（缺门信息一经示出终身有效）。
+   * @returns {{dealer:Set<string>, others:Set<string>}} 庄家缺门 / 任意攻方缺门
+   */
+  _voidSuitsOf(state, ti) {
+    const dealer = state.sanDaYiTeams ? state.sanDaYiTeams.dealer : state.dealerIdx;
+    const res = { dealer: new Set(), others: new Set() };
+    (state.completedTricks || []).forEach((t) => {
+      if (!t.leadCombo || t.leadCombo.isTrump) return;
+      const dom = t.leadCombo.suit;
+      t.plays.forEach((p) => {
+        const followed = p.cards.every((c) => domainOf(c, ti) === dom);
+        if (!followed) (p.playerIdx === dealer ? res.dealer : res.others).add(dom);
+      });
+    });
+    return res;
   }
 
   /** 庄家形势：dealerIdx / 已得分 / 距合同差 / 剩余手牌 */
@@ -565,8 +595,16 @@ class GreedyStrategy {
       if (combo.type === 'tractor') score += 12;
       if (combo.type === 'pair') score += 6;
       if (combo.type === 'pair' && cards_[0].rank === 'BJ') score += 12; // 对大王整对必赢：别拆成两单送墩
-      if (combo.type === 'single' && cards_[0].rank === 'BJ') score += 8; // 大王控场
-      score += strength / 200; // 同型先出大主
+      // 顶主守底（v4，替代旧「单大王控场 +8」）：领出单大王/顶级主，
+      // 攻方压不过只会全垫小牌——白墩一张，得分≈0，还失去后手压制与
+      // 末墩守底/抠底资本。非末墩领出「剩余牌无敌」顶主按底分罚；
+      // 末墩本身不罚（该抠底就抠底）。
+      const tricksLeft = hand.length / cards_.length;
+      if (tricksLeft > 1 && this._unseenHigher(di, 'TRUMP', combo.units[0].strength) === 0) {
+        const bp = (state.bottomCards || []).reduce((s2, c) => s2 + pointValue(c, cfg), 0);
+        score -= (8 + Math.min(16, bp / 2)) * (tricksLeft >= 4 ? 1 : 0.6);
+      }
+      score += strength / 200; // 同型先出大主（小主清主仍可选）
     } else {
       // 基线：手牌内最大（逼近顶部，逼对手用真大牌压、消耗拦牌）
       if (combo.type === 'tractor' && this._isBiggestInDomain(cards_, domainCards_, ti, cfg)) score += 14;
@@ -585,18 +623,22 @@ class GreedyStrategy {
       if (combo.type === 'single') {
         score += (14 - strength) / 14 * 5 + (5 - Math.min(5, domainCards_.length)) * 1.2;
       }
+      // 攻方已示缺门 → 该门领出易被将吃/白送，轻罚
+      if (ctx.sdy.voids && ctx.sdy.voids.others.has(combo.suit)) score -= 4;
       score -= pointsOf(cards_, cfg) / 2; // 不送分
     }
     return score;
   }
 
   /**
-   * 三打一跟牌打分（v2，基准实测校准）：
-   * 攻方 = 贪心基线原逻辑（自对弈实测优于全面位置感知版）+ 两处升级：
-   *   庄家已出且队友领先 → 喂分系数 1.5 → 3（此时喂分 100% 安全）；
+   * 三打一跟牌打分（v4，基准实测校准）：
+   * 攻方 = 贪心基线 + 团队配合：
+   *   锁墩（庄家夺不走的墩）→ 全力喂分、垫废牌、绝不超压队友——
+   *   攻分是三家团队总分，谁赢墩无所谓（_teamLocked）；
+   *   队友领先未锁墩时 0 分超压小罚（赢牌留着防庄家）；
    *   末墩储备——剩 ≤5 墩不把「剩余牌无敌」大主花在小分墩（_lastTrickReserve）；
-   * 庄家 = 合同意识版：有分墩出强牌锁墩（身后攻方专压小赢牌），
-   *   稳赢组合再加成；白墩仍最小赢；输墩绝不送分。
+   * 庄家 = 合同意识版：有分墩锁墩但省力（记牌器稳赢时最小稳赢即可），
+   *   白墩仍最小赢；输墩绝不送分。
    */
   _scoreFollowSdy(state, playerIdx, cards_, ctx) {
     const cfg = state.config;
@@ -610,8 +652,6 @@ class GreedyStrategy {
     const isLast = trick.plays.length === 3;
     const strength = this._maxStrength(cards_, ti);
     const canWin = this._wouldWin(state, trick, playerIdx, cards_, combo);
-    const dealerInPlay = trick.leadPlayerIdx === sdy.dealerIdx
-      || trick.plays.some((p) => p.playerIdx === sdy.dealerIdx);
     const curWinnerTeam = this._currentWinnerTeam(state, trick, ti, cfg);
     const teamWinning = curWinnerTeam === this._camp(state, playerIdx);
     const allTrump = cards_.every((c) => domainOf(c, ti) === 'TRUMP');
@@ -622,9 +662,11 @@ class GreedyStrategy {
         if (isLast) {
           score += 30 + pts * 2 + trickPts; // 末家稳收：连自己分一起算
         } else if (trickPts + pts >= 10) {
-          // 有分墩：出强牌锁墩（身后攻方专压庄家的小赢牌）
-          score += 24 + strength / 150 + Math.min(pts, 10) + trickPts / 2;
-          if (this._isSureCombo(combo, di)) score += 6; // 剩余牌无更大 → 后手也压不过
+          // 有分墩：锁墩但省力——记牌器稳赢（剩余牌无更大）时最小稳赢即可，
+          // 未必稳赢才上大牌防身后攻方压过（大牌留着换后面的分）
+          score += 24 + Math.min(pts, 10) + trickPts / 2;
+          if (this._isSureCombo(combo, di)) score += 6 - strength / 150; // 后手也压不过
+          else score += strength / 150; // 有被压风险 → 大牌锁墩
         } else {
           score += 20 - strength / 100; // 白墩最小赢（庄家将吃抢节奏，不罚）
         }
@@ -634,13 +676,23 @@ class GreedyStrategy {
         score += (20 - strength) / 20 * 6; // 垫最小
       }
     } else {
-      // 攻方：贪心基线原逻辑
-      if (canWin) {
+      // 攻方：贪心基线 + 团队配合（v4）
+      // 锁墩：这墩已稳进我方（庄家出过且队友在压；或庄家未出但队友顶主
+      // 且剩余牌无更大主）→ 归属与我出什么无关
+      const lock = teamWinning && this._teamLocked(state, playerIdx, ctx, trick);
+      if (lock) {
+        // 配合核心：三打一攻分是团队总分，谁赢墩无所谓——全力喂分、
+        // 垫最废牌；绝不超压队友（赢牌留着对付庄家），(20-strength) 项
+        // 天然压制烧主牌（主留着后手将吃/末墩抠底）
+        score += pts * 4 + (20 - strength) / 20 * 6;
+      } else if (canWin) {
         if (isLast) {
           score += 30 + pts * 2 + trickPts;
         } else {
           score += 20 - strength / 100 + Math.min(pts, 10);
           if (teamWinning && trickPts >= TRUMP_IN_THRESHOLD) score += 8;
+          // 队友领先但未锁墩：0 分超压小罚——我的赢牌留着防庄家更有价值
+          if (teamWinning && pts === 0) score -= 6;
         }
         score += trickPts / 2 + pts; // 攻方收分意识
         // 末墩储备：剩墩 ≤5 时，花无敌大主只赢回小分 → 罚，留着抠底
@@ -657,14 +709,31 @@ class GreedyStrategy {
         // 缺门垫主 = 纯浪费（跟主牌领出被迫出主不算）
         if (allTrump && !lead.isTrump) score -= 20;
         if (teamWinning) {
-          score += pts * (dealerInPlay ? 3 : 1.5); // 庄家已出 → 喂分绝对安全
+          score += pts * 1.5; // 庄家未出仍可能夺走 → 少喂试探
         } else {
-          score -= pts;
+          score -= pts; // 庄家在压 → 绝不送分
         }
         score += (20 - strength) / 20 * 6;
       }
     }
     return score;
+  }
+
+  /**
+   * 墩是否已锁进攻方（庄家无论如何夺不走）。前提：当前最大是队友。
+   * 庄家已出且在压 → 必锁；庄家未出 → 仅当队友赢牌是主牌且剩余牌无
+   * 更大主（主牌赢牌无从被将吃，只怕更大主）。副牌赢牌不算锁：庄家
+   * 可能有未示出的缺门将吃偷墩——缺门情报只知已暴露的，安全侧不赌。
+   */
+  _teamLocked(state, playerIdx, ctx, trick) {
+    const ti = state.trumpInfo;
+    const cfg = state.config;
+    const { sdy, di } = ctx;
+    if (trick.plays.some((p) => p.playerIdx === sdy.dealerIdx)) return true;
+    const wp = this._currentWinnerPlay(state, trick, ti, cfg);
+    if (!wp) return false;
+    if (!wp.cards.every((c) => domainOf(c, ti) === 'TRUMP')) return false;
+    return this._unseenHigher(di, 'TRUMP', this._maxStrength(wp.cards, ti)) === 0;
   }
 
   /* ------------------------- 辅助 ------------------------- */
@@ -732,6 +801,12 @@ class GreedyStrategy {
   }
 
   _currentWinnerTeam(state, trick, ti, cfg) {
+    const wp = this._currentWinnerPlay(state, trick, ti, cfg);
+    return wp ? this._camp(state, wp.playerIdx) : -1;
+  }
+
+  /** 墩内当前最大者的出牌记录（PlayRecord|null），resolveTrick 探针裁决 */
+  _currentWinnerPlay(state, trick, ti, cfg) {
     const { resolveTrick } = require('../engine/trick');
     const probe = {
       leadPlayerIdx: trick.leadPlayerIdx,
@@ -743,9 +818,9 @@ class GreedyStrategy {
     try {
       resolveTrick(probe, ti, cfg);
     } catch (e) {
-      return -1;
+      return null;
     }
-    return this._camp(state, probe.winnerIdx);
+    return probe.plays.find((p) => p.playerIdx === probe.winnerIdx) || null;
   }
 }
 
