@@ -105,10 +105,11 @@ class GreedyStrategy {
   decideScoreBid(state, playerIdx, options, rng) {
     if (!options || options.length === 0) return null;
     const estimate = this.estimateSanDaYiPoints(state, playerIdx);
-    // 90 起叫（庄家需拿 45% 分）：估算 ≥ 叫分+12 才叫（安全边际）
+    // 90 起叫（庄家需拿 45% 分）：估算高出卖价 10 分以内也敢叫
+    // （估算本身偏保守：1v3 下庄家实际能拿的分通常高于模型估算）
     let best = null;
     for (const v of options) {
-      if (estimate >= v + 12) best = v;
+      if (estimate >= v - 10) best = v;
     }
     if (rng && this.difficulty === 'easy' && rng.next() < 0.2) return null;
     return best;
