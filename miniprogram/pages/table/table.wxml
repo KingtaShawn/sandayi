@@ -37,19 +37,35 @@
         </view>
         <view class="deal-anim__fly deal-anim__fly--s{{item.seat}}" wx:for="{{dealAnim.flyCards}}" wx:key="id"></view>
       </view>
-      <!-- v2.1 三打一抓底牌动画：中央 8 张底牌背展示（轻微弹跳+金光强调）→ 逐张飞向庄家座位 -->
+      <!-- v2.1 三打一抓底牌动画：中央 8 张底牌展示（真人庄家翻面亮出看清牌面，AI 庄家牌背）→ 逐张飞向庄家座位 -->
       <view class="grab-anim" wx:if="{{grabBottom.active}}">
         <view class="grab-anim__glow"></view>
         <view class="grab-anim__pile">
           <view class="grab-anim__cards">
+            <!-- 真人庄家：翻面亮出（face 为 Page 预计算牌面；card 组件样式隔离，此处页面自行渲染） -->
             <view
+              wx:if="{{grabBottom.reveal}}"
+              class="grab-anim__card grab-anim__card--face {{grabBottom.stage === 'fly' && index < grabBottom.flyCount ? 'grab-anim__card--gone' : ''}}"
+              wx:for="{{grabBottom.cards}}"
+              wx:key="id"
+              style="animation-delay: {{item.delay}}ms"
+            >
+              <view class="grab-face {{item.face.red ? 'grab-face--red' : 'grab-face--black'}} {{item.card.isTrump ? 'grab-face--trump' : ''}}">
+                <view class="grab-face__corner">
+                  <text class="grab-face__rank">{{item.face.rank}}</text>
+                  <text class="grab-face__suit">{{item.face.suit}}</text>
+                </view>
+              </view>
+            </view>
+            <view
+              wx:else
               class="grab-anim__card {{grabBottom.stage === 'fly' && index < grabBottom.flyCount ? 'grab-anim__card--gone' : ''}}"
               wx:for="{{grabBottom.cards}}"
               wx:key="id"
               style="animation-delay: {{item.delay}}ms"
             ></view>
           </view>
-          <view class="grab-anim__label" wx:if="{{grabBottom.stage === 'show' || grabBottom.flyCount < grabBottom.cards.length}}">底牌 ×{{grabBottom.cards.length}}</view>
+          <view class="grab-anim__label" wx:if="{{grabBottom.stage === 'show' || grabBottom.flyCount < grabBottom.cards.length}}">{{grabBottom.reveal && grabBottom.stage === 'show' ? '底牌已翻开' : '底牌 ×' + grabBottom.cards.length}}</view>
         </view>
         <!-- 飞牌：复用发牌动画 deal-fly 四向关键帧（庄家座位方向） -->
         <view class="deal-anim__fly deal-anim__fly--s{{item.seat}}" wx:for="{{grabBottom.flyCards}}" wx:key="id"></view>

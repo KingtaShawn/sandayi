@@ -90,20 +90,14 @@
   left: 4rpx;
 }
 
-/* ========== v1.2 王：边角星形显示（大王=实心★ 红 / 小王=空心☆ 黑） ========== */
-/* 星占牌面位（rank 行）、王占花色位——结构与普通牌完全同构，dense 下随全局字号缩放 */
-.card__rank--star {
+/* ========== v1.2 王：边角文字显示（大王=正 红 / 小王=副 黑） ========== */
+/* 正/副占牌面位（rank 行）、王占花色位——结构与普通牌完全同构，dense 下随全局字号缩放 */
+.card__rank--joker {
   font-size: 30rpx;
   line-height: 1.1;
 }
 
-/* 小王空心星描边微加粗，避免小字号下空心轮廓不清 */
-.card--joker .card__rank--star {
-  font-weight: 700;
-  text-shadow: 0 0 2rpx currentColor;
-}
-
-.card--dense .card__rank--star {
+.card--dense .card__rank--joker {
   font-size: 24rpx;
 }
 
@@ -134,4 +128,16 @@
   line-height: 1.2;
   z-index: 2;
   box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.25);
+}
+
+/* ========== 呼吸金光（glowing=true：新抓底牌并入高亮 4.2s，看清与手牌的配合） ========== */
+/* z-index 提层防右侧叠牌遮挡光晕；动画不 forwards——glowingIds 清空摘类即熄 */
+@keyframes card-glow {
+  0%, 100% { box-shadow: 0 0 6rpx rgba(243, 193, 75, 0.3); }
+  50% { box-shadow: 0 0 17rpx rgba(243, 193, 75, 0.95); }
+}
+
+.anim-glow {
+  z-index: 2;
+  animation: card-glow 1.1s ease-in-out infinite;
 }

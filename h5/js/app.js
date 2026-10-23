@@ -89,13 +89,15 @@
     if (o.dense) cls += ' card--dense';
     if (o.playIn) cls += ' anim-play-in';
     if (o.shaking) cls += ' anim-shake';
+    if (o.glowing) cls += ' anim-glow';
     d.className = cls;
     if (o.styleText) d.setAttribute('style', o.styleText);
     if (o.playInDelay) d.style.animationDelay = o.playInDelay + 'ms';
-    const displayRank = isJoker ? (isBig ? '★' : '☆') : card.rank;
+    // 王：大王=正（红），小王=副（黑）——与普通牌同构的边角显示（正/副占牌面位、王占花色位）
+    const displayRank = isJoker ? (isBig ? '正' : '副') : card.rank;
     const suitSymbol = isJoker ? '王' : (SYMBOLS[card.suit] || '');
     d.appendChild(el('div', 'card__corner',
-      `<div class="card__rank${isJoker ? ' card__rank--star' : ''}">${displayRank}</div><div class="card__suit">${suitSymbol}</div>`));
+      `<div class="card__rank${isJoker ? ' card__rank--joker' : ''}">${displayRank}</div><div class="card__suit">${suitSymbol}</div>`));
     return d;
   }
 
@@ -143,7 +145,9 @@
     prevHandIds: null,
     handVisibleCount: 999,
     dealAnim: { active: false, counts: [0, 0, 0, 0], flyCards: [] },
-    grabBottom: { active: false, stage: 'show', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [] },
+    grabBottom: { active: false, stage: 'show', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [], reveal: false },
+    newGrabIds: null,                   // 刚并入的底牌 id（手牌呼吸高亮，看清与手牌的配合）
+    _grabHlTimer: null,
     _dealAnimating: false,
     _grabAnimating: false,
     _grabObservedMerged: undefined,
@@ -180,8 +184,10 @@
     if (G._dealWatchdog) { clearTimeout(G._dealWatchdog); G._dealWatchdog = null; }
     G._dealAnimating = false;
     if (G._grabTimer) { clearTimeout(G._grabTimer); G._grabTimer = null; }
+    if (G._grabHlTimer) { clearTimeout(G._grabHlTimer); G._grabHlTimer = null; }
     G._grabAnimating = false;
-    G.grabBottom = { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [] };
+    G.grabBottom = { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [], reveal: false };
+    G.newGrabIds = null;
     G.service = new GameService({ config: buildConfig(), rng: createRng() });
     G.selectedIds = [];
     G.lastAdded = null;
@@ -257,6 +263,7 @@
     });
     const isDealing = all.length > n;
     const newIdSet = new Set(newIds || []);
+    const grabGlowSet = new Set(G.newGrabIds || []);
     // keyed diff：仅当手牌集合变化才重建（防动画重放）；selected 变化走轻量 class 切换
     const handKey = sorted.map((c) => c.id).join(',') + '|' + n + '|' + (dense ? 1 : 0);
     if (handKey !== G.lastHandKey) {
@@ -273,6 +280,7 @@
           selected: G.selectedIds.includes(c.id),
           dense, playIn,
           playInDelay: isDealing ? (i % 5) * 30 : 0,
+          glowing: grabGlowSet.has(c.id),
           styleText
         });
         d.dataset.cardId = c.id;
@@ -352,17 +360,27 @@
         wrap.appendChild(d);
       });
     }
-    // 抓底牌动画层
+    // 抓底牌动画层（真人庄家 reveal：底牌翻面亮出，看清抓到了什么）
     const ga = $('grab-anim');
     ga.hidden = !G.grabBottom.active;
     if (G.grabBottom.active) {
       const cardsWrap = $('grab-anim-cards');
       cardsWrap.innerHTML = '';
       G.grabBottom.cards.forEach((c, i) => {
-        const d = el('div', 'grab-anim__card' + (i < G.grabBottom.flyCount ? ' grab-anim__card--gone' : ''));
-        d.style.animationDelay = c.delay + 'ms';
-        cardsWrap.appendChild(d);
+        const gone = i < G.grabBottom.flyCount ? ' grab-anim__card--gone' : '';
+        if (G.grabBottom.reveal && c.card) {
+          const w = el('div', 'grab-anim__card grab-anim__card--face' + gone);
+          w.style.animationDelay = c.delay + 'ms';
+          w.appendChild(cardEl(c.card, {}));
+          cardsWrap.appendChild(w);
+        } else {
+          const d = el('div', 'grab-anim__card' + gone);
+          d.style.animationDelay = c.delay + 'ms';
+          cardsWrap.appendChild(d);
+        }
       });
+      const label = $('grab-anim-label');
+      if (label) label.textContent = (G.grabBottom.reveal && G.grabBottom.stage === 'show') ? '底牌已翻开' : `底牌 ×${G.grabBottom.cards.length}`;
       const flyWrap = $('grab-anim-fly');
       flyWrap.innerHTML = '';
       G.grabBottom.flyCards.forEach((f) => {
@@ -521,7 +539,9 @@
     const hl = $('hand-label');
     const myBid = (st.bids || []).filter((b) => b.type === 'score_bid' && b.playerIdx === 0).pop();
     hl.textContent = (G._grabAnimating && G.grabBottom.active)
-      ? (st.players[st.dealerIdx].isHuman ? '底牌飞入你的手牌…' : `${st.players[st.dealerIdx].name}拿底牌中…`)
+      ? (st.players[st.dealerIdx].isHuman
+        ? (G.grabBottom.reveal && G.grabBottom.stage === 'show' ? '底牌已翻开——看看与手牌怎么配合' : '底牌飞入你的手牌…')
+        : `${st.players[st.dealerIdx].name}拿底牌中…`)
       : (st.phase === 'PLAYING'
         ? (st.turnIdx === 0 ? '轮到你出牌（点牌成组选入，再点同一张收回；双击直接出，右键已选牌出）' : '等待其他玩家…')
         : (st.phase === 'BIDDING'
@@ -687,15 +707,21 @@
     const dealerIsHuman = !!st.players[dealerIdx].isHuman;
     G._grabAnimating = true;
     Sfx.play('grab');
+    // 真人庄家：底牌翻面亮出（engine 已并底，bottomCards 仍保留牌面），停顿加长供对照手牌；
+    // AI 庄家保持牌背 700ms（不给真人偷看 AI 的底牌）
+    const reveal = dealerIsHuman;
     const cards = [];
-    for (let i = 0; i < bottomCount; i++) cards.push({ id: 'bottom-' + i, delay: i * 40 });
+    for (let i = 0; i < bottomCount; i++) {
+      cards.push({ id: 'bottom-' + i, delay: i * 40, card: reveal ? decorateCard(st, st.bottomCards[i]) : null });
+    }
     if (dealerIsHuman) G.handVisibleCount = st.players[0].hand.length - bottomCount;
-    G.grabBottom = { active: true, stage: 'show', dealerIdx, cards, flyCount: 0, flyCards: [] };
+    G.grabBottom = { active: true, stage: 'show', dealerIdx, cards, flyCount: 0, flyCards: [], reveal };
     render(); // 立即展示中央底牌
+    if (reveal) Sfx.play('play'); // 翻面一记拍牌声
     G._grabTimer = setTimeout(() => {
       try { grabFlyTick(0, bottomCount, dealerIdx, dealerIsHuman, []); }
       catch (e) { console.error('抓底牌动画异常', e); endGrabBottom(); }
-    }, 700);
+    }, reveal ? 2600 : 700);
   }
 
   function grabFlyTick(flown, total, dealerIdx, dealerIsHuman, flyCards) {
@@ -705,7 +731,7 @@
     while (newFly.length > 3) newFly.shift();
     G.grabBottom = {
       active: true, stage: 'fly', dealerIdx,
-      cards: G.grabBottom.cards, flyCount: next, flyCards: newFly
+      cards: G.grabBottom.cards, flyCount: next, flyCards: newFly, reveal: G.grabBottom.reveal
     };
     if (dealerIsHuman) G.handVisibleCount += 1;
     renderAnim(G.service.getState());
@@ -725,9 +751,25 @@
     if (G._grabTimer) { clearTimeout(G._grabTimer); G._grabTimer = null; }
     G._grabAnimating = false;
     G.handVisibleCount = 999;
-    G.grabBottom = { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [] };
+    G.grabBottom = { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [], reveal: false };
+    // 真人庄家：8 张新底牌在手牌中呼吸高亮（插在排序手牌里的位置一目了然，
+    // 看清与手牌的配合），4.2s 超时或首次点牌后熄灭
+    const st = G.service.getState();
+    if (st && st.players[st.dealerIdx] && st.players[st.dealerIdx].isHuman && (st.bottomCards || []).length) {
+      G.newGrabIds = st.bottomCards.map((c) => c.id);
+      if (G._grabHlTimer) clearTimeout(G._grabHlTimer);
+      G._grabHlTimer = setTimeout(clearGrabHighlight, 4200);
+    }
     render();
     driveAI();
+  }
+
+  /** 熄灭新底牌高亮：清数据 + 直接摘 DOM 类（手牌 keyed diff 不重建，类不会自己消失） */
+  function clearGrabHighlight() {
+    if (G._grabHlTimer) { clearTimeout(G._grabHlTimer); G._grabHlTimer = null; }
+    if (!G.newGrabIds) return;
+    G.newGrabIds = null;
+    $('hand-row').querySelectorAll('.anim-glow').forEach((d) => d.classList.remove('anim-glow'));
   }
 
   /* ---------- 末墩扣底暂停（最后一墩先看清，点「扣底」再结算） ---------- */
@@ -908,6 +950,7 @@
   // 右键已选中的牌才出当前选中组合（双击仍是直接出牌）
   function onCardContext(e, card) {
     if (e.button !== 2) return;               // 只认鼠标右键
+    clearGrabHighlight();                     // 新底牌高亮见好就收：玩家已开始操作
     const st = G.service.getState();
     if (!(st.phase === 'PLAYING' && st.turnIdx === 0)) return; // 非己方出牌阶段保留系统菜单
     e.preventDefault();
@@ -925,6 +968,7 @@
   }
 
   function onCardTap(card) {
+    clearGrabHighlight();                     // 新底牌高亮见好就收：玩家已开始操作
     const st = G.service.getState();
     if (st.phase === 'BURYING') {
       let ids = G.selectedIds.slice();
@@ -1039,7 +1083,7 @@
     } else {
       recent.forEach((t, i) => {
         const no = st.completedTricks.length - Math.min(8, st.completedTricks.length) + i + 1;
-        const cardText = (c) => c.isJoker ? (c.rank === 'BJ' ? '大王' : '小王') : (SYMBOLS[c.suit] + c.rank);
+        const cardText = (c) => c.isJoker ? (c.rank === 'BJ' ? '正王' : '副王') : (SYMBOLS[c.suit] + c.rank);
         const d = el('div', 'history-modal__trick');
         d.innerHTML = `<div class="history-modal__trick-head">第 ${no} 墩 · ${fmt.seatName(t.leadPlayerIdx, mode)} 领出 · 赢家 ${fmt.seatName(t.winnerIdx, mode)}${t.points ? ' · +' + t.points + ' 分' : ''}</div>`
           + t.plays.map((p) => `<span class="history-modal__play">${fmt.seatName(p.playerIdx, mode)}: ${p.cards.map(cardText).join(' ')}</span>`).join('');

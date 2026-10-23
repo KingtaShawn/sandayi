@@ -30,7 +30,7 @@ const { STORAGE_KEYS } = require('../../storage/keys');
 const { createRng } = require('../../utils/random');
 const fmt = require('../../utils/format');
 const { summarize, appendRecord } = require('../../services/stats');
-const { cardKey } = require('../../engine/card');
+const { cardKey, SUIT_SYMBOLS } = require('../../engine/card');
 
 /** AI 节奏定时器句柄 */
 let aiTimer = null;
@@ -129,10 +129,12 @@ Page({
       this._grabAnimating = false;
       this.setData({
         handVisibleCount: 999,
-        grabBottom: { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [] }
+        grabBottom: { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [], reveal: false }
       });
       this.render(); // 恢复座位真实牌数等派生视图（watchdog 由 _grabAnimating=false 门控，安全）
     }
+    // 新底牌高亮定时器同理掐掉（后台节流会拖到几分钟后再熄）
+    if (this._grabHlTimer) this._clearGrabHighlight();
     this.persist();
   },
 
@@ -147,6 +149,8 @@ Page({
     // v2.1 抓底牌动画清理（防野定时器）
     if (this._grabTimer) { clearTimeout(this._grabTimer); this._grabTimer = null; }
     this._grabAnimating = false;
+    if (this._grabHlTimer) { clearTimeout(this._grabHlTimer); this._grabHlTimer = null; }
+    this._grabHlIds = null;
     this.persist();
   },
 
@@ -234,7 +238,8 @@ Page({
     const grabStarted = this.detectGrabBottom(st);
     const newIds = this.detectNewCards(st, grabStarted);
     // 可亮牌呼吸（仅升级模式亮主阶段；三打一无亮主概念——主牌由庄家拿底后自选）
-    const glowingIds = (isHumanTurnBid && !isSanDaYi) ? this.computeGlowingIds(st) : [];
+    // 亮主呼吸光（升級模式）或新抓底牌高亮（三打一并底后 4.2s 内），互斥场景不叠加
+    const glowingIds = (isHumanTurnBid && !isSanDaYi) ? this.computeGlowingIds(st) : (this._grabHlIds || []);
     // v1.3 残留墩展示：上一墩牌保留在桌面变暗，直到新墩第一张打出
     // 状态机在第 4 家出牌的同一 tick 内结算并把 currentTrick 置 null——
     // 此时渲染最后一墩（来自 completedTricks）变暗保留，避免"一闪而过"
@@ -276,7 +281,9 @@ Page({
       handOverlap: st.players[0].hand.length > 27 ? -44 : -28,
       // v2.1 抓底牌动画期间提示"庄家拿底牌"，替代过早出现的"选主"文案
       handLabel: (this._grabAnimating && this.data.grabBottom && this.data.grabBottom.active)
-        ? (st.players[st.dealerIdx].isHuman ? '底牌飞入你的手牌…' : `${st.players[st.dealerIdx].name}拿底牌中…`)
+        ? (st.players[st.dealerIdx].isHuman
+          ? (this.data.grabBottom.reveal && this.data.grabBottom.stage === 'show' ? '底牌已翻开——看看与手牌怎么配合' : '底牌飞入你的手牌…')
+          : `${st.players[st.dealerIdx].name}拿底牌中…`)
         : (st.phase === 'PLAYING'
         ? (st.turnIdx === 0 ? '轮到你出牌（点牌成组选入，再点同一张收回，双击出牌）' : '等待其他玩家…')
         : (st.phase === 'BIDDING'
@@ -481,10 +488,12 @@ Page({
 
   /**
    * 抓底牌动画主体（QQ 风格）：
-   *   show（~700ms）：中央 8 张牌背弹跳展示「这是底牌」
+   *   show：中央 8 张展示「这是底牌」——真人庄家翻面亮出牌面（停顿 2.6s 看清
+   *        抓到了什么、与手牌怎么配合），AI 庄家保持牌背 700ms（不给真人偷看）
    *   fly：每 120ms 一张牌背从中央飞向庄家座位（复用 deal-fly 四向关键帧），
    *        庄家座位牌数 25→33 递增；真人庄家手牌同步逐张亮出
-   *   收尾：恢复真实渲染 + driveAI（真人庄家选主条在 bid-bar 门控解除后出现）
+   *   收尾：恢复真实渲染 + driveAI（真人庄家选主条在 bid-bar 门控解除后出现）；
+   *        真人庄家的新底牌在手牌中呼吸高亮 4.2s（点牌即熄）
    * @param {number} dealerIdx 庄家座位（0..3）
    */
   startGrabBottomAnimation(dealerIdx) {
@@ -496,17 +505,30 @@ Page({
     const bottomCount = st.config.bottomCards || 8;
     const dealerIsHuman = !!(st.players[dealerIdx] && st.players[dealerIdx].isHuman);
     this._grabAnimating = true;
-    // 中央 8 张牌背（id 供 wx:key 去重；stagger 错开入场）
+    // 真人庄家翻面：engine 已并底但 bottomCards 仍保留牌面，decorateCard 预计算主牌/级牌标记。
+    // face 为展示层预计算（红黑/字面/花色符号）——card 组件样式隔离，页面侧 wxml 自行渲染牌面
+    const reveal = dealerIsHuman;
     const cards = [];
     for (let i = 0; i < bottomCount; i++) {
-      cards.push({ id: 'bottom-' + i, delay: i * 40 });
+      const c = st.bottomCards[i];
+      const isJoker = !!c.isJoker;
+      cards.push({
+        id: 'bottom-' + i,
+        delay: i * 40,
+        card: reveal ? this.decorateCard(st, c) : null,
+        face: reveal ? {
+          red: isJoker ? c.rank === 'BJ' : (c.suit === 'H' || c.suit === 'D'),
+          rank: isJoker ? (c.rank === 'BJ' ? '★' : '☆') : c.rank,
+          suit: isJoker ? '王' : (SUIT_SYMBOLS[c.suit] || '')
+        } : null
+      });
     }
     this.setData({
       handVisibleCount: dealerIsHuman ? (st.players[0].hand.length - bottomCount) : this.data.handVisibleCount,
-      grabBottom: { active: true, stage: 'show', dealerIdx, cards, flyCount: 0, flyCards: [] }
+      grabBottom: { active: true, stage: 'show', dealerIdx, cards, flyCount: 0, flyCards: [], reveal }
     });
     const self = this;
-    // 阶段一：展示 700ms 让玩家看清底牌
+    // 阶段一：真人庄家停顿 2.6s 看清底牌（翻面 stagger ~360ms + 阅读对照时间）
     this._grabTimer = setTimeout(() => {
       try {
         self._grabFlyTick(0, bottomCount, dealerIdx, dealerIsHuman, []);
@@ -514,7 +536,7 @@ Page({
         console.error('抓底牌动画异常，强制收尾', e);
         self._endGrabBottom();
       }
-    }, 700);
+    }, reveal ? 2600 : 700);
   },
 
   /**
@@ -537,7 +559,8 @@ Page({
         dealerIdx,
         cards: this.data.grabBottom.cards,
         flyCount: next,
-        flyCards: newFly
+        flyCards: newFly,
+        reveal: this.data.grabBottom.reveal
       }
     };
     if (dealerIsHuman) patch.handVisibleCount = this.data.handVisibleCount + 1;
@@ -561,16 +584,36 @@ Page({
     }, 120);
   },
 
-  /** 抓底牌动画收尾：恢复正常渲染（真实 33 张手牌全显）并恢复对局驱动（AI 选主 / 真人选主条出现） */
+  /**
+   * 抓底牌动画收尾：恢复正常渲染（真实 33 张手牌全显）并恢复对局驱动（AI 选主 / 真人选主条出现）。
+   * 真人庄家：8 张新底牌在手牌中呼吸高亮（插在排序手牌里的位置一目了然），
+   * 4.2s 超时或首次点牌后熄灭。
+   */
   _endGrabBottom() {
     if (this._grabTimer) { clearTimeout(this._grabTimer); this._grabTimer = null; }
     this._grabAnimating = false;
     this.setData({
       handVisibleCount: 999,
-      grabBottom: { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [] }
+      grabBottom: { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [], reveal: false }
     });
     this.render();
+    const st = this.service && this.service.getState();
+    if (st && st.players[st.dealerIdx] && st.players[st.dealerIdx].isHuman && (st.bottomCards || []).length) {
+      this._grabHlIds = st.bottomCards.map((c) => c.id);
+      this.setData({ glowingIds: this._grabHlIds });
+      if (this._grabHlTimer) clearTimeout(this._grabHlTimer);
+      const self = this;
+      this._grabHlTimer = setTimeout(() => self._clearGrabHighlight(), 4200);
+    }
     this.driveAI();
+  },
+
+  /** 熄灭新底牌高亮（渲染层由 render() 的 glowingIds 计算自动跟随清空） */
+  _clearGrabHighlight() {
+    if (this._grabHlTimer) { clearTimeout(this._grabHlTimer); this._grabHlTimer = null; }
+    if (!this._grabHlIds) return;
+    this._grabHlIds = null;
+    this.setData({ glowingIds: [] });
   },
 
   /**
@@ -839,6 +882,7 @@ Page({
   },
 
   onCardTap(e) {
+    this._clearGrabHighlight(); // 新底牌高亮见好就收：玩家已开始操作
     const { card, selected } = e.detail;
     const st = this.service.getState();
     if (st.phase === 'BURYING') {
@@ -1038,7 +1082,7 @@ Page({
 /** 亮主选项文案 */
 function bidOptionLabel(o) {
   if (o.type === 'joker_pair') {
-    return o.cards[0].rank === 'BJ' ? '对大王' : '对小王';
+    return o.cards[0].rank === 'BJ' ? '对正王' : '对副王';
   }
   if (o.type === 'pair_rank') {
     return `对${fmt.suitSymbol(o.trumpSuit)}级牌`;
@@ -1048,6 +1092,6 @@ function bidOptionLabel(o) {
 
 /** 牌面简写（历史列表用） */
 function cardText(c) {
-  if (c.isJoker) return c.rank === 'BJ' ? '大王' : '小王';
+  if (c.isJoker) return c.rank === 'BJ' ? '正王' : '副王';
   return fmt.suitSymbol(c.suit) + c.rank;
 }
