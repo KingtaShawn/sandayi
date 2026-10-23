@@ -96,6 +96,7 @@
     <hand-area
       hand="{{myHand}}"
       level-rank="{{levelRank}}"
+      trump-suit="{{trumpSuit}}"
       selected-ids="{{selectedIds}}"
       glowing-ids="{{glowingIds}}"
       play-in-ids="{{playInIds}}"

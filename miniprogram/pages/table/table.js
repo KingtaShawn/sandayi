@@ -163,6 +163,8 @@ Page({
           isTrump = c.isJoker || (ti.trumpIds && ti.trumpIds.has ? ti.trumpIds.has(`${c.suit}-${c.rank}`) : false);
         } catch (e) { isTrump = false; }
         if (ti.isNoTrump && !c.isJoker && c.rank === ti.levelRank) isTrump = true;
+      } else if (cfg.gameMode === 'san_da_yi') {
+        isTrump = c.isJoker || c.rank === '2'; // 选主前：王与 2 本就是常主，先归主牌区
       }
       return {
         id: c.id,
@@ -204,6 +206,8 @@ Page({
         isTrump = c.isJoker || (ti.trumpIds && ti.trumpIds.has ? ti.trumpIds.has(`${c.suit}-${c.rank}`) : false);
       } catch (e) { isTrump = false; }
       if (ti.isNoTrump && !c.isJoker && c.rank === ti.levelRank) isTrump = true;
+    } else if (st.config && st.config.gameMode === 'san_da_yi') {
+      isTrump = c.isJoker || c.rank === '2'; // 选主前：王与 2 本就是常主，先归主牌区
     }
     return Object.assign({}, c, {
       isTrump,
@@ -265,6 +269,7 @@ Page({
       lastTrickDim,
       bottomCount: st.bottomCards.length,
       levelRank: st.trumpInfo ? st.trumpInfo.levelRank : '',
+      trumpSuit: st.trumpInfo ? (st.trumpInfo.trumpSuit || '') : '',
       // v1.1：手牌视图（Page 预计算 isTrump/pointValue，组件纯展示）
       myHand: this.buildHandView(st),
       handVisibleCount: this.data.handVisibleCount === undefined ? 999 : this.data.handVisibleCount,
@@ -364,10 +369,11 @@ Page({
         suit: su,
         symbol: SYMBOLS[su],
         red: su === 'H' || su === 'D',
-        count: hand.filter((c) => c.suit === su).length
+        count: hand.filter((c) => c.suit === su && c.rank !== '2').length // 2 与王同为常主，不计入门长
       }));
       const peekNote = st.bottomPeekable ? '（本局叫分低，闲家可以看底牌）' : '';
-      view.bidTipText = `你是庄家（合同 ${st.contractScore} 分）——选一个花色做主牌${peekNote}`;
+      const alwaysTrumps = hand.filter((c) => c.isJoker || c.rank === '2').length;
+      view.bidTipText = `你是庄家（合同 ${st.contractScore} 分）——选花色做主牌；王与 2 共 ${alwaysTrumps} 张常主${peekNote}`;
     }
     // 三打一：底牌明示（成交分 ≤ peek 阈值 闲家可看：CHOOSE_TRUMP 起向所有人展示底牌内容）
     view.bottomRevealCards = (isSanDaYi && st.bottomPeekable && st.phase !== 'BIDDING' && st.phase !== 'INIT_DEAL' && st.bottomCards.length && !st.bottomMerged)

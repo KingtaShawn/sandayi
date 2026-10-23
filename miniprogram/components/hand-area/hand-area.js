@@ -30,8 +30,10 @@ Component({
     /** 卡片重叠间距 rpx（v1.2 起自动计算，此属性仅作上限兜底） */
     overlap: { type: Number, value: -28 },
     label: { type: String, value: '' },
-    /** 级牌字面（级牌角标透传给 card） */
+    /** 级牌字面（级牌角标透传给 card；主牌区排序也用于识别常主组） */
     levelRank: { type: String, value: '' },
+    /** 主花色（主级牌排同级牌最前；选主前为空） */
+    trumpSuit: { type: String, value: '' },
     /** 抖动牌 id（非法出牌动画） */
     shakingIds: { type: Array, value: [] },
     /** 可亮主呼吸光效牌 id */
@@ -72,10 +74,21 @@ Component({
       // 排序：副牌按花色/牌面升序在左，主牌在右（isTrump 已由 Page 预计算）
       const suitOrder = { S: 1, H: 2, C: 3, D: 4 };
       const rankVal = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, J: 11, Q: 12, K: 13, A: 14, RJ: 15, BJ: 16 };
+      // 主牌区再分「王+级牌（常主）」与主花色两段：2 不散落各花色，主级牌排最前
+      const levelRank = this.properties.levelRank || '';
+      const trumpSuit = this.properties.trumpSuit || '';
       const sorted = cards.slice().sort((a, b) => {
         const ta = a.isTrump ? 1 : 0;
         const tb = b.isTrump ? 1 : 0;
         if (ta !== tb) return ta - tb;
+        const ga = (a.isJoker || a.rank === levelRank) ? 0 : 1;
+        const gb = (b.isJoker || b.rank === levelRank) ? 0 : 1;
+        if (ga !== gb) return ga - gb;
+        if (a.rank === levelRank && b.rank === levelRank) {
+          const pa = a.suit === trumpSuit ? 0 : 1;
+          const pb = b.suit === trumpSuit ? 0 : 1;
+          if (pa !== pb) return pa - pb;
+        }
         const sa = a.isJoker ? 0 : suitOrder[a.suit] || 9;
         const sb = b.isJoker ? 0 : suitOrder[b.suit] || 9;
         if (sa !== sb) return sa - sb;

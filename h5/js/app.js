@@ -189,6 +189,8 @@
         isTrump = c.isJoker || (ti.trumpIds && ti.trumpIds.has ? ti.trumpIds.has(`${c.suit}-${c.rank}`) : false);
       } catch (e) { isTrump = false; }
       if (ti.isNoTrump && !c.isJoker && c.rank === ti.levelRank) isTrump = true;
+    } else if (st.config && st.config.gameMode === 'san_da_yi') {
+      isTrump = c.isJoker || c.rank === '2'; // 选主前：王与 2 本就是常主，先归主牌区
     }
     return Object.assign({}, c, {
       isTrump,
@@ -211,12 +213,23 @@
     let margin = n > 1 ? Math.floor(((usable - cardW) / (n - 1)) * 100) / 100 - cardW : 0;
     if (margin > -0.8) margin = -0.8;
     if (margin < -8.8) margin = -8.8;
-    // 排序：副牌左（花色/牌面升序），主牌右
+    // 排序：副牌左（花色/牌面升序），主牌右——主牌区再分「王+级牌（常主）」与主花色
+    // 两段：2 不散落各花色（三打一级牌恒为 2），主级牌排同级牌最前
     const suitOrder = { S: 1, H: 2, C: 3, D: 4 };
     const rankVal = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, J: 11, Q: 12, K: 13, A: 14, RJ: 15, BJ: 16 };
+    const ti0 = st.trumpInfo;
+    const levelRank = ti0 ? ti0.levelRank : (st.config.gameMode === 'san_da_yi' ? '2' : '');
+    const trumpSuit = ti0 ? ti0.trumpSuit : '';
     const sorted = visible.slice().sort((a, b) => {
       const ta = a.isTrump ? 1 : 0, tb = b.isTrump ? 1 : 0;
       if (ta !== tb) return ta - tb;
+      const ga = (a.isJoker || a.rank === levelRank) ? 0 : 1;
+      const gb = (b.isJoker || b.rank === levelRank) ? 0 : 1;
+      if (ga !== gb) return ga - gb;
+      if (a.rank === levelRank && b.rank === levelRank) {
+        const pa = a.suit === trumpSuit ? 0 : 1, pb = b.suit === trumpSuit ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+      }
       const sa = a.isJoker ? 0 : (suitOrder[a.suit] || 9), sb = b.isJoker ? 0 : (suitOrder[b.suit] || 9);
       if (sa !== sb) return sa - sb;
       return (rankVal[a.rank] || 0) - (rankVal[b.rank] || 0);
@@ -501,11 +514,13 @@
     if (isHumanChooseTrump) {
       const hand = st.players[0].hand;
       view.bidMode = 'trump';
+      // 各门张数不含 2（2 与王同为常主，不计入门长——比哪门长要看纯门牌）
       view.suitOptions = ['S', 'H', 'C', 'D'].map((su) => ({
         suit: su, symbol: SYMBOLS[su], red: su === 'H' || su === 'D',
-        count: hand.filter((c) => c.suit === su).length
+        count: hand.filter((c) => c.suit === su && c.rank !== '2').length
       }));
-      view.bidTipText = `你是庄家（合同 ${st.contractScore} 分）——选一个花色做主牌`;
+      const alwaysTrumps = hand.filter((c) => c.isJoker || c.rank === '2').length;
+      view.bidTipText = `你是庄家（合同 ${st.contractScore} 分）——选花色做主牌；王与 2 共 ${alwaysTrumps} 张常主`;
     }
     renderActionBar(st, view);
 
