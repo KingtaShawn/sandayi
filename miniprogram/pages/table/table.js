@@ -273,7 +273,7 @@ Page({
       handLabel: (this._grabAnimating && this.data.grabBottom && this.data.grabBottom.active)
         ? (st.players[st.dealerIdx].isHuman ? '底牌飞入你的手牌…' : `${st.players[st.dealerIdx].name}拿底牌中…`)
         : (st.phase === 'PLAYING'
-        ? (st.turnIdx === 0 ? '轮到你出牌（点牌智能成组，双击出牌）' : '等待其他玩家…')
+        ? (st.turnIdx === 0 ? '轮到你出牌（点牌成组选入，再点同一张收回，双击出牌）' : '等待其他玩家…')
         : (st.phase === 'BIDDING'
           ? (isSanDaYi
             ? (st.turnIdx === 0 && !(st.passedBidders || []).includes(0)
@@ -808,20 +808,13 @@ Page({
     const n = hasLead ? st.currentTrick.leadCombo.n : 0;
     let ids = this.data.selectedIds.slice();
     if (isSelected) {
-      // 取消：该牌所在等价组一起取消
-      const key = cardKey(card);
-      const groupIds = st.players[0].hand
-        .filter((c) => cardKey(c) === key)
-        .map((c) => c.id);
-      if (!hasLead) {
-        // 领出：整组已全选时（如对子 2 张都选中），再点其中一张降级为单张，便于拆对出单
-        const allSelected = groupIds.every((id) => ids.includes(id));
-        if (allSelected) {
-          return ids.filter((id) => id === card.id);
-        }
+      // 收回：再点「刚刚选入的那张」→ 撤销本次整组；点组内其他已选牌 → 只收回该张（拆对出单/甩牌微调）
+      if (this.lastAdded && this.lastPickId === card.id && this.lastAdded.every((id) => ids.includes(id))) {
+        const undo = this.lastAdded;
+        this.lastAdded = null;
+        return ids.filter((id) => !undo.includes(id));
       }
-      ids = ids.filter((id) => !groupIds.includes(id));
-      return ids;
+      return ids.filter((id) => id !== card.id);
     }
     // 选中：带上等价组
     const key = cardKey(card);
@@ -834,6 +827,8 @@ Page({
     ids = ids.concat(take);
     // 跟牌超出张数：保留最新选择（领出不限制）
     if (hasLead && ids.length > n) ids = ids.slice(ids.length - n);
+    this.lastPickId = card.id;
+    this.lastAdded = take.filter((id) => ids.includes(id)); // 记录选入起点+实际选入，供「再点同一张撤销」
     return ids;
   },
 
@@ -879,6 +874,7 @@ Page({
   },
 
   onClearSelect() {
+    this.lastAdded = null;
     this.setData({ selectedIds: [] });
     this._syncNeedPlayCount();
   },
@@ -923,6 +919,7 @@ Page({
     if (r.replaced) {
       wx.showToast({ title: r.reason || '甩牌失败，已改出被压住的最小牌组', icon: 'none', duration: 3000 });
     }
+    this.lastAdded = null;
     this.setData({ selectedIds: [] });
     this.render();
     this.driveAI();
@@ -991,6 +988,7 @@ Page({
       attackPoints: prevSettle.attackPoints,
       tricksCount: st.completedTricks.length
     }));
+    this.lastAdded = null;
     this.setData({ selectedIds: [] });
     // 新局发牌动画：清空手牌追踪基线（否则 prevHandIds 还是上局 25 张旧 id，detectNewCards 不认新局）
     this.prevHandIds = null;

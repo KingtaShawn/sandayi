@@ -136,6 +136,8 @@
   const G = {
     service: null,
     selectedIds: [],
+    lastPickId: null, // smartToggle 本次选入时点的那张（再点它=撤销整组）
+    lastAdded: null, // smartToggle 本次选入的组
     prevHandIds: null,
     handVisibleCount: 999,
     dealAnim: { active: false, counts: [0, 0, 0, 0], flyCards: [] },
@@ -167,6 +169,7 @@
   function startGame() {
     G.service = new GameService({ config: buildConfig(), rng: createRng() });
     G.selectedIds = [];
+    G.lastAdded = null;
     G.prevHandIds = null;
     G._grabObservedMerged = undefined;
     G.lastFloatKey = '';
@@ -454,7 +457,7 @@
     hl.textContent = (G._grabAnimating && G.grabBottom.active)
       ? (st.players[st.dealerIdx].isHuman ? '底牌飞入你的手牌…' : `${st.players[st.dealerIdx].name}拿底牌中…`)
       : (st.phase === 'PLAYING'
-        ? (st.turnIdx === 0 ? '轮到你出牌（点牌智能成组；双击直接出，右键已选牌出）' : '等待其他玩家…')
+        ? (st.turnIdx === 0 ? '轮到你出牌（点牌成组选入，再点同一张收回；双击直接出，右键已选牌出）' : '等待其他玩家…')
         : (st.phase === 'BIDDING'
           ? (isSDY
             ? (st.turnIdx === 0 && !(st.passedBidders || []).includes(0)
@@ -784,13 +787,13 @@
     const n = hasLead ? st.currentTrick.leadCombo.n : 0;
     let ids = G.selectedIds.slice();
     if (isSelected) {
-      const key = keyOf(card);
-      const groupIds = st.players[0].hand.filter((c) => keyOf(c) === key).map((c) => c.id);
-      if (!hasLead) {
-        const allSelected = groupIds.every((id) => ids.includes(id));
-        if (allSelected) return ids.filter((id) => id === card.id);
+      // 收回：再点「刚刚选入的那张」→ 撤销本次整组；点组内其他已选牌 → 只收回该张（拆对出单/甩牌微调）
+      if (G.lastAdded && G.lastPickId === card.id && G.lastAdded.every((id) => ids.includes(id))) {
+        const undo = G.lastAdded;
+        G.lastAdded = null;
+        return ids.filter((id) => !undo.includes(id));
       }
-      return ids.filter((id) => !groupIds.includes(id));
+      return ids.filter((id) => id !== card.id);
     }
     const key = keyOf(card);
     const groupIds = st.players[0].hand.filter((c) => keyOf(c) === key).map((c) => c.id);
@@ -798,6 +801,8 @@
     const take = hasLead ? groupIds.slice(0, Math.max(1, n)) : groupIds;
     ids = ids.concat(take);
     if (hasLead && ids.length > n) ids = ids.slice(ids.length - n);
+    G.lastPickId = card.id;
+    G.lastAdded = take.filter((id) => ids.includes(id)); // 记录选入起点+实际选入，供「再点同一张撤销」
     return ids;
   }
 
@@ -857,6 +862,7 @@
 
   function onClearSelect() {
     G.selectedIds = [];
+    G.lastAdded = null;
     render();
   }
 
@@ -887,6 +893,7 @@
     }
     if (r.replaced) toast(r.reason || '甩牌失败，已改出被压住的最小牌组');
     G.selectedIds = [];
+    G.lastAdded = null;
     render();
     driveAI();
   }
