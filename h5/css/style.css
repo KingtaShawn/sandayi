@@ -672,15 +672,14 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 }
 .anim-play-in { animation: play-in var(--anim-normal) ease; }
 
-/* 新抓底牌抬高停顿（腾讯升级式）：插到所属花色的排序位置后整体抬起，
- * 高度差看清每张落点（比选中态 -3.2rem 更高，不混淆）；点牌/超时后平滑落回 */
-#hand-row .card { transition: transform 0.35s ease; }
-.card--lift {
-  transform: translateY(-5.33rem);
-  border-color: var(--color-gold);
-  box-shadow: 0 1.07rem 2.67rem rgba(0, 0, 0, 0.3), 0 0 1.07rem rgba(243, 193, 75, 0.4);
-  z-index: 2;
+/* 新抓底牌闪烁提示（QQ 式成牌提示）：牌正常插进所属花色排序位，不抬高不突兀，
+ * 仅金光呼吸闪烁 ~4.2s（7 次）点出「这几张是底牌进来的」——对子/连牌落位一目了然；
+ * 动画不 forwards，闪完自然回常态，点牌/超时摘类收尾 */
+@keyframes card-flash {
+  0%, 100% { box-shadow: 0 0 0 rgba(243, 193, 75, 0); }
+  50% { box-shadow: 0 0 1.6rem 0.4rem rgba(243, 193, 75, 0.55); }
 }
+.card--flash { animation: card-flash 0.6s ease-in-out 7; }
 
 @keyframes dot-jump {
   0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }

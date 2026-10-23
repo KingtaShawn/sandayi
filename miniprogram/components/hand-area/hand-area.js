@@ -40,8 +40,8 @@ Component({
     glowingIds: { type: Array, value: [] },
     /** 飞入动画牌 id */
     playInIds: { type: Array, value: [] },
-    /** 抬高停顿牌 id（v2.2 新抓底牌：腾讯升级式抬起展示，点牌/超时落回） */
-    liftIds: { type: Array, value: [] },
+    /** 闪烁提示牌 id（v2.2 新抓底牌：金光呼吸数次，点牌/超时停闪） */
+    flashIds: { type: Array, value: [] },
     /** v1.9 发牌动画：当前可见张数（<hand.length 时逐批+5；由 Page 驱动定时器） */
     visibleCount: { type: Number, value: 999 }
   },
@@ -55,13 +55,13 @@ Component({
     }
   },
   observers: {
-    'selectedIds, disabledIds, shakingIds, glowingIds, playInIds, liftIds, visibleCount': function selectedObserver() {
+    'selectedIds, disabledIds, shakingIds, glowingIds, playInIds, flashIds, visibleCount': function selectedObserver() {
       this.refresh();
     }
   },
   methods: {
     refresh() {
-      const { hand, selectedIds, disabledIds, shakingIds, glowingIds, playInIds, liftIds, visibleCount } = this.properties;
+      const { hand, selectedIds, disabledIds, shakingIds, glowingIds, playInIds, flashIds, visibleCount } = this.properties;
       const cards = (hand || []).slice(0, Math.max(0, visibleCount));
       const n = cards.length;
       // v1.2 一屏全显策略（QQ 风格）：
@@ -114,7 +114,7 @@ Component({
           disabled: (disabledIds || []).includes(c.id),
           shaking: (shakingIds || []).includes(c.id),
           glowing: (glowingIds || []).includes(c.id),
-          lift: (liftIds || []).includes(c.id),
+          flash: (flashIds || []).includes(c.id),
           // 发牌中：最后一批的牌逐张错开飞入（每张延迟 30ms）
           playIn: isDealing || (playInIds || []).includes(c.id),
           playInDelay: isDealing ? (i % 5) * 30 : 0

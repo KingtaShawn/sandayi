@@ -115,7 +115,7 @@
       trump-suit="{{trumpSuit}}"
       selected-ids="{{selectedIds}}"
       glowing-ids="{{glowingIds}}"
-      lift-ids="{{liftIds}}"
+      flash-ids="{{flashIds}}"
       play-in-ids="{{playInIds}}"
       visible-count="{{handVisibleCount}}"
       label="{{handLabel}}"

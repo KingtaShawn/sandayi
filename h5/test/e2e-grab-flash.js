@@ -1,8 +1,8 @@
 /**
- * h5/test/e2e-grab-lift.js —— 抓底牌抬高停顿专项冒烟（puppeteer 真浏览器）。
- * 用法：先起服务 node h5/serve.js，再 node h5/test/e2e-grab-lift.js
+ * h5/test/e2e-grab-flash.js —— 抓底牌闪烁提示专项冒烟（puppeteer 真浏览器）。
+ * 用法：先起服务 node h5/serve.js，再 node h5/test/e2e-grab-flash.js
  * 覆盖：真人叫分成交当庄 → 底牌翻面亮出（show）→ 逐张飞入（fly）→
- *       8 张新牌以 .card--lift 抬起出现（腾讯升级式）→ 4.2s 超时落回（类清零）。
+ *       8 张新牌以 .card--flash 抬起出现（腾讯升级式）→ 4.2s 超时落回（类清零）。
  * 关键帧截图到 h5/test/shots/grab-*.png 供人工复核。
  */
 'use strict';
@@ -56,7 +56,7 @@ async function driveBidding(page) {
 }
 
 (async () => {
-  console.log('== 抓底牌抬高停顿专项冒烟（puppeteer）==');
+  console.log('== 抓底牌闪烁提示专项冒烟（puppeteer）==');
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const browser = await puppeteer.launch({ headless: 'shell' }); // chrome-headless-shell（本机无整装 Chrome）
   const page = await browser.newPage();
@@ -86,26 +86,29 @@ async function driveBidding(page) {
 
   // fly（8×120ms）+ 缓冲 480ms + lift 落定；在 4.2s 窗口内抓拍
   await sleep(2400);
-  const midLift = await page.$$eval('#hand-row .card--lift', (n) => n.length);
+  const midFlash = await page.$$eval('#hand-row .card--flash', (n) => n.length);
   await sleep(700);
   const st = await page.evaluate(() => ({
-    lift: document.querySelectorAll('#hand-row .card--lift').length,
+    lift: document.querySelectorAll('#hand-row .card--flash').length,
     hand: document.querySelectorAll('#hand-row .card').length,
     animHidden: document.getElementById('grab-anim').hidden
   }));
   check('飞入完成手牌 33 张', st.hand === 33, `got ${st.hand}`);
-  check('8 张新牌抬起（.card--lift）', st.lift === 8, `lift=${st.lift}（中途观测 ${midLift}）`);
-  check('动画层关闭', st.animHidden);
-  await page.screenshot({ path: path.join(OUT_DIR, 'grab-lift.png') });
+  check('8 张新牌闪烁（.card--flash）', st.lift === 8, `lift=${st.lift}（中途观测 ${midFlash}）`);
+  await page.screenshot({ path: path.join(OUT_DIR, 'grab-flash.png') });
 
   // 4.2s 超时落回：类清零
   await sleep(4600);
-  const liftAfter = await page.$$eval('#hand-row .card--lift', (n) => n.length);
-  check('超时后抬起牌落回（类清零）', liftAfter === 0, `lift=${liftAfter}`);
-  await page.screenshot({ path: path.join(OUT_DIR, 'grab-lift-down.png') });
+  const after = await page.evaluate(() => ({
+    lift: document.querySelectorAll('#hand-row .card--flash').length,
+    animHidden: document.getElementById('grab-anim').hidden
+  }));
+  check('动画层关闭', after.animHidden);
+  check('超时后停闪（类清零）', after.lift === 0, `lift=${after.lift}`);
+  await page.screenshot({ path: path.join(OUT_DIR, 'grab-flash-down.png') });
 
   console.log(`\n结果：${passed} pass / ${failed} fail`);
-  console.log(`截图：${OUT_DIR}/grab-{show,lift,lift-down}.png`);
+  console.log(`截图：${OUT_DIR}/grab-{show,flash,flash-down}.png`);
   await browser.close();
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error('冒烟异常', e); process.exit(1); });

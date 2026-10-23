@@ -89,7 +89,7 @@
     if (o.dense) cls += ' card--dense';
     if (o.playIn) cls += ' anim-play-in';
     if (o.shaking) cls += ' anim-shake';
-    if (o.lift) cls += ' card--lift';
+    if (o.flash) cls += ' card--flash';
     d.className = cls;
     if (o.styleText) d.setAttribute('style', o.styleText);
     if (o.playInDelay) d.style.animationDelay = o.playInDelay + 'ms';
@@ -148,7 +148,7 @@
     handVisibleCount: 999,
     dealAnim: { active: false, counts: [0, 0, 0, 0], flyCards: [] },
     grabBottom: { active: false, stage: 'show', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [], reveal: false },
-    newGrabIds: null,                   // 刚并入的底牌 id（手牌抬高停顿，看清与手牌的配合）
+    newGrabIds: null,                   // 刚并入的底牌 id（手牌闪烁提示，看清成牌落位）
     _grabHlTimer: null,
     _dealAnimating: false,
     _grabAnimating: false,
@@ -265,7 +265,7 @@
     });
     const isDealing = all.length > n;
     const newIdSet = new Set(newIds || []);
-    const grabLiftSet = new Set(G.newGrabIds || []);
+    const grabFlashSet = new Set(G.newGrabIds || []);
     // keyed diff：仅当手牌集合变化才重建（防动画重放）；selected 变化走轻量 class 切换
     const handKey = sorted.map((c) => c.id).join(',') + '|' + n + '|' + (dense ? 1 : 0);
     if (handKey !== G.lastHandKey) {
@@ -282,7 +282,7 @@
           selected: G.selectedIds.includes(c.id),
           dense, playIn,
           playInDelay: isDealing ? (i % 5) * 30 : 0,
-          lift: grabLiftSet.has(c.id),
+          flash: grabFlashSet.has(c.id),
           styleText
         });
         d.dataset.cardId = c.id;
@@ -718,8 +718,8 @@
       cards.push({ id: 'bottom-' + i, delay: i * 40, card: reveal ? decorateCard(st, st.bottomCards[i]) : null });
     }
     if (dealerIsHuman) G.handVisibleCount = st.players[0].hand.length - bottomCount;
-    // 抬起牌 id 提前登记：fly 期间手牌逐张重建（handKey 变化）时即以抬起态出现——
-    // 若等收尾再设，最后一帧重建已发生，keyed diff 走轻量分支，lift 类永远挂不上
+    // 闪烁牌 id 提前登记：fly 期间手牌逐张重建（handKey 变化）时即以闪烁态出现——
+    // 若等收尾再设，最后一帧重建已发生，keyed diff 走轻量分支，flash 类永远挂不上
     G.newGrabIds = reveal ? st.bottomCards.map((c) => c.id) : null;
     G.grabBottom = { active: true, stage: 'show', dealerIdx, cards, flyCount: 0, flyCards: [], reveal };
     render(); // 立即展示中央底牌
@@ -758,8 +758,8 @@
     G._grabAnimating = false;
     G.handVisibleCount = 999;
     G.grabBottom = { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [], reveal: false };
-    // 真人庄家：8 张新底牌插到所属花色排序位后抬高停顿（腾讯升级式，落点一目了然，
-    // 看清与手牌的配合），4.2s 超时或首次点牌后平滑落回
+    // 真人庄家：8 张新底牌插到所属花色排序位后金光闪烁（不抬高不突兀，
+    // 提示成牌落位：对子/连牌在哪），4.2s 超时或首次点牌后停闪
     const st = G.service.getState();
     if (st && st.players[st.dealerIdx] && st.players[st.dealerIdx].isHuman && (st.bottomCards || []).length) {
       G.newGrabIds = st.bottomCards.map((c) => c.id);
@@ -770,12 +770,12 @@
     driveAI();
   }
 
-  /** 新底牌落下归位：清数据 + 直接摘 DOM 类（手牌 keyed diff 不重建，类不会自己消失） */
+  /** 新底牌停闪归常：清数据 + 直接摘 DOM 类（手牌 keyed diff 不重建，类不会自己消失） */
   function clearGrabHighlight() {
     if (G._grabHlTimer) { clearTimeout(G._grabHlTimer); G._grabHlTimer = null; }
     if (!G.newGrabIds) return;
     G.newGrabIds = null;
-    $('hand-row').querySelectorAll('.card--lift').forEach((d) => d.classList.remove('card--lift'));
+    $('hand-row').querySelectorAll('.card--flash').forEach((d) => d.classList.remove('card--flash'));
   }
 
   /* ---------- 末墩扣底暂停（最后一墩先看清，点「扣底」再结算） ---------- */

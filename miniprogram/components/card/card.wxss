@@ -148,12 +148,14 @@
   animation: card-glow 1.1s ease-in-out infinite;
 }
 
-/* ========== v2.2 抬高停顿（新抓底牌，腾讯升级式） ========== */
-/* 插到所属花色排序位后整体抬起（比选中态 -24rpx 更高，不混淆），金边示新；
- * .card 自带 transform transition，摘类即平滑落回 */
-.card--lift {
-  transform: translateY(-40rpx);
-  border-color: var(--color-gold);
-  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.3), 0 0 8rpx rgba(243, 193, 75, 0.4);
-  z-index: 2;
+/* ========== v2.2 闪烁提示（新抓底牌，QQ 式成牌提示） ========== */
+/* 牌正常插进所属花色排序位（不抬高不突兀），金光呼吸闪烁 ~4.2s（7 次）点出
+ * 「这几张是底牌进来的」；动画不 forwards，闪完自然回常态，摘类收尾 */
+@keyframes card-flash {
+  0%, 100% { box-shadow: 0 0 0 rgba(243, 193, 75, 0); }
+  50% { box-shadow: 0 0 12rpx 3rpx rgba(243, 193, 75, 0.55); }
+}
+
+.card--flash {
+  animation: card-flash 0.6s ease-in-out 7;
 }
