@@ -115,6 +115,8 @@
       : (i === 2 ? '队友' : (i === 0 ? '' : '对手'));
     let cls = 'seat-info' + (vertical ? ' seat-info--vertical' : '') + (isTurn ? ' seat-info--turn' : '');
     const d = el('div', cls);
+    // v2.2 拿底牌者（三打一=叫牌成交的庄家并底时；升级=埋底并底时）：头像绿转金黄
+    const avatarCls = 'seat-info__avatar' + (st.bottomMerged && st.dealerIdx === i ? ' seat-info__avatar--gold' : '');
     const badge = (st.dealerIdx === i) ? '<div class="seat-info__dealer-badge">庄</div>' : '';
     // 三打一报分阶段：本座位最新报分/不叫 挂在座位旁（去中心化，不占中央）
     let bidChip = '';
@@ -124,7 +126,7 @@
       else if ((st.passedBidders || []).includes(i)) bidChip = '<div class="seat-info__bid-bubble seat-info__bid-bubble--pass">不叫</div>';
     }
     d.innerHTML = `
-      <div class="seat-info__avatar"><span class="seat-info__avatar-text">${SEAT_LABELS[i]}</span>${badge}</div>
+      <div class="${avatarCls}"><span class="seat-info__avatar-text">${SEAT_LABELS[i]}</span>${badge}</div>
       <div class="seat-info__meta">
         <span class="seat-info__name">${p.name}</span>
         ${vertical ? '' : `<span class="seat-info__cards">剩 ${handCount} 张</span>`}

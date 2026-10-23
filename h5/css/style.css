@@ -349,6 +349,12 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   box-shadow: 0 0.27rem 0.8rem rgba(0, 0, 0, 0.3);
 }
 .seat-info__avatar-text { font-size: 3.73rem; font-weight: 700; color: #fff; }
+/* v2.2 拿底牌者（叫牌成交/埋底）：头像绿转金黄，一眼认出庄家（配色同叫分气泡） */
+.seat-info__avatar--gold {
+  background: linear-gradient(160deg, #f7d478, #e0a92c);
+  box-shadow: 0 0 1.6rem rgba(243, 193, 75, 0.45);
+}
+.seat-info__avatar--gold .seat-info__avatar-text { color: #5c3d00; }
 .seat-info__dealer-badge {
   position: absolute;
   top: -1.6rem; right: -1.6rem;
