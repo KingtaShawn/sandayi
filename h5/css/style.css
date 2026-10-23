@@ -1,14 +1,11 @@
 /* h5/css/style.css —— 三打一 H5 版样式（忠实移植小程序 wxss，rpx→rem 换算基准 750，满宽=750rpx） */
 
-/* rem 基准：100rem = 视口宽，上限 750rpx 等效——手机满屏，电脑居中竖条（不再无限放大） */
-html { font-size: min(calc(100vw / 100), 7.5px); }
-@media (min-width: 750px) {
-  html { font-size: 7.5px; }
-  body { background: #053420; }
-  /* 桌面：游戏容器居中限宽，四周深色留边 */
-  #app { max-width: 750px; margin: 0 auto; box-shadow: 0 0 60px rgba(0, 0, 0, 0.6); }
-  .toast { left: auto; right: auto; margin-left: 0; transform: none; left: 50%; transform: translateX(-50%); }
-}
+/* rem 基准：100rem = min(视口宽, 视口高 × 0.75)——手机竖屏满宽不变；
+   桌面/横屏随窗口大小整体缩放（宽、高取紧者），纵向版心不低于 4:3（与 iPad 小程序一致） */
+html { font-size: min(calc(100vw / 100), calc(100vh / 133.4)); }
+
+/* 版心恒为 100rem 宽、居中：手机即满屏；桌面四周深色留边，随窗口缩放 */
+#app { max-width: 100rem; margin: 0 auto; box-shadow: 0 0 60px rgba(0, 0, 0, 0.6); }
 
 /* ========== 全局 ========== */
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
