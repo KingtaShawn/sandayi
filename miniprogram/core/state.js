@@ -22,9 +22,9 @@ const SCHEMA_VERSION = 1;
  *  team 仅升级模式（2v2）有意义；三打一阵营由 sanDaYiTeams 动态决定（庄 vs 三家） */
 const DEFAULT_PLAYERS = [
   { seat: 'S', team: 0, isHuman: true, name: '你' },
-  { seat: 'E', team: 1, isHuman: false, name: '东家AI' },
-  { seat: 'N', team: 0, isHuman: false, name: '北家AI' },
-  { seat: 'W', team: 1, isHuman: false, name: '西家AI' }
+  { seat: 'E', team: 1, isHuman: false, name: '三毛玉' },
+  { seat: 'N', team: 0, isHuman: false, name: '年狗子' },
+  { seat: 'W', team: 1, isHuman: false, name: '鹅燕军' }
 ];
 
 /**
