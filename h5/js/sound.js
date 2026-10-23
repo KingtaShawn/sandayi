@@ -18,6 +18,7 @@
   let unlocked = false;
   let enabled = true;
   let noiseBuf = null; // 白噪声缓冲（0.5s 预生成复用）
+  let mediaEl = null;  // 静音 <audio>（iOS 静音拨片/微信 webview 的会话解锁）
   const lastPlayAt = Object.create(null); // 同名音效上次播放时刻（节流用）
 
   try {
@@ -39,9 +40,42 @@
     if (!AC) return null;
     ctx = new AC();
     master = ctx.createGain();
-    master.gain.value = 0.85;
+    master.gain.value = 1; // 手机外放要足量，桌面也不炸（各音效自带包络峰值）
     master.connect(ctx.destination);
     return ctx;
+  }
+
+  /** 极短静音 WAV data URI（8kHz·50ms·8bit）——媒体元素解锁用 */
+  function silentWavUri() {
+    const sr = 8000, n = 400;
+    const b = new ArrayBuffer(44 + n);
+    const u = new Uint8Array(b);
+    const dv = new DataView(b);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) u[o + i] = s.charCodeAt(i); };
+    w(0, 'RIFF'); dv.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt ');
+    dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+    dv.setUint32(24, sr, true); dv.setUint32(28, sr, true); dv.setUint16(32, 1, true); dv.setUint16(34, 8, true);
+    w(36, 'data'); dv.setUint32(40, n, true);
+    for (let i = 0; i < n; i++) u[44 + i] = 128; // 8bit PCM 静音 = 128
+    let bin = '';
+    for (let i = 0; i < u.length; i++) bin += String.fromCharCode(u[i]);
+    return 'data:audio/wav;base64,' + btoa(bin);
+  }
+
+  /**
+   * 媒体会话解锁：iOS 的 Ring/Silent 拨片会静音 Web Audio，微信 webview 同理；
+   * 手势内播放一个循环静音 <audio> 把会话切到「媒体播放」路由后不再受影响。
+   */
+  function unlockMedia() {
+    if (mediaEl) return;
+    try {
+      mediaEl = new Audio(silentWavUri());
+      mediaEl.playsInline = true;
+      mediaEl.loop = true;
+      mediaEl.volume = 0;
+      const p = mediaEl.play();
+      if (p && p.catch) p.catch(() => { /* 播不了就撤，不影响 Web Audio 主线 */ });
+    } catch (e) { mediaEl = null; }
   }
 
   /** 白噪声源（预生成一份缓冲，每次新建 source 复用） */
@@ -163,18 +197,30 @@
 
   window.SoundFx = {
     isEnabled: () => enabled,
-    /** 开关（开时顺手解锁；点击本身即用户手势） */
+    /** 音频通道状态（开关按钮回调做「被系统拦下」提示用） */
+    state() {
+      if (!ctx) return 'idle';
+      return ctx.state; // running / suspended / closed / interrupted(iOS)
+    },
+    /** 开关（开时顺手解锁并播确认音；点击本身即用户手势） */
     toggle() {
       enabled = !enabled;
       save();
-      if (enabled) this.unlock();
+      if (enabled) {
+        this.unlock();
+        this.play('select');
+      }
       return enabled;
     },
-    /** 首次用户手势解锁 AudioContext（iOS/Chrome 自动播放策略） */
+    /**
+     * 手势解锁（iOS/Chrome 自动播放策略）。可重入：低电量模式/微信 webview
+     * 里 resume 可能被拒，之前一次性标记会永远哑掉——running 前每次手势都重试。
+     */
     unlock() {
-      if (unlocked) return;
+      if (!ensureCtx()) return;
+      if (ctx.state !== 'running') ctx.resume().catch(() => { /* 下次手势再试 */ });
+      unlockMedia();
       unlocked = true;
-      if (ensureCtx() && ctx.state === 'suspended') ctx.resume().catch(() => { /* 忽略 */ });
     },
     /** 播放音效：play('play', { count: 3 }) —— count 供出牌多张错峰 */
     play(name, opts) {

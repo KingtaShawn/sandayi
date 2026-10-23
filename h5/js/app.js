@@ -30,7 +30,7 @@
   const C = window.GameCore;
   const { GameService, createConfig, DEFAULT_CONFIG, getHint, fmt, storage, STORAGE_KEYS, stats, createRng, ruleConfig, scoreBidOptions } = C;
   // 音效模块（sound.js 未加载时静默降级为空操作，游戏不受影响）
-  const Sfx = window.SoundFx || { play() {}, unlock() {}, isEnabled: () => false, toggle: () => false };
+  const Sfx = window.SoundFx || { play() {}, unlock() {}, state: () => 'idle', isEnabled: () => false, toggle: () => false };
 
   /* ========== wx 等价物 ========== */
   // storage/adapter 检测 wx.setStorageSync —— 注入 localStorage 版 wx 垫片后存档直接持久化
@@ -1065,12 +1065,20 @@
   $('btn-sound').addEventListener('click', () => {
     const on = Sfx.toggle();
     updateSoundBtn();
-    toast(on ? '音效已开' : '音效已关');
+    if (on) {
+      // resume 是异步的：稍查状态，仍挂起说明被系统拦（低电量模式/静音拨片/微信 webview）
+      setTimeout(() => {
+        const st = Sfx.state();
+        if (st === 'suspended' || st === 'interrupted') toast('音效被系统拦下——请关静音拨片/低电量模式后点开关重试');
+      }, 400);
+    } else {
+      toast('音效已关');
+    }
   });
   updateSoundBtn();
-  // 音效解锁：首次任意手势（iOS/Chrome 自动播放策略——手势前 AudioContext 处于挂起态）；
+  // 音效解锁：每次手势都试（running 前内部重试 resume，低电量模式被拒后下次手势还有机会）；
   // click 兜底键盘触发（Enter/Space 无 pointerdown）
-  ['pointerdown', 'touchstart', 'click'].forEach((evt) => document.addEventListener(evt, () => Sfx.unlock(), { once: true, passive: true }));
+  ['pointerdown', 'touchstart', 'click'].forEach((evt) => document.addEventListener(evt, () => Sfx.unlock(), { passive: true }));
   $('btn-history-close').addEventListener('click', () => { $('history-modal').hidden = true; });
   $('history-mask').addEventListener('click', () => { $('history-modal').hidden = true; });
   $('btn-result-next').addEventListener('click', onNextRound);
