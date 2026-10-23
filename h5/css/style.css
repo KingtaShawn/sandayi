@@ -10,7 +10,7 @@ html { font-size: min(calc(100vw / 160), calc(100vh / 90)); }
   html, body { height: 100dvh; }
 }
 
-/* 版心随视口满宽拉伸（超宽屏 240rem 封顶居中）；竖屏手机由 .rotate-tip 提示旋转 */
+/* 版心随视口满宽拉伸（超宽屏 240rem 封顶居中）；竖屏手机见文末整层旋转成横屏 */
 #app { max-width: 240rem; margin: 0 auto; }
 
 /* ========== 全局 ========== */
@@ -687,27 +687,28 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 }
 .toast--hidden { opacity: 0; pointer-events: none; }
 
-/* ========== 竖屏旋转提示（仅横屏游戏：竖屏一律引导旋转） ========== */
-.rotate-tip {
-  position: fixed;
-  inset: 0;
-  z-index: 500;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4rem;
-  background: radial-gradient(circle at 50% 30%, #12904f, #0b6b3a 70%, #074f2c);
-  text-align: center;
+/* ========== 竖屏自动转横屏（仅横屏游戏：竖屏手机整层旋转 90°，无提示直接玩） ========== */
+/* 触屏设备竖屏打开时把 #app 整层顺时针转 90°、宽高互换，铺满屏幕——等效手机横屏，
+   点按命中由浏览器按变换矩阵自动换算；桌面竖窗不旋转（rem 缩放照常可玩） */
+@media (orientation: portrait) and (pointer: coarse) {
+  html { font-size: min(calc(100vh / 160), calc(100vw / 90)); }
+  html, body { height: 100%; width: 100%; overflow: hidden; }
+  #app {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vh; height: 100vw;
+    transform: rotate(90deg) translateY(-100%);
+    transform-origin: top left;
+  }
+  /* 竖屏的顶/底安全区（刘海、Home 条）旋转后落在横屏左右两侧，横向内边距吃对应 inset */
+  .table {
+    padding-left: max(2.4rem, env(safe-area-inset-top));
+    padding-right: max(2.4rem, env(safe-area-inset-bottom));
+  }
 }
-.rotate-tip__icon { font-size: 10.67rem; line-height: 1; animation: rotate-phone 1.8s ease-in-out infinite; }
-.rotate-tip__text { font-size: 4rem; color: var(--color-text-light); }
-.rotate-tip__sub { font-size: 2.93rem; color: var(--color-text-dim); }
-/* 竖屏一律提示旋转（不限触屏）：游戏仅支持横屏 */
-@media (orientation: portrait) {
-  .rotate-tip { display: flex; }
-}
-@keyframes rotate-phone {
-  0%, 15% { transform: rotate(0deg); }
-  55%, 100% { transform: rotate(90deg); }
+@supports (width: 1dvw) {
+  @media (orientation: portrait) and (pointer: coarse) {
+    html { font-size: min(calc(100dvh / 160), calc(100dvw / 90)); }
+    #app { width: 100dvh; height: 100dvw; }
+  }
 }

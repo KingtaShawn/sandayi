@@ -167,6 +167,61 @@ async function verifyViewport(browser, w, h, tag) {
   await page.close();
 }
 
+// 竖屏自动转横屏：触屏竖屏下 #app 整层旋转 90°、rem 基准宽高互换、真实鼠标点按能开局；桌面竖窗不旋转
+async function verifyPortraitRotation(browser) {
+  console.log('\n== 竖屏自动旋转 触屏 375x812 ==');
+  const page = await browser.newPage();
+  await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
+  await page.goto(BASE + '/?_t=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await sleep(1800);
+
+  const geo = await page.evaluate(() => {
+    const app = document.getElementById('app');
+    const cs = getComputedStyle(app);
+    const m = (cs.transform.match(/matrix\(([^)]+)\)/) || [])[1];
+    const r = app.getBoundingClientRect();
+    return {
+      matrix: m, x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height),
+      vw: innerWidth, vh: innerHeight,
+      docH: document.documentElement.scrollHeight,
+      htmlFont: getComputedStyle(document.documentElement).fontSize
+    };
+  });
+  const vals = geo.matrix ? geo.matrix.split(',').map(Number) : [];
+  const rot = vals.length === 6 && Math.abs(Math.abs(vals[1]) - 1) < 0.01;
+  check('整层旋转 90°（矩阵含 sinθ=±1）', rot, geo.matrix || '无 transform');
+  check('旋转后铺满竖屏（视觉包围盒=视口）', geo.w === geo.vw && geo.h === geo.vh && geo.x === 0 && geo.y === 0,
+    JSON.stringify({ w: geo.w, h: geo.h, vw: geo.vw, vh: geo.vh, x: geo.x, y: geo.y }));
+  const expectFont = Math.min(geo.vh / DESIGN_W, geo.vw / DESIGN_H);
+  check(`rem 基准宽高互换（${geo.htmlFont}，期望≈${expectFont.toFixed(2)}px）`,
+    Math.abs(parseFloat(geo.htmlFont) - expectFont) < 0.31, geo.htmlFont);
+  check('无纵向溢出（整页不滚动）', geo.docH <= geo.vh + 2, `docH=${geo.docH} vh=${geo.vh}`);
+
+  // 真实坐标点按（验证变换下命中换算）：点首页「开始对局」→ 发牌完成手牌 25 张
+  const btn = await page.$('#btn-start');
+  const box = await btn.boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await sleep(3500);
+  const st = await page.evaluate(() => ({
+    tableShown: !document.getElementById('view-table').hidden,
+    cards: document.querySelectorAll('#hand-row .card').length,
+    tipGone: !document.getElementById('rotate-tip')
+  }));
+  check('竖屏点按开局成功（命中经矩阵换算）', st.tableShown && st.cards === 25, JSON.stringify(st));
+  check('旋转提示层已移除', st.tipGone);
+  await page.screenshot({ path: path.join(__dirname, 'shots', 'portrait-rotated.png') });
+  await page.close();
+
+  // 桌面竖窗：不旋转，常规缩放布局
+  const d = await browser.newPage();
+  await d.setViewport({ width: 900, height: 1440 });
+  await d.goto(BASE + '/?_t=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await sleep(1500);
+  const dGeo = await d.evaluate(() => getComputedStyle(document.getElementById('app')).transform);
+  check('桌面竖窗不旋转', dGeo === 'none', dGeo);
+  await d.close();
+}
+
 (async () => {
   const browser = await puppeteer.launch({
     headless: 'new',
@@ -179,6 +234,7 @@ async function verifyViewport(browser, w, h, tag) {
     await verifyViewport(browser, 896, 414, 'mobileL');   // iPhone XR 横屏（20:9 一代）
     await verifyViewport(browser, 1180, 820, 'ipad');     // iPad Air 横屏（≈4:3 侧区更高）
     await verifyViewport(browser, 1440, 900, 'desktop');
+    await verifyPortraitRotation(browser);                // 竖屏手机整层自动转横
   } finally {
     await browser.close();
   }
