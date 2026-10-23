@@ -34,6 +34,15 @@ node --test tests/test-combo.js  # 单文件
 
 AI 压测：`node --test tests/test-ai-legal.js`（100 局完整模拟，零非法出牌断言）。
 
+## 发布 H5（EdgeOne Pages）
+
+```bash
+npm run build:h5   # 重打 game-bundle → h5/dist/（只含发布文件，注入 ?v= 版本号防缓存）
+```
+
+EdgeOne Pages 控制台导入 GitHub 仓库：构建命令 `npm run build:h5`，输出目录 `h5/dist`。
+push 即自动部署；默认域名 `*.edgeone.app` 无需备案。
+
 ## 规则配置
 
 所有规则数值（80 分上台、40 分一级、8 张底牌、抠底 ×2 等）只从

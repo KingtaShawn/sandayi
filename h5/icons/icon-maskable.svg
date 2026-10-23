@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 三打一 maskable 图标源：满铺毛毡绿（安全区为中央 ~80% 圆），
+       牌面收在中央约 45% 宽，裁圆也完整；apple-touch-icon 同源 -->
+  <defs>
+    <linearGradient id="felt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#15994f"/>
+      <stop offset="1" stop-color="#07452a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#felt)"/>
+  <rect x="166" y="106" width="180" height="300" rx="22" fill="#ffffff" stroke="#c8c2b6" stroke-width="6"/>
+  <text x="210" y="167" font-family="'PingFang SC','Hiragino Sans','Segoe UI Symbol',sans-serif" font-size="48" fill="#d0342c" text-anchor="middle">♥</text>
+  <text x="264" y="318" font-family="'PingFang SC','Hiragino Sans','Segoe UI Symbol',sans-serif" font-size="138" fill="#222222" text-anchor="middle">♠</text>
+</svg>

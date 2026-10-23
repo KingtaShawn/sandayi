@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 三打一 favicon：白牌 + 黑桃 + 角标红心（配色同 style.css） -->
+  <rect x="12" y="4" width="40" height="56" rx="6" fill="#ffffff" stroke="#c8c2b6" stroke-width="2"/>
+  <text x="22" y="17" font-family="'PingFang SC','Hiragino Sans','Segoe UI Symbol',sans-serif" font-size="12" fill="#d0342c" text-anchor="middle">♥</text>
+  <text x="33" y="46" font-family="'PingFang SC','Hiragino Sans','Segoe UI Symbol',sans-serif" font-size="26" fill="#222222" text-anchor="middle">♠</text>
+</svg>
