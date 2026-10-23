@@ -60,6 +60,16 @@
   font-weight: 700;
 }
 
+/* v2.2 拿底牌者（叫牌成交/埋底）：头像绿转金黄，一眼认出庄家（配色同叫分气泡） */
+.seat-info__avatar--gold {
+  background: linear-gradient(160deg, #f7d478, #e0a92c);
+  box-shadow: 0 0 12rpx rgba(243, 193, 75, 0.45);
+}
+
+.seat-info__avatar--gold .seat-info__avatar-text {
+  color: #5c3d00;
+}
+
 /* v1.1 庄家徽标（头像右上角浮动） */
 .seat-info__dealer-badge {
   position: absolute;

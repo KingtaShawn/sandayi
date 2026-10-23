@@ -50,6 +50,8 @@ Page({
     players: [],
     turnIdx: -1,
     dealerIdx: 0,
+    // v2.2 拿底牌者座位（叫牌成交/埋底并底后=庄家）：-1=未定（头像保持绿色）
+    bottomOwnerIdx: -1,
     trumpText: '定主中…',
     trumpChipText: '',
     myScore: 0,
@@ -255,6 +257,8 @@ Page({
       roundNo: st.roundNo,
       turnIdx: st.turnIdx,
       dealerIdx: st.dealerIdx,
+      // v2.2 拿底牌者（三打一=叫牌成交的庄家并底时；升级=埋底并底时）：座位头像转金黄，与普通绿头像区分
+      bottomOwnerIdx: st.bottomMerged ? st.dealerIdx : -1,
       gameMode: st.config.gameMode,
       trumpText: fmt.trumpLabel(st.trumpInfo),
       trumpChipText: isSanDaYi

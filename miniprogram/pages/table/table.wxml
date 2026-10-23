@@ -4,7 +4,7 @@
   <view class="table__north">
     <seat-info player-idx="{{2}}" name="{{players[2].name}}" hand-count="{{players[2].handCount}}"
       is-dealer="{{dealerIdx === 2}}" is-turn="{{turnIdx === 2}}" camp-label="{{players[2].campLabel}}"
-      bid-score="{{seatBids[2].score}}" bid-pass="{{seatBids[2].pass}}" />
+      bid-score="{{seatBids[2].score}}" bid-pass="{{seatBids[2].pass}}" is-bottom-owner="{{bottomOwnerIdx === 2}}" />
   </view>
 
   <!-- 中部：西家 | 中央出牌区 | 东家 -->
@@ -12,7 +12,7 @@
     <view class="table__side">
       <seat-info vertical player-idx="{{3}}" name="{{players[3].name}}" hand-count="{{players[3].handCount}}"
         is-dealer="{{dealerIdx === 3}}" is-turn="{{turnIdx === 3}}" camp-label="{{players[3].campLabel}}"
-        bid-score="{{seatBids[3].score}}" bid-pass="{{seatBids[3].pass}}" />
+        bid-score="{{seatBids[3].score}}" bid-pass="{{seatBids[3].pass}}" is-bottom-owner="{{bottomOwnerIdx === 3}}" />
     </view>
 
     <view class="table__center">
@@ -90,7 +90,7 @@
     <view class="table__side">
       <seat-info vertical player-idx="{{1}}" name="{{players[1].name}}" hand-count="{{players[1].handCount}}"
         is-dealer="{{dealerIdx === 1}}" is-turn="{{turnIdx === 1}}" camp-label="{{players[1].campLabel}}"
-        bid-score="{{seatBids[1].score}}" bid-pass="{{seatBids[1].pass}}" />
+        bid-score="{{seatBids[1].score}}" bid-pass="{{seatBids[1].pass}}" is-bottom-owner="{{bottomOwnerIdx === 1}}" />
     </view>
   </view>
 

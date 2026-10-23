@@ -1,6 +1,6 @@
 <!-- components/seat-info/seat-info.wxml —— 座位信息（头像/剩余牌数/庄徽标/阵营标签） -->
 <view class="seat-info seat-info--p{{playerIdx}} {{vertical ? 'seat-info--vertical' : ''}} {{isTurn ? 'seat-info--turn' : ''}}">
-  <view class="seat-info__avatar">
+  <view class="seat-info__avatar {{isBottomOwner ? 'seat-info__avatar--gold' : ''}}">
     <text class="seat-info__avatar-text">{{seatLabel}}</text>
     <view class="seat-info__dealer-badge anim-badge-float" wx:if="{{isDealer}}">庄</view>
   </view>

@@ -23,7 +23,9 @@ Component({
     /** v1.7：三打一报分气泡——该座位最新叫分（0=无） */
     bidScore: { type: Number, value: 0 },
     /** v1.7：该座位已放弃叫分（显示"不叫"） */
-    bidPass: { type: Boolean, value: false }
+    bidPass: { type: Boolean, value: false },
+    /** v2.2：拿底牌者（三打一=叫牌成交的庄家；升级=埋底者）——头像绿转金黄 */
+    isBottomOwner: { type: Boolean, value: false }
   },
   data: {
     seatLabel: ''
