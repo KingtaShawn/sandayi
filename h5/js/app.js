@@ -704,6 +704,7 @@
   function startGrabBottomAnimation(dealerIdx) {
     if (G._grabAnimating || G._dealAnimating) return;
     if (G._grabTimer) { clearTimeout(G._grabTimer); G._grabTimer = null; }
+    if (G._grabHlTimer) { clearTimeout(G._grabHlTimer); G._grabHlTimer = null; }
     const st = G.service.getState();
     const bottomCount = st.config.bottomCards || 8;
     const dealerIsHuman = !!st.players[dealerIdx].isHuman;
@@ -717,6 +718,9 @@
       cards.push({ id: 'bottom-' + i, delay: i * 40, card: reveal ? decorateCard(st, st.bottomCards[i]) : null });
     }
     if (dealerIsHuman) G.handVisibleCount = st.players[0].hand.length - bottomCount;
+    // 抬起牌 id 提前登记：fly 期间手牌逐张重建（handKey 变化）时即以抬起态出现——
+    // 若等收尾再设，最后一帧重建已发生，keyed diff 走轻量分支，lift 类永远挂不上
+    G.newGrabIds = reveal ? st.bottomCards.map((c) => c.id) : null;
     G.grabBottom = { active: true, stage: 'show', dealerIdx, cards, flyCount: 0, flyCards: [], reveal };
     render(); // 立即展示中央底牌
     if (reveal) Sfx.play('play'); // 翻面一记拍牌声

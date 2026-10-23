@@ -530,9 +530,13 @@ Page({
         } : null
       });
     }
+    // 抬起牌 id 提前登记（与 h5 一致）：fly 期间手牌逐张出现即带抬起态，落定后 4.2s/点牌落回。
+    // 实例字段同步设：render() 全量 setData 按 _grabHlIds 计算 liftIds，不同步会被冲掉
+    this._grabHlIds = reveal ? st.bottomCards.map((c) => c.id) : null;
     this.setData({
       handVisibleCount: dealerIsHuman ? (st.players[0].hand.length - bottomCount) : this.data.handVisibleCount,
-      grabBottom: { active: true, stage: 'show', dealerIdx, cards, flyCount: 0, flyCards: [], reveal }
+      grabBottom: { active: true, stage: 'show', dealerIdx, cards, flyCount: 0, flyCards: [], reveal },
+      liftIds: this._grabHlIds || []
     });
     const self = this;
     // 阶段一：真人庄家停顿 2.6s 看清底牌（翻面 stagger ~360ms + 阅读对照时间）
@@ -615,12 +619,11 @@ Page({
     this.driveAI();
   },
 
-  /** 新底牌落下归位（渲染层由 render() 的 liftIds 计算自动跟随清空） */
+  /** 新底牌落下归位（liftIds 已在动画启动时提前登记，此处只做无条件清空） */
   _clearGrabHighlight() {
     if (this._grabHlTimer) { clearTimeout(this._grabHlTimer); this._grabHlTimer = null; }
-    if (!this._grabHlIds) return;
     this._grabHlIds = null;
-    this.setData({ liftIds: [] });
+    if (this.data.liftIds && this.data.liftIds.length) this.setData({ liftIds: [] });
   },
 
   /**
