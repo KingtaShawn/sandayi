@@ -49,6 +49,7 @@ function main() {
   copyDir(path.join(H5, 'css'), path.join(DIST, 'css'));
   copyDir(path.join(H5, 'js'), path.join(DIST, 'js'));
   copyDir(path.join(H5, 'icons'), path.join(DIST, 'icons'));
+  copyDir(path.join(H5, 'music'), path.join(DIST, 'music'));
   fs.copyFileSync(path.join(H5, 'manifest.webmanifest'), path.join(DIST, 'manifest.webmanifest'));
 
   // 4. index.html 注入版本号（css/js/manifest 引用）

@@ -72,6 +72,8 @@
         </div>
         <!-- 收墩飘分 -->
         <div class="table__float-layer"><div class="table__float-points" id="float-points" hidden></div></div>
+        <!-- 操作条插槽（悬浮于出牌区底部，不占纵向排版高度） -->
+        <div class="table__action-slot" id="action-slot"></div>
       </div>
       <div class="table__side" id="seat-1"></div>
     </div>
@@ -81,6 +83,7 @@
       <button class="btn btn--ghost table__tool-btn" id="btn-hint">提示</button>
       <div class="table__trump-chip" id="trump-chip"></div>
       <button class="btn btn--ghost table__tool-btn table__tool-btn--sound" id="btn-sound" aria-label="音效开关">🔊</button>
+      <button class="btn btn--ghost table__tool-btn table__tool-btn--sound" id="btn-music" aria-label="音乐开关">🎵</button>
       <button class="btn btn--ghost table__tool-btn" id="btn-history">历史</button>
     </div>
 
@@ -91,9 +94,6 @@
         <div class="hand-area__row" id="hand-row"></div>
       </div>
     </div>
-
-    <!-- 操作条插槽（固定高度防抖动） -->
-    <div class="table__action-slot" id="action-slot"></div>
 
     <!-- 结算弹层 -->
     <div class="result-modal" id="result-modal" hidden>
@@ -125,6 +125,13 @@
 
   <!-- toast -->
   <div class="toast" id="toast" hidden></div>
+
+  <!-- 竖屏旋转提示（仅触屏竖屏显示） -->
+  <div class="rotate-tip" id="rotate-tip">
+    <div class="rotate-tip__icon">📱</div>
+    <div class="rotate-tip__text">请横屏游玩</div>
+    <div class="rotate-tip__sub">转动手机即可恢复牌桌</div>
+  </div>
 </div>
 
 <script src="js/game-bundle.js"></script>

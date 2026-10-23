@@ -13,6 +13,7 @@
     "test:core": "node --test tests/test-statemachine.js tests/test-ai-legal.js",
     "build:h5": "node tools/build-h5.js"
   },
-  "devDependencies": {},
-  "dependencies": {}
+  "devDependencies": {
+    "puppeteer": "^25.16.0"
+  }
 }

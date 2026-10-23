@@ -30,7 +30,7 @@
   const C = window.GameCore;
   const { GameService, createConfig, DEFAULT_CONFIG, getHint, fmt, storage, STORAGE_KEYS, stats, createRng, ruleConfig, scoreBidOptions } = C;
   // 音效模块（sound.js 未加载时静默降级为空操作，游戏不受影响）
-  const Sfx = window.SoundFx || { play() {}, unlock() {}, state: () => 'idle', isEnabled: () => false, toggle: () => false };
+  const Sfx = window.SoundFx || { play() {}, unlock() {}, state: () => 'idle', isEnabled: () => false, toggle: () => false, isMusicOn: () => false, toggleMusic: () => false };
 
   /* ========== wx 等价物 ========== */
   // storage/adapter 检测 wx.setStorageSync —— 注入 localStorage 版 wx 垫片后存档直接持久化
@@ -157,7 +157,11 @@
     lastTapAt: 0,
     lastHandKey: '',
     lastTrickPlaysLen: undefined, // 出牌音效：上一帧墩内出牌数
-    lastTrickCompletedLen: 0      // 出牌音效：上一帧已完成墩数
+    lastTrickCompletedLen: 0,     // 出牌音效：上一帧已完成墩数
+    settlePause: false,           // 末墩扣底暂停：先亮出最后一墩，点「扣底」再弹结算
+    settleBtnReady: false,        // 停顿片刻按钮才弹（末墩先入眼）
+    _prevPhase: '',               // 上一帧阶段（→SCORING 切换触发暂停）
+    _settleBtnTimer: null
   };
   const DOUBLE_TAP_MS = 320;
 
@@ -178,6 +182,9 @@
     G._grabObservedMerged = undefined;
     G.lastFloatKey = '';
     G.lastHandKey = '';
+    G.settlePause = false;
+    G.settleBtnReady = false;
+    if (G._settleBtnTimer) { clearTimeout(G._settleBtnTimer); G._settleBtnTimer = null; }
     G.service.startGame();
     showView('table');
     render();
@@ -211,8 +218,11 @@
     const all = buildHandView(st);
     const visible = all.slice(0, Math.max(0, G.handVisibleCount));
     const n = visible.length;
-    const dense = n > 24;
-    const usable = 93.33; // rem（700rpx，满宽=100rem）
+    // 横屏版心随视口宽伸缩（手机≈150rem、超宽屏到 240rem），可用宽度实测算，不再用固定 750rpx 换算值
+    const dense = n > 30; // 埋底 33 张才降密度；横屏手牌区宽，25 张常规牌放得下
+    const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 1;
+    const rowCs = getComputedStyle(row);
+    const usable = Math.max(30, (row.clientWidth - parseFloat(rowCs.paddingLeft) - parseFloat(rowCs.paddingRight)) / remPx);
     const cardW = dense ? 8.53 : 11.73;
     let margin = n > 1 ? Math.floor(((usable - cardW) / (n - 1)) * 100) / 100 - cardW : 0;
     if (margin > -0.8) margin = -0.8;
@@ -281,9 +291,11 @@
     const area = $('trick-area');
     let trick = st.currentTrick;
     let dim = false;
-    if (st.phase === 'PLAYING' && !st.currentTrick && st.completedTricks.length) {
+    // 墩间/结算期展示刚打完的一墩；扣底暂停期全亮静显（不重放入场动画，防重渲闪动）
+    if (!st.currentTrick && st.completedTricks.length
+      && (st.phase === 'PLAYING' || st.phase === 'SCORING' || st.phase === 'GAME_OVER')) {
       trick = st.completedTricks[st.completedTricks.length - 1];
-      dim = true;
+      dim = !G.settlePause;
     }
     // 出牌音效：墩内出牌数增长（含领出）或墩收齐（末位那声在收墩瞬间）→ 拍牌声；
     // 真人/AI 统一在此捕捉，多张牌逐张错峰。首帧（undefined）不响。
@@ -307,7 +319,7 @@
       const s = el('div', 'trick-area__seat');
       cards.forEach((c, i) => {
         // 出牌区用小一号牌面（.trick-area .card 专属规格），不与手牌等大抢视觉
-        s.appendChild(cardEl(c, { playIn: !dim, styleText: `margin-left:${i === 0 ? 0 : -3.47}rem` }));
+        s.appendChild(cardEl(c, { playIn: !dim && !G.settlePause, styleText: `margin-left:${i === 0 ? 0 : -3.47}rem` }));
       });
       return s;
     };
@@ -401,11 +413,23 @@
       clear.addEventListener('click', onClearSelect);
       slot.appendChild(clear);
     }
+    // 末墩扣底条：停顿亮出最后一墩后才弹，点了才翻底牌进结算
+    if (st.phase === 'SCORING' && G.settlePause && G.settleBtnReady) {
+      const last = st.completedTricks[st.completedTricks.length - 1];
+      const winner = last ? st.players[last.winnerIdx].name : '';
+      const bar = el('div', 'settle-bar');
+      bar.appendChild(el('div', 'settle-bar__tip', `${winner} 赢得最后一墩`));
+      const btn = el('button', 'settle-bar__confirm anim-pulse', '扣底');
+      btn.addEventListener('click', onSettleConfirm);
+      bar.appendChild(btn);
+      slot.appendChild(bar);
+    }
   }
 
   function renderResult(st, view) {
     const modal = $('result-modal');
-    if (!(st.phase === 'SCORING' || st.phase === 'GAME_OVER') || !view.settle) {
+    // 扣底暂停期压住弹层：先让玩家看清最后一墩，点了「扣底」再翻底牌结算
+    if (G.settlePause || !(st.phase === 'SCORING' || st.phase === 'GAME_OVER') || !view.settle) {
       modal.hidden = true;
       return;
     }
@@ -443,6 +467,9 @@
   function render() {
     const st = G.service.getState();
     if (!st) return;
+    // 末墩打完进结算：先暂停亮出最后一墩，点「扣底」再翻底牌弹结算
+    if (st.phase === 'SCORING' && G._prevPhase !== 'SCORING') beginSettlePause();
+    G._prevPhase = st.phase;
     const isSDY = st.config.gameMode === 'san_da_yi';
     const dealerTeam = isSDY && st.sanDaYiTeams ? 0 : st.players[st.dealerIdx].team;
     const isHumanDealer = (st.phase === 'BURYING' || st.phase === 'CHOOSE_TRUMP') && st.players[st.dealerIdx].isHuman;
@@ -497,7 +524,7 @@
               : (myBid ? `你叫 ${myBid.score} 分，等待其他玩家…`
                 : ((st.passedBidders || []).includes(0) ? '已不叫，等待其他玩家…' : '等待其他玩家叫分…')))
             : '亮主阶段')
-          : (st.phase === 'CHOOSE_TRUMP' ? (st.players[st.dealerIdx].isHuman ? '轮到你选主牌花色' : '庄家选主中…') : (st.phase === 'BURYING' ? '埋底阶段' : ''))));
+          : (st.phase === 'CHOOSE_TRUMP' ? (st.players[st.dealerIdx].isHuman ? '轮到你选主牌花色' : '庄家选主中…') : (st.phase === 'BURYING' ? '埋底阶段' : (st.phase === 'SCORING' && G.settlePause ? '最后一墩已亮出——点「扣底」翻底结算' : '')))));
 
     // 座位
     const animState = {
@@ -694,6 +721,28 @@
     G.grabBottom = { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [] };
     render();
     driveAI();
+  }
+
+  /* ---------- 末墩扣底暂停（最后一墩先看清，点「扣底」再结算） ---------- */
+  function beginSettlePause() {
+    G.settlePause = true;
+    G.settleBtnReady = false;
+    if (G._settleBtnTimer) clearTimeout(G._settleBtnTimer);
+    // 停顿片刻让末墩先入眼，再弹「扣底」按钮（结算弹层在此之前一律压住）
+    G._settleBtnTimer = setTimeout(() => {
+      G._settleBtnTimer = null;
+      G.settleBtnReady = true;
+      render();
+    }, 900);
+  }
+
+  function onSettleConfirm() {
+    if (!G.settlePause) return;
+    G.settlePause = false;
+    G.settleBtnReady = false;
+    if (G._settleBtnTimer) { clearTimeout(G._settleBtnTimer); G._settleBtnTimer = null; }
+    Sfx.play('grab'); // 扣底：底牌翻开归赢家
+    render(); // 结算弹层此刻才出现，胜负音随弹层首显响起
   }
 
   /* ---------- 看门狗 / 飘分（移植） ---------- */
@@ -1076,6 +1125,14 @@
     }
   });
   updateSoundBtn();
+  // 背景音乐开关：与音效独立持久化（tractor:settings.music），首次手势解锁后自动开播
+  const updateMusicBtn = () => { $('btn-music').textContent = Sfx.isMusicOn() ? '🎵' : '🎶'; };
+  $('btn-music').addEventListener('click', () => {
+    const on = Sfx.toggleMusic();
+    updateMusicBtn();
+    toast(on ? '音乐已开' : '音乐已关');
+  });
+  updateMusicBtn();
   // 音效解锁：每次手势都试（running 前内部重试 resume，低电量模式被拒后下次手势还有机会）；
   // click 兜底键盘触发（Enter/Space 无 pointerdown）
   ['pointerdown', 'touchstart', 'click'].forEach((evt) => document.addEventListener(evt, () => Sfx.unlock(), { passive: true }));
@@ -1087,6 +1144,19 @@
     renderHome();
     showView('home');
   });
+  // 视口尺寸/方向变化 → 版心与 rem 基准都变，重排手牌（防抖；keyed diff 需清 key 强制重建行内边距）
+  let _resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (_resizeTimer) clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => {
+      _resizeTimer = null;
+      if (G.service && !$('view-table').hidden) {
+        G.lastHandKey = '';
+        render();
+      }
+    }, 200);
+  });
+
   // 页面隐藏时暂停 AI（防后台定时器节流）
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {

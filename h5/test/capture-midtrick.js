@@ -3,8 +3,16 @@
  */
 'use strict';
 const path = require('path');
-const WS = path.join('C:', 'Users', 'baicells', '.workbuddy', 'binaries', 'node', 'workspace', 'node_modules');
-const puppeteer = require(path.join(WS, 'puppeteer'));
+// puppeteer 解析：项目 devDependencies 优先，否则退回 PUPPETEER_WS 指定的 node_modules 目录
+let puppeteer = null;
+try { puppeteer = require('puppeteer'); }
+catch {
+  if (process.env.PUPPETEER_WS) puppeteer = require(path.resolve(process.env.PUPPETEER_WS, 'puppeteer'));
+}
+if (!puppeteer) {
+  console.error('未找到 puppeteer：项目根目录先 npm i（devDependencies 已含），或设 PUPPETEER_WS=<node_modules 目录>');
+  process.exit(1);
+}
 const BASE = 'http://127.0.0.1:8930';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

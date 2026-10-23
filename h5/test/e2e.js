@@ -65,7 +65,7 @@ function check(name, cond, detail) {
   // 主循环：驱动到终局（真人操作用 DOM 点击；最多 5 分钟）
   const t0 = Date.now();
   let sawChooseTrump = false, sawBurying = false, sawPlaying = false, sawScoring = false;
-  let sawGrabAnim = false;
+  let sawGrabAnim = false, sawSettlePause = false;
   let lastPhaseLog = '';
   while (Date.now() - t0 < 300000) {
     // 从 GameCore 无法直接拿 state（封装在闭包）——改从 DOM 推断：
@@ -86,7 +86,13 @@ function check(name, cond, detail) {
     }
 
     // 真人决策
-    if (bidBar) {
+    // 末墩扣底暂停：点「扣底」翻底牌 → 结算弹层（不点弹层不出现）
+    const settleBtn = doc.querySelector('.settle-bar__confirm');
+    if (settleBtn) {
+      sawSettlePause = true;
+      settleBtn.click();
+      await sleep(300);
+    } else if (bidBar) {
       const suitBtn = bidBar.querySelector('.bid-bar__option--suit');
       const optBtn = bidBar.querySelector('.bid-bar__option:not(.bid-bar__option--suit)');
       const passBtn = bidBar.querySelector('.bid-bar__pass');
@@ -121,6 +127,7 @@ function check(name, cond, detail) {
   check('经过选主阶段', sawChooseTrump || true, '（AI 庄家时不经过真人选主，弱断言）');
   check('抓底牌动画出现', sawGrabAnim || true, '（成交瞬间可能错过采样窗口，弱断言）');
   check('到达出牌阶段', sawPlaying);
+  check('末墩扣底暂停出现', sawSettlePause);
   check('到达结算', sawScoring);
 
   // 结算面板内容

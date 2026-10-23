@@ -1,15 +1,26 @@
 /**
  * h5/test/layout-check.js —— 布局几何校验（puppeteer 测量，无需人眼）。
- * 校验：视口适配/卡牌尺寸/手牌位置/座位方位/操作条位置，手机+桌面两视口。
+ * 校验：横屏视口适配/卡牌尺寸/手牌位置/座位方位/操作条悬浮位/无纵向溢出，手机横屏+桌面两视口。
  */
 'use strict';
 
 const path = require('path');
-const WS = path.join('C:', 'Users', 'baicells', '.workbuddy', 'binaries', 'node', 'workspace', 'node_modules');
-const puppeteer = require(path.join(WS, 'puppeteer'));
+// puppeteer 解析：项目 devDependencies 优先，否则退回 PUPPETEER_WS 指定的 node_modules 目录
+let puppeteer = null;
+try { puppeteer = require('puppeteer'); }
+catch {
+  if (process.env.PUPPETEER_WS) puppeteer = require(path.resolve(process.env.PUPPETEER_WS, 'puppeteer'));
+}
+if (!puppeteer) {
+  console.error('未找到 puppeteer：项目根目录先 npm i（devDependencies 已含），或设 PUPPETEER_WS=<node_modules 目录>');
+  process.exit(1);
+}
 
 const BASE = 'http://127.0.0.1:8930';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// 横屏设计基准：版心 160rem × 90rem（16:9），更宽窗口横向拉伸
+const DESIGN_W = 160, DESIGN_H = 90;
 
 let passed = 0, failed = 0;
 function check(name, cond, detail) {
@@ -61,7 +72,7 @@ async function driveToPlaying(page) {
   return false;
 }
 
-async function verifyViewport(browser, w, h, tag, expectCenter) {
+async function verifyViewport(browser, w, h, tag) {
   console.log(`\n== ${tag} 视口 ${w}x${h} ==`);
   const page = await browser.newPage();
   await page.setViewport({ width: w, height: h });
@@ -102,24 +113,25 @@ async function verifyViewport(browser, w, h, tag, expectCenter) {
       actionSlot: rect('.table__action-slot'),
       playBtn: rect('#action-slot .btn--primary'),
       trick: rect('#trick-area'),
+      docH: document.documentElement.scrollHeight,
       htmlFont: getComputedStyle(document.documentElement).fontSize
     };
   });
 
   // ===== 断言 =====
-  // 1. rem 基准：375 宽 → 3.75px；桌面 → 7.5px
-  const expectFont = w >= 750 ? '7.5px' : (w / 100).toFixed(2).replace(/0$/, '') + 'px';
-  check(`rem 基准（${geo.htmlFont}，期望 ${expectFont}）`, Math.abs(parseFloat(geo.htmlFont) - w / 100) < 0.31 || (w >= 750 && geo.htmlFont === '7.5px'), JSON.stringify(geo.htmlFont));
+  // 1. rem 基准：横屏 160×90 设计，取宽高中紧者
+  const expectFont = Math.min(w / DESIGN_W, h / DESIGN_H);
+  check(`rem 基准（${geo.htmlFont}，期望≈${expectFont.toFixed(2)}px）`,
+    Math.abs(parseFloat(geo.htmlFont) - expectFont) < 0.31, JSON.stringify(geo.htmlFont));
 
-  // 2. 卡牌尺寸：25 张>24 触发 dense（8.53rem 小牌），≤24 张 11.73rem——与小程序 hand-area 逻辑一致
-  const denseMode = geo.cardCount > 24;
-  const expectCardW = Math.round((denseMode ? 8.53 : 11.73) * parseFloat(geo.htmlFont));
+  // 2. 卡牌尺寸：横屏手牌区宽，25 张仍用常规牌（11.73rem，>30 张才 dense）
+  const expectCardW = Math.round(11.73 * parseFloat(geo.htmlFont));
   if (geo.handFirst) {
-    check(`卡牌宽 ${geo.handFirst.w}px（${denseMode ? 'dense' : 'normal'} 期望≈${expectCardW}px）`, Math.abs(geo.handFirst.w - expectCardW) <= 12, JSON.stringify(geo.handFirst));
+    check(`卡牌宽 ${geo.handFirst.w}px（期望≈${expectCardW}px）`, Math.abs(geo.handFirst.w - expectCardW) <= 12, JSON.stringify(geo.handFirst));
     check(`手牌 ${geo.cardCount} 张尺寸一致`, geo.cardCount === 25 && geo.cardWSame, `count=${geo.cardCount} sameW=${geo.cardWSame}`);
   } else { check('手牌存在', false, '无手牌'); }
 
-  // 3. 手牌区在屏幕下部（y > 视口高 55%）
+  // 3. 手牌区在屏幕下部
   if (geo.handRow) check('手牌区位于屏幕下部', geo.handRow.y > geo.vh * 0.55, `y=${geo.handRow.y} vh=${geo.vh}`);
 
   // 4. 手牌不超出视口右缘
@@ -135,19 +147,21 @@ async function verifyViewport(browser, w, h, tag, expectCenter) {
   // 6. 状态栏在中央区上部
   if (geo.statusBar && geo.center) check('状态栏位于中央上部', geo.statusBar.y < geo.center.y + geo.center.h / 2, `SB.y=${geo.statusBar.y}`);
 
-  // 7. 操作条在手牌下方且在视口内
-  if (geo.actionSlot && geo.handRow) {
-    check('操作条在手牌下方', geo.actionSlot.y >= geo.handRow.y, `A.y=${geo.actionSlot.y} H.y=${geo.handRow.y}`);
+  // 7. 出牌按钮悬浮于出牌区内且在视口内
+  if (geo.actionSlot) {
     check('操作条含出牌按钮', !!geo.playBtn);
-    if (geo.playBtn) check('出牌按钮在视口内', geo.playBtn.y + geo.playBtn.h <= geo.vh + 2, JSON.stringify(geo.playBtn));
+    if (geo.playBtn) {
+      check('出牌按钮在视口内', geo.playBtn.y + geo.playBtn.h <= geo.vh + 2 && geo.playBtn.y >= geo.center.y, JSON.stringify(geo.playBtn));
+      check('操作条悬浮于出牌区（不占手牌下方空间）', geo.actionSlot.y + geo.actionSlot.h <= geo.handRow.y + 4, `A.bottom=${geo.actionSlot.y + geo.actionSlot.h} H.y=${geo.handRow.y}`);
+    }
   }
 
-  // 8. 桌面：容器居中限宽
-  if (expectCenter && geo.app) {
-    check('桌面容器限宽 750', geo.app.w <= 752, `app.w=${geo.app.w}`);
-    const sideMargin = geo.app.x;
-    check('桌面容器水平居中', Math.abs(sideMargin - (geo.vw - geo.app.x - geo.app.w)) <= 4, `x=${geo.app.x} vw=${geo.vw} w=${geo.app.w}`);
+  // 8. 版心满宽（160rem 起，超宽屏 240rem 封顶）；无纵向溢出
+  if (geo.app) {
+    const expectAppW = Math.round(Math.min(w, 240 * parseFloat(geo.htmlFont)));
+    check(`版心满宽 ${geo.app.w}px（期望≈${expectAppW}px）`, Math.abs(geo.app.w - expectAppW) <= 3, JSON.stringify(geo.app));
   }
+  check('无纵向溢出（整页不滚动）', geo.docH <= geo.vh + 2, `docH=${geo.docH} vh=${geo.vh}`);
 
   await page.screenshot({ path: path.join(__dirname, 'shots', `${tag}-playing.png`) });
   await page.close();
@@ -156,14 +170,15 @@ async function verifyViewport(browser, w, h, tag, expectCenter) {
 (async () => {
   const browser = await puppeteer.launch({
     headless: 'new',
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || await puppeteer.executablePath(),
     args: ['--no-sandbox', '--disable-gpu', '--no-proxy-server'],
     timeout: 90000
   });
   try {
-    await verifyViewport(browser, 375, 812, 'mobile', false);
-    await verifyViewport(browser, 414, 896, 'mobileL', false);
-    await verifyViewport(browser, 1440, 900, 'desktop', true);
+    await verifyViewport(browser, 812, 375, 'mobile');   // iPhone X 横屏
+    await verifyViewport(browser, 896, 414, 'mobileL');   // iPhone XR 横屏（20:9 一代）
+    await verifyViewport(browser, 1180, 820, 'ipad');     // iPad Air 横屏（≈4:3 侧区更高）
+    await verifyViewport(browser, 1440, 900, 'desktop');
   } finally {
     await browser.close();
   }

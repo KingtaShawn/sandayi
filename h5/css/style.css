@@ -1,11 +1,17 @@
-/* h5/css/style.css —— 三打一 H5 版样式（忠实移植小程序 wxss，rpx→rem 换算基准 750，满宽=750rpx） */
+/* h5/css/style.css —— 三打一 H5 版样式（横屏版：160×90 设计基准，脱胎于小程序 750rpx 竖版） */
 
-/* rem 基准：100rem = min(视口宽, 视口高 × 0.75)——手机竖屏满宽不变；
-   桌面/横屏随窗口大小整体缩放（宽、高取紧者），纵向版心不低于 4:3（与 iPad 小程序一致） */
-html { font-size: min(calc(100vw / 100), calc(100vh / 133.4)); }
+/* rem 基准：160rem = 16:9 横屏设计宽（手机横屏/桌面随窗口整体缩放，宽、高取紧者）；
+   更宽的窗口（20:9 手机、超宽屏）版心横向拉伸至 240rem 封顶，牌桌中央区吸收多余宽度；
+   更高比例（4:3 iPad 横屏）多余高度由牌桌中部 flex 吸收 */
+html { font-size: min(calc(100vw / 160), calc(100vh / 90)); }
+/* iOS 横屏地址栏收展跟随动态视口（dvh 变化触发 resize → app.js 重排手牌） */
+@supports (height: 100dvh) {
+  html { font-size: min(calc(100vw / 160), calc(100dvh / 90)); }
+  html, body { height: 100dvh; }
+}
 
-/* 版心恒为 100rem 宽、居中：手机即满屏；桌面四周深色留边，随窗口缩放 */
-#app { max-width: 100rem; margin: 0 auto; box-shadow: 0 0 60px rgba(0, 0, 0, 0.6); }
+/* 版心随视口满宽拉伸（超宽屏 240rem 封顶居中）；竖屏手机由 .rotate-tip 提示旋转 */
+#app { max-width: 240rem; margin: 0 auto; }
 
 /* ========== 全局 ========== */
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -118,6 +124,9 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   padding: 4rem;
   font-size: 3.47rem;
   line-height: 1.8;
+  max-width: 120rem; /* 横屏版心宽，长文收窄保可读 */
+  margin: 0 auto;
+  width: 100%;
 }
 .rules__body h3 { color: var(--color-gold); margin: 3.2rem 0 1.33rem; font-size: 4rem; }
 .rules__body p { color: var(--color-text-light); }
@@ -129,10 +138,11 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   background: radial-gradient(circle at 50% 30%, #12904f, #0b6b3a 70%, #074f2c);
   display: flex;
   flex-direction: column;
-  padding: 1.6rem 1.6rem 3.2rem;
+  /* 横屏：左右吃刘海安全区（iPhone 横屏刘海在两侧），底边避开细边距即可 */
+  padding: 1.2rem max(2.4rem, env(safe-area-inset-left)) 1.6rem max(2.4rem, env(safe-area-inset-right));
 }
 
-.table__north { display: flex; justify-content: center; margin-bottom: 1.07rem; }
+.table__north { display: flex; justify-content: center; margin-bottom: 0.8rem; }
 
 .table__mid { flex: 1; display: flex; align-items: stretch; gap: 1.07rem; min-height: 0; }
 
@@ -150,37 +160,47 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   min-height: 0;
 }
 
+/* 横屏纵向预算紧（90rem）：工具条收窄、居中成组，不再左右贴边拉开 */
 .table__tools {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  padding: 0 2.13rem;
-  margin: 0.8rem 0;
+  gap: 2.67rem;
+  margin: 0.4rem 0;
 }
-.table__tool-btn { padding: 1.33rem 4.8rem; font-size: 3.2rem; }
+.table__tool-btn { padding: 0.8rem 3.2rem; font-size: 2.67rem; }
 /* 音效开关：单字符图标，收窄内边距免挤占工具条 */
-.table__tool-btn--sound { padding: 1.33rem 2.93rem; }
+.table__tool-btn--sound { padding: 0.8rem 2.13rem; }
 
 .table__trump-chip {
-  padding: 1.07rem 3.2rem;
+  padding: 0.8rem 2.67rem;
   border-radius: 999rem;
   background: rgba(0, 0, 0, 0.32);
   border: 0.27rem solid rgba(243, 193, 75, 0.5);
   color: var(--color-gold);
-  font-size: 3.2rem;
+  font-size: 2.67rem;
   font-weight: 600;
 }
 
 .table__hand { background: rgba(0, 0, 0, 0.18); border-radius: 2.13rem; }
 
+/* 操作条改为悬浮层（挂在中央区底部、工具条正上方）：不再占用纵向排版高度——
+   横屏 90rem 里 20rem 固定插槽会把出牌区挤爆。报分/选主/埋底阶段中央出牌区是空的，
+   悬浮不遮挡；出牌阶段按钮出现时南家尚未出牌，同样无遮挡 */
 .table__action-slot {
-  min-height: 20rem;
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  z-index: 6;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   gap: 3.73rem;
-  padding: 0 2.13rem;
+  max-width: 100%;
+  pointer-events: none; /* 空槽不挡牌桌 */
 }
+.table__action-slot > * { pointer-events: auto; }
 
 /* ========== 状态栏 ========== */
 .status-bar {
@@ -189,40 +209,41 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   justify-content: space-around;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 1.6rem;
-  padding: 1.33rem 1.6rem;
+  padding: 0.8rem 1.6rem;
   width: 100%;
+  max-width: 120rem; /* 横屏版心宽，收紧居中避免两端项目拉太开 */
 }
 .status-bar__item { display: flex; flex-direction: column; align-items: center; }
-.status-bar__label { font-size: 2.67rem; color: var(--color-text-dim); }
-.status-bar__value { font-size: 4rem; font-weight: 700; color: var(--color-text-light); }
+.status-bar__label { font-size: 2.4rem; color: var(--color-text-dim); }
+.status-bar__value { font-size: 3.47rem; font-weight: 700; color: var(--color-text-light); }
 .status-bar__value--gold { color: var(--color-gold); }
-.status-bar__value--dim { font-size: 3.2rem; font-weight: 500; color: var(--color-text-dim); }
+.status-bar__value--dim { font-size: 2.93rem; font-weight: 500; color: var(--color-text-dim); }
 .status-bar__score {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0.53rem 3.73rem;
-  border-radius: 1.6rem;
+  padding: 0.4rem 2.67rem;
+  border-radius: 1.33rem;
   background: rgba(255, 255, 255, 0.08);
   border: 0.27rem solid rgba(255, 255, 255, 0.15);
 }
 .status-bar__score--mine { border-color: rgba(243, 193, 75, 0.55); }
 .status-bar__score--enemy { border-color: rgba(229, 77, 66, 0.5); }
-.status-bar__score-label { font-size: 2.67rem; color: var(--color-text-dim); }
+.status-bar__score-label { font-size: 2.4rem; color: var(--color-text-dim); }
 .status-bar__score-value {
-  font-size: 5.33rem;
+  font-size: 4.53rem;
   font-weight: 800;
   color: var(--color-text-light);
   font-family: 'DIN Alternate', 'Menlo', monospace;
 }
 .status-bar__score--mine .status-bar__score-value { color: var(--color-gold); }
-.status-bar__divider { width: 0.27rem; height: 6.4rem; background: rgba(255, 255, 255, 0.2); }
+.status-bar__divider { width: 0.27rem; height: 5.33rem; background: rgba(255, 255, 255, 0.2); }
 
 /* ========== 中央出牌区 ========== */
-.trick-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-between; width: 100%; min-height: 26.67rem; }
+.trick-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-between; width: 100%; min-height: 27.6rem; }
 .trick-area--dim { opacity: 0.45; filter: saturate(0.6); }
 /* 三行各自贴边：北贴顶（头像正下方）、南贴底（手牌正上方）、西/东经 mid 贴左右——不再向中心聚拢 */
-.trick-area__seat { display: flex; align-items: center; justify-content: center; min-height: 10.67rem; }
+.trick-area__seat { display: flex; align-items: center; justify-content: center; min-height: 9.2rem; }
 .trick-area__middle { display: flex; align-items: center; justify-content: space-between; width: 100%; }
 .trick-area__seat--west, .trick-area__seat--east { min-width: 16rem; }
 .trick-area__bottom-holder { flex: 1; display: flex; align-items: center; justify-content: center; }
@@ -236,9 +257,9 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .trick-area__bottom-label { font-size: 2.67rem; color: var(--color-text-dim); margin-top: 0.8rem; }
 
 /* ========== 手牌区 ========== */
-.hand-area { width: 100%; padding: 1.07rem 0; }
-.hand-area__label { font-size: 2.93rem; color: var(--color-text-dim); margin-bottom: 0.53rem; padding-left: 2.13rem; min-height: 3.7rem; }
-.hand-area__row { display: flex; align-items: flex-end; padding: 3.2rem 1.07rem 1.07rem; min-height: 20rem; }
+.hand-area { width: 100%; padding: 0.8rem 0; }
+.hand-area__label { font-size: 2.67rem; color: var(--color-text-dim); margin-bottom: 0.4rem; padding-left: 2.13rem; min-height: 3.2rem; }
+.hand-area__row { display: flex; align-items: flex-end; padding: 3.2rem 1.07rem 0.8rem; min-height: 17.5rem; }
 .hand-area__divider {
   align-self: stretch;
   width: 0.53rem;
@@ -285,13 +306,13 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .card--joker .card__rank--star { font-weight: 700; text-shadow: 0 0 0.27rem currentColor; }
 .card--dense .card__rank--star { font-size: 3.2rem; }
 
-/* 出牌区专属小牌规格（比 dense 再小一档）：桌面三行出牌必须塞进中央区可用高度，
+/* 出牌区专属小牌规格（比 dense 再小一档）：横屏三行出牌必须塞进中央区可用高度，
    否则 space-between 会把南家牌挤出下边界压到工具条 */
-.trick-area .card { width: 7.2rem; height: 10.4rem; }
-.trick-area .card__rank { font-size: 2.93rem; }
-.trick-area .card__suit { font-size: 2.4rem; }
-.trick-area .card__rank--star { font-size: 2.93rem; }
-.trick-area .card__corner { top: 0.53rem; left: 0.67rem; }
+.trick-area .card { width: 6.4rem; height: 9.2rem; }
+.trick-area .card__rank { font-size: 2.67rem; }
+.trick-area .card__suit { font-size: 2.13rem; }
+.trick-area .card__rank--star { font-size: 2.67rem; }
+.trick-area .card__corner { top: 0.4rem; left: 0.53rem; }
 
 /* ========== 座位信息 ========== */
 .seat-info {
@@ -339,6 +360,15 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .seat-info--vertical .seat-info__meta { margin-left: 0; }
 .seat-info__name { font-size: 3.2rem; color: var(--color-text-light); }
 .seat-info__cards { color: var(--color-text-dim); font-size: 2.67rem; }
+/* 北家在纵排流里：思考指示若占位会把出牌区顶下去（横屏高度预算紧）→ 悬浮在座位下方 */
+#seat-2 .seat-info__thinking {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 0.4rem;
+  white-space: nowrap;
+}
 .seat-info__thinking {
   display: flex; gap: 0.8rem; align-items: center;
   padding: 0.8rem 1.6rem;
@@ -398,12 +428,28 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   color: #5c3d00; font-size: 3.47rem; font-weight: 700;
 }
 
+/* 末墩扣底条：最后一墩亮出停顿后才弹；操作条贴底会压住南家末墩牌，抬高悬进中央空档。
+   单行紧凑（高≤9rem）：任何窗口下都不越出中排空档碰到北家牌 */
+.settle-bar {
+  display: flex; align-items: center; gap: 2.67rem;
+  background: rgba(0, 0, 0, 0.55); border-radius: 2.13rem; padding: 1.2rem 2.67rem;
+  margin-bottom: 10.4rem; /* 越过南家末墩牌行（9.2rem）再留呼吸空隙 */
+  animation: play-in var(--anim-normal) ease;
+}
+.settle-bar__tip { font-size: 3.2rem; color: var(--color-gold); }
+.settle-bar__confirm {
+  padding: 1.2rem 4.8rem; border-radius: 999rem;
+  background: linear-gradient(180deg, #f7d478, var(--color-primary));
+  border: 0.27rem solid #caa235;
+  color: #5c3d00; font-size: 3.47rem; font-weight: 700;
+}
+
 /* ========== 结算弹层 ========== */
 .result-modal { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 100; }
 .result-modal__mask { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: var(--color-mask); }
 .result-modal__panel {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: 84rem; max-height: 88vh; overflow-y: auto;
+  width: 100rem; max-height: 88vh; overflow-y: auto;
   background: linear-gradient(170deg, #fffdf5, #f7ecd2);
   border-radius: 3.2rem; padding: 5.33rem 4rem;
   box-shadow: 0 2.67rem 8rem rgba(0, 0, 0, 0.45);
@@ -428,7 +474,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .history-modal__mask { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: var(--color-mask); }
 .history-modal__panel {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: 88rem; max-height: 80vh;
+  width: 100rem; max-height: 80vh;
   background: linear-gradient(170deg, #fffdf5, #f7ecd2);
   border-radius: 3.2rem; padding: 4rem;
   display: flex; flex-direction: column;
@@ -513,26 +559,26 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 @keyframes deal-fly-s0 {
   0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0; }
   12% { opacity: 1; }
-  70% { transform: translate(0, 34rem) rotate(24deg) scale(0.85); opacity: 1; }
-  100% { transform: translate(0, 45.33rem) rotate(40deg) scale(0.6); opacity: 0; }
+  70% { transform: translate(0, 36rem) rotate(24deg) scale(0.85); opacity: 1; }
+  100% { transform: translate(0, 48rem) rotate(40deg) scale(0.6); opacity: 0; }
 }
 @keyframes deal-fly-s1 {
   0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0; }
   12% { opacity: 1; }
-  70% { transform: translate(30rem, 2rem) rotate(24deg) scale(0.85); opacity: 1; }
-  100% { transform: translate(40rem, 2.67rem) rotate(40deg) scale(0.6); opacity: 0; }
+  70% { transform: translate(46rem, 2rem) rotate(24deg) scale(0.85); opacity: 1; }
+  100% { transform: translate(60rem, 2.67rem) rotate(40deg) scale(0.6); opacity: 0; }
 }
 @keyframes deal-fly-s2 {
   0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0; }
   12% { opacity: 1; }
-  70% { transform: translate(0, -34rem) rotate(24deg) scale(0.85); opacity: 1; }
-  100% { transform: translate(0, -45.33rem) rotate(40deg) scale(0.6); opacity: 0; }
+  70% { transform: translate(0, -36rem) rotate(24deg) scale(0.85); opacity: 1; }
+  100% { transform: translate(0, -48rem) rotate(40deg) scale(0.6); opacity: 0; }
 }
 @keyframes deal-fly-s3 {
   0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0; }
   12% { opacity: 1; }
-  70% { transform: translate(-30rem, 2rem) rotate(24deg) scale(0.85); opacity: 1; }
-  100% { transform: translate(-40rem, 2.67rem) rotate(40deg) scale(0.6); opacity: 0; }
+  70% { transform: translate(-46rem, 2rem) rotate(24deg) scale(0.85); opacity: 1; }
+  100% { transform: translate(-60rem, 2.67rem) rotate(40deg) scale(0.6); opacity: 0; }
 }
 @keyframes deal-deck-pulse {
   0%, 100% { transform: scale(1); }
@@ -623,7 +669,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 
 /* ========== toast ========== */
 .toast {
-  position: fixed; left: 50%; bottom: 28vh; transform: translateX(-50%);
+  position: fixed; left: 50%; bottom: 32vh; transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.8); color: #fff;
   padding: 1.87rem 4.27rem; border-radius: 1.33rem;
   font-size: 3.47rem; z-index: 200;
@@ -631,3 +677,28 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   transition: opacity 0.25s;
 }
 .toast--hidden { opacity: 0; pointer-events: none; }
+
+/* ========== 竖屏旋转提示（横屏游戏，竖屏手机引导旋转） ========== */
+.rotate-tip {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rem;
+  background: radial-gradient(circle at 50% 30%, #12904f, #0b6b3a 70%, #074f2c);
+  text-align: center;
+}
+.rotate-tip__icon { font-size: 10.67rem; line-height: 1; animation: rotate-phone 1.8s ease-in-out infinite; }
+.rotate-tip__text { font-size: 4rem; color: var(--color-text-light); }
+.rotate-tip__sub { font-size: 2.93rem; color: var(--color-text-dim); }
+/* 仅触屏设备竖屏时提示（桌面窄窗照常缩放游玩，不打扰） */
+@media (orientation: portrait) and (pointer: coarse) {
+  .rotate-tip { display: flex; }
+}
+@keyframes rotate-phone {
+  0%, 15% { transform: rotate(0deg); }
+  55%, 100% { transform: rotate(90deg); }
+}

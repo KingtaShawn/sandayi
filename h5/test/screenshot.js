@@ -7,8 +7,16 @@
 
 const path = require('path');
 const fs = require('fs');
-const WS = path.join('C:', 'Users', 'baicells', '.workbuddy', 'binaries', 'node', 'workspace', 'node_modules');
-const puppeteer = require(path.join(WS, 'puppeteer'));
+// puppeteer 解析：项目 devDependencies 优先，否则退回 PUPPETEER_WS 指定的 node_modules 目录
+let puppeteer = null;
+try { puppeteer = require('puppeteer'); }
+catch {
+  if (process.env.PUPPETEER_WS) puppeteer = require(path.resolve(process.env.PUPPETEER_WS, 'puppeteer'));
+}
+if (!puppeteer) {
+  console.error('未找到 puppeteer：项目根目录先 npm i（devDependencies 已含），或设 PUPPETEER_WS=<node_modules 目录>');
+  process.exit(1);
+}
 
 const BASE = 'http://127.0.0.1:8930';
 const OUT_DIR = path.join(__dirname, 'shots');
@@ -73,15 +81,15 @@ async function driveTo(page, target) {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const browser = await puppeteer.launch({
     headless: 'new',
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || await puppeteer.executablePath(),
     args: ['--no-sandbox', '--disable-gpu', '--no-proxy-server', '--disable-features=msEdgeDeferStartupTasks'],
     timeout: 90000,
     protocolTimeout: 180000
   });
   try {
-    // 手机视口（375×812 iPhone X）
+    // 手机横屏视口（812×375 iPhone X 横屏）
     const m = await browser.newPage();
-    await m.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
+    await m.setViewport({ width: 812, height: 375, isMobile: true, hasTouch: true });
     await m.goto(BASE + '/?_t=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 60000 });
     await sleep(2500);
     await sleep(600);

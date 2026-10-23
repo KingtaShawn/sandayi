@@ -17,7 +17,9 @@ const MIME = {
   '.js': 'application/javascript; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
-  '.webmanifest': 'application/manifest+json; charset=utf-8'
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.m4a': 'audio/mp4',
+  '.mp3': 'audio/mpeg'
 };
 
 const server = http.createServer((req, res) => {

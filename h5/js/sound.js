@@ -1,10 +1,12 @@
 /**
- * h5/js/sound.js —— Web Audio 音效模块（零素材，全部程序合成）。
+ * h5/js/sound.js —— Web Audio 音效模块 + 背景音乐。
  *
- * 出牌/选牌/发牌/拿底/叫分/收墩/结算等动作音效不用任何音频文件：
+ * 动作音效（出牌/选牌/发牌/拿底/叫分/收墩/结算）零素材程序合成：
  * 带通白噪声 = 拍牌/洗牌，振荡器音阶 = 叫分/得分/胜负提示。
+ * 背景音乐用 music/bgm.m4a（Kevin MacLeod - Eastern Thought，CC BY 4.0），
+ * HTMLAudio 循环播放（流式不占解码内存），与音效开关相互独立。
  * 浏览器自动播放策略：首次用户手势解锁 AudioContext（app.js 挂 unlock）；
- * 静音状态存 localStorage（键同 STORAGE_KEYS.SETTINGS，settings.sound）。
+ * 静音状态存 localStorage（键同 STORAGE_KEYS.SETTINGS，settings.sound / settings.music）。
  */
 'use strict';
 
@@ -16,20 +18,24 @@
   let ctx = null;      // AudioContext（懒创建，老浏览器缺 API 时整体静默）
   let master = null;   // 总增益
   let unlocked = false;
-  let enabled = true;
+  let enabled = true;  // 音效开关
+  let musicOn = true;  // 背景音乐开关
   let noiseBuf = null; // 白噪声缓冲（0.5s 预生成复用）
   let mediaEl = null;  // 静音 <audio>（iOS 静音拨片/微信 webview 的会话解锁）
+  let bgmEl = null;    // 背景音乐 <audio>（流式循环，不整段解码占内存）
   const lastPlayAt = Object.create(null); // 同名音效上次播放时刻（节流用）
 
   try {
     const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
     if (typeof s.sound === 'boolean') enabled = s.sound;
+    if (typeof s.music === 'boolean') musicOn = s.music;
   } catch (e) { /* 坏档忽略 */ }
 
   function save() {
     try {
       const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
       s.sound = enabled;
+      s.music = musicOn;
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
     } catch (e) { /* 存满/隐私模式静默 */ }
   }
@@ -195,6 +201,39 @@
   /** 高频音效的最小同名间隔（ms），防连点爆音；其余默认 45ms */
   const THROTTLE_MS = { deal: 70, select: 55 };
 
+  /* ========== 背景音乐（HTMLAudio 循环；开关/手势解锁独立于音效） ========== */
+  const BGM_SRC = 'music/bgm.m4a';
+  const BGM_VOLUME = 0.32; // 衬底不抢戏：出牌/叫分音效明显在其上
+
+  function ensureBgm() {
+    if (bgmEl) return bgmEl;
+    try {
+      bgmEl = new Audio(BGM_SRC);
+      bgmEl.loop = true;
+      bgmEl.volume = BGM_VOLUME;
+      bgmEl.playsInline = true;
+      bgmEl.preload = 'none'; // 确认要播才拉流，省流量
+    } catch (e) { bgmEl = null; }
+    return bgmEl;
+  }
+
+  function startBgm() {
+    if (!musicOn || !unlocked) return; // 手势解锁前播必被自动播放策略拦
+    const a = ensureBgm();
+    if (!a || !a.paused) return;
+    const p = a.play();
+    if (p && p.catch) p.catch(() => { /* 被拦就等下次手势/开关重试 */ });
+  }
+
+  function stopBgm() {
+    if (bgmEl && !bgmEl.paused) bgmEl.pause();
+  }
+
+  // 回到前台续播（后台时浏览器会自动暂停媒体，回来未必自动恢复）
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) startBgm();
+  });
+
   window.SoundFx = {
     isEnabled: () => enabled,
     /** 音频通道状态（开关按钮回调做「被系统拦下」提示用） */
@@ -215,12 +254,22 @@
     /**
      * 手势解锁（iOS/Chrome 自动播放策略）。可重入：低电量模式/微信 webview
      * 里 resume 可能被拒，之前一次性标记会永远哑掉——running 前每次手势都重试。
+     * 解锁同时启动背景音乐（若开）。
      */
     unlock() {
-      if (!ensureCtx()) return;
-      if (ctx.state !== 'running') ctx.resume().catch(() => { /* 下次手势再试 */ });
+      ensureCtx(); // 老浏览器可能缺 Web Audio——音效静默，但 BGM 走 HTMLAudio 照常
+      if (ctx && ctx.state !== 'running') ctx.resume().catch(() => { /* 下次手势再试 */ });
       unlockMedia();
       unlocked = true;
+      startBgm();
+    },
+    /** 背景音乐开关（与音效独立持久化；开时立即播——点击本身即手势） */
+    isMusicOn: () => musicOn,
+    toggleMusic() {
+      musicOn = !musicOn;
+      save();
+      if (musicOn) startBgm(); else stopBgm();
+      return musicOn;
     },
     /** 播放音效：play('play', { count: 3 }) —— count 供出牌多张错峰 */
     play(name, opts) {
