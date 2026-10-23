@@ -19,7 +19,7 @@
 'use strict';
 
 const { legalMoves, validatePlay } = require('../engine/validate');
-const { parseCombo, domainOf, pointsOf } = require('../engine/combo');
+const { parseCombo, domainOf, pointsOf, strengthInDomain } = require('../engine/combo');
 const { pointValue, sortHand } = require('../engine/card');
 const { buildMemory } = require('./memory');
 
@@ -82,6 +82,10 @@ class GreedyStrategy {
         const v = { A: 6, K: 4, Q: 3, J: 2 }[c.rank] || 0;
         sc += v + (pointValue(c, state.config) > 0 ? 2 : 0); // 大牌+分牌
       });
+      // 大牌对子（AA/KK/QQ/JJ）控制力翻倍
+      const byRank = new Map();
+      cards.forEach((c) => byRank.set(c.rank, (byRank.get(c.rank) || 0) + 1));
+      byRank.forEach((n, r) => { if (n >= 2 && { A: 1, K: 1, Q: 1, J: 1 }[r]) sc += 4; });
       // 同门有 2（配合级牌控制）
       const twos = hand.filter((c) => !c.isJoker && c.rank === '2' && c.suit === su).length;
       sc += twos * 5;
@@ -285,11 +289,12 @@ class GreedyStrategy {
       throw new Error(`AI 无合法出牌（player ${playerIdx}，phase ${state.phase}）`);
     }
     const isLead = !state.currentTrick || state.currentTrick.plays.length === 0;
+    const ctx = state.config.gameMode === 'san_da_yi' ? this._buildCtx(state, playerIdx) : null;
     const scored = candidates.map((cards_) => ({
       cards: cards_,
       score: isLead
-        ? this._scoreLead(state, playerIdx, cards_)
-        : this._scoreFollow(state, playerIdx, cards_)
+        ? this._scoreLead(state, playerIdx, cards_, ctx)
+        : this._scoreFollow(state, playerIdx, cards_, ctx)
     }));
     scored.sort((a, b) => b.score - a.score);
     let pick = scored[0].cards;
@@ -311,7 +316,9 @@ class GreedyStrategy {
    * @param {Array<object>} cards
    * @returns {number}
    */
-  _scoreLead(state, playerIdx, cards_) {
+  _scoreLead(state, playerIdx, cards_, ctx) {
+    // 三打一：仅庄家用增强领出；攻方沿用贪心基线（自对弈实测更优）
+    if (ctx && ctx.sdy.isDealer) return this._scoreLeadSdy(state, playerIdx, cards_, ctx);
     const cfg = state.config;
     const ti = state.trumpInfo;
     const combo = parseCombo(cards_, ti, cfg);
@@ -365,7 +372,8 @@ class GreedyStrategy {
    * @param {Array<object>} cards
    * @returns {number}
    */
-  _scoreFollow(state, playerIdx, cards_) {
+  _scoreFollow(state, playerIdx, cards_, ctx) {
+    if (ctx) return this._scoreFollowSdy(state, playerIdx, cards_, ctx);
     const cfg = state.config;
     const ti = state.trumpInfo;
     const trick = state.currentTrick;
@@ -380,24 +388,7 @@ class GreedyStrategy {
     const curWinnerTeam = this._currentWinnerTeam(state, trick, ti, cfg);
     const teamWinning = curWinnerTeam === myTeam;
 
-    // 能否压过当前最大
-    const { resolveTrick } = require('../engine/trick');
-    let canWin = false;
-    try {
-      const probe = {
-        leadPlayerIdx: trick.leadPlayerIdx,
-        leadCombo: lead,
-        plays: trick.plays.concat([{
-          playerIdx, cards: cards_, combo, isDiscard: false, isEffectiveTrump: false
-        }]),
-        winnerIdx: null,
-        points: 0
-      };
-      resolveTrick(probe, ti, cfg);
-      canWin = probe.winnerIdx === playerIdx;
-    } catch (e) {
-      canWin = false;
-    }
+    const canWin = this._wouldWin(state, trick, playerIdx, cards_, combo);
 
     let score = 0;
     if (canWin) {
@@ -433,6 +424,197 @@ class GreedyStrategy {
     return score;
   }
 
+  /* --------------------- 三打一增强：记牌 + 合同意识 --------------------- */
+
+  /**
+   * 决策上下文（每手牌构建一次）：记牌器 + 各域未见牌强度表 + 庄家得分形势。
+   * 未见牌 = 全副牌 - 已出 - 我手牌（含底牌，视为在对手处，略保守但诚实——不偷看）。
+   */
+  _buildCtx(state, playerIdx) {
+    const ti = state.trumpInfo;
+    const mem = buildMemory(state, playerIdx);
+    const di = { byDomain: new Map(), total: mem.remainingCount };
+    const RANKS = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+    const keys = [];
+    ['S', 'H', 'C', 'D'].forEach((su) => RANKS.forEach((r) => keys.push({ suit: su, rank: r, isJoker: false })));
+    keys.push({ suit: 'JOKER', rank: 'BJ', isJoker: true });
+    keys.push({ suit: 'JOKER', rank: 'RJ', isJoker: true });
+    keys.forEach((k) => {
+      const unseen = mem.remainingOfKey(`${k.suit}-${k.rank}`);
+      if (unseen <= 0) return;
+      const fake = { suit: k.suit, rank: k.rank, isJoker: k.isJoker };
+      const d = domainOf(fake, ti);
+      if (!di.byDomain.has(d)) di.byDomain.set(d, []);
+      di.byDomain.get(d).push({ s: strengthInDomain(fake, ti), unseen });
+    });
+    return { mem, di, sdy: this._sdyCtx(state, playerIdx) };
+  }
+
+  /** 庄家形势：dealerIdx / 已得分 / 距合同差 / 剩余手牌 */
+  _sdyCtx(state, playerIdx) {
+    const dealerIdx = state.sanDaYiTeams ? state.sanDaYiTeams.dealer : state.dealerIdx;
+    let dealerPts = 0;
+    (state.completedTricks || []).forEach((t) => {
+      if (t.winnerIdx === dealerIdx) dealerPts += t.points;
+    });
+    return {
+      dealerIdx,
+      isDealer: playerIdx === dealerIdx,
+      dealerPts,
+      need: (state.contractScore || 0) - dealerPts,
+      handLen: state.players[playerIdx].hand.length
+    };
+  }
+
+  /** 域内未见更强牌的张数（0 = 我这单元在剩余牌里已无对手） */
+  _unseenHigher(di, domain, strength) {
+    const list = di.byDomain.get(domain);
+    if (!list) return 0;
+    let n = 0;
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].s > strength) n += list[i].unseen;
+    }
+    return n;
+  }
+
+  /** 组合的每个单元在剩余牌里都无更大者（副牌仍可能被将吃，配 _ruffFactor 折减） */
+  _isSureCombo(combo, di) {
+    if (!combo) return false;
+    return combo.units.every((u) => this._unseenHigher(di, combo.suit, u.strength) === 0);
+  }
+
+  /** 副牌被将吃风险折减（0.4~1）：该门占剩余牌比例越低，缺门将吃概率越高 */
+  _ruffFactor(di, domain) {
+    const list = di.byDomain.get(domain);
+    const inDom = list ? list.reduce((s, e) => s + e.unseen, 0) : 0;
+    if (inDom === 0 || di.total === 0) return 1;
+    return Math.max(0.4, Math.min(1, (inDom / di.total) * 3));
+  }
+
+  /**
+   * 三打一庄家领出打分（v3，基准实测校准）：
+   * 基线骨架不动（领出手里大单/大对逼对手消耗拦牌——实测有效，保留其
+   * 「手牌内最大」判定），在其上叠加真·稳赢（记牌器未见更大牌）加成、
+   * 1/3 手牌主牌控制阈值（三打一主牌池 36 张，庄家常拿长门）、
+   * 短门小单加成（制造缺门后续将吃）。攻方领出走基线原逻辑。
+   */
+  _scoreLeadSdy(state, playerIdx, cards_, ctx) {
+    const cfg = state.config;
+    const ti = state.trumpInfo;
+    const { di } = ctx;
+    const combo = parseCombo(cards_, ti, cfg);
+    if (!combo) return 0;
+    const hand = state.players[playerIdx].hand;
+    const trumps = hand.filter((c) => domainOf(c, ti) === 'TRUMP');
+    const sure = this._isSureCombo(combo, di);
+    const strength = this._maxStrength(cards_, ti);
+    const domainCards_ = hand.filter((c) => domainOf(c, ti) === combo.suit);
+    let score = 0;
+
+    if (combo.isTrump) {
+      if (trumps.length > hand.length / 2) score += 15; // 主极多：清主消耗攻方
+      else if (trumps.length > hand.length / 3) score += 8;
+      if (combo.type === 'tractor') score += 12;
+      if (combo.type === 'pair') score += 6;
+      if (combo.type === 'single' && cards_[0].rank === 'BJ') score += 8; // 大王控场
+      score += strength / 200; // 同型先出大主
+    } else {
+      // 基线：手牌内最大（逼近顶部，逼对手用真大牌压、消耗拦牌）
+      if (combo.type === 'tractor' && this._isBiggestInDomain(cards_, domainCards_, ti, cfg)) score += 14;
+      if (combo.type === 'pair' && this._isBiggestPair(cards_, domainCards_, ti)) score += 10;
+      if (combo.type === 'single' && this._isBiggestSingle(cards_, domainCards_, ti)) score += 7;
+      // 叠加：真·稳赢（剩余牌无更大单元）确定性加成，副牌按被将吃风险折减
+      const rf = this._ruffFactor(di, combo.suit);
+      if (sure) {
+        if (combo.type === 'tractor') score += 6 * rf;
+        else if (combo.type === 'pair') score += 5 * rf;
+        else if (combo.type === 'single') score += 4 * rf;
+      }
+      // 甩牌在三打一合法即同门无更大单元，小额 + 风险折减
+      if (combo.type === 'throw') score += (sure ? 8 : 4) * rf;
+      // 庄家小单领出保控制 + 短门加成（制造缺门后续将吃）
+      if (combo.type === 'single') {
+        score += (14 - strength) / 14 * 5 + (5 - Math.min(5, domainCards_.length)) * 1.2;
+      }
+      score -= pointsOf(cards_, cfg) / 2; // 不送分
+    }
+    return score;
+  }
+
+  /**
+   * 三打一跟牌打分（v2，基准实测校准）：
+   * 攻方 = 贪心基线原逻辑（自对弈实测优于全面位置感知版）+ 一处升级：
+   *   庄家已出且队友领先 → 喂分系数 1.5 → 3（此时喂分 100% 安全）；
+   * 庄家 = 合同意识版：有分墩出强牌锁墩（身后攻方专压小赢牌），
+   *   稳赢组合再加成；白墩仍最小赢；输墩绝不送分。
+   */
+  _scoreFollowSdy(state, playerIdx, cards_, ctx) {
+    const cfg = state.config;
+    const ti = state.trumpInfo;
+    const trick = state.currentTrick;
+    const lead = trick.leadCombo;
+    const { sdy, di } = ctx;
+    const combo = parseCombo(cards_, ti, cfg);
+    const pts = pointsOf(cards_, cfg);
+    const trickPts = trick.plays.reduce((s, p) => s + pointsOf(p.cards, cfg), 0);
+    const isLast = trick.plays.length === 3;
+    const strength = this._maxStrength(cards_, ti);
+    const canWin = this._wouldWin(state, trick, playerIdx, cards_, combo);
+    const dealerInPlay = trick.leadPlayerIdx === sdy.dealerIdx
+      || trick.plays.some((p) => p.playerIdx === sdy.dealerIdx);
+    const curWinnerTeam = this._currentWinnerTeam(state, trick, ti, cfg);
+    const teamWinning = curWinnerTeam === this._camp(state, playerIdx);
+    const allTrump = cards_.every((c) => domainOf(c, ti) === 'TRUMP');
+    let score = 0;
+
+    if (sdy.isDealer) {
+      if (canWin) {
+        if (isLast) {
+          score += 30 + pts * 2 + trickPts; // 末家稳收：连自己分一起算
+        } else if (trickPts + pts >= 10) {
+          // 有分墩：出强牌锁墩（身后攻方专压庄家的小赢牌）
+          score += 24 + strength / 150 + Math.min(pts, 10) + trickPts / 2;
+          if (this._isSureCombo(combo, di)) score += 6; // 剩余牌无更大 → 后手也压不过
+        } else {
+          score += 20 - strength / 100; // 白墩最小赢（庄家将吃抢节奏，不罚）
+        }
+      } else {
+        if (allTrump) score -= 20; // 输墩浪费主牌
+        score -= pts; // 输墩绝不送分
+        score += (20 - strength) / 20 * 6; // 垫最小
+      }
+    } else {
+      // 攻方：贪心基线原逻辑
+      if (canWin) {
+        if (isLast) {
+          score += 30 + pts * 2 + trickPts;
+        } else {
+          score += 20 - strength / 100 + Math.min(pts, 10);
+          if (teamWinning && trickPts >= TRUMP_IN_THRESHOLD) score += 8;
+        }
+        score += trickPts / 2 + pts; // 攻方收分意识
+        // 主牌经济：赢墩要花主牌时按墩内分值「付费」——
+        // 无分墩不烧主（主牌留着后手将吃大分墩），小分墩少烧
+        if (allTrump && !lead.isTrump) {
+          score -= Math.max(0, 18 - trickPts - pts);
+        } else if (allTrump && lead.isTrump && !isLast && trickPts + pts < 10) {
+          // 庄家清主小分墩：能输就输，留大主后手夺分
+          score -= Math.max(0, 16 - trickPts - pts);
+        }
+      } else {
+        // 缺门垫主 = 纯浪费（跟主牌领出被迫出主不算）
+        if (allTrump && !lead.isTrump) score -= 20;
+        if (teamWinning) {
+          score += pts * (dealerInPlay ? 3 : 1.5); // 庄家已出 → 喂分绝对安全
+        } else {
+          score -= pts;
+        }
+        score += (20 - strength) / 20 * 6;
+      }
+    }
+    return score;
+  }
+
   /* ------------------------- 辅助 ------------------------- */
 
   /**
@@ -445,6 +627,26 @@ class GreedyStrategy {
       return playerIdx === state.sanDaYiTeams.dealer ? 0 : 1;
     }
     return state.players[playerIdx].team === state.players[state.dealerIdx].team ? 0 : 1;
+  }
+
+  /** 我这样出能否赢下当前墩（resolveTrick 探针，精确到引擎规则） */
+  _wouldWin(state, trick, playerIdx, cards_, combo) {
+    const { resolveTrick } = require('../engine/trick');
+    try {
+      const probe = {
+        leadPlayerIdx: trick.leadPlayerIdx,
+        leadCombo: trick.leadCombo,
+        plays: trick.plays.concat([{
+          playerIdx, cards: cards_, combo, isDiscard: false, isEffectiveTrump: false
+        }]),
+        winnerIdx: null,
+        points: 0
+      };
+      resolveTrick(probe, state.trumpInfo, state.config);
+      return probe.winnerIdx === playerIdx;
+    } catch (e) {
+      return false;
+    }
   }
 
   _maxStrength(cards_, ti) {
