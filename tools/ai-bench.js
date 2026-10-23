@@ -29,11 +29,12 @@ const ROOT = path.join(__dirname, '..');
 function routedAI(newS, oldS, mode) {
   const isNewSeat = (state, seat) => {
     if (mode === 'base') return false;
+    if (mode === 'all-new') return true;
     const d = state.sanDaYiTeams ? state.sanDaYiTeams.dealer : state.dealerIdx;
     const isDealerSeat = seat === d;
     if (mode.startsWith('d-')) return isDealerSeat;
     if (mode.startsWith('a-')) return !isDealerSeat;
-    return mode === 'd-new' ? isDealerSeat : !isDealerSeat;
+    return false;
   };
   const pick = (state, seat) => (isNewSeat(state, seat) ? newS : oldS);
   return {
