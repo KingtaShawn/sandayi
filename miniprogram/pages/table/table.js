@@ -64,6 +64,7 @@ Page({
     handLabel: '',
     selectedIds: [],
     glowingIds: [],
+    liftIds: [],
     playInIds: [],
     floatPoints: { visible: false, text: '', anim: false },
     needPlayCount: 1,
@@ -135,7 +136,7 @@ Page({
       });
       this.render(); // 恢复座位真实牌数等派生视图（watchdog 由 _grabAnimating=false 门控，安全）
     }
-    // 新底牌高亮定时器同理掐掉（后台节流会拖到几分钟后再熄）
+    // 新底牌抬高定时器同理掐掉（后台节流会拖到几分钟后再落）
     if (this._grabHlTimer) this._clearGrabHighlight();
     this.persist();
   },
@@ -240,8 +241,9 @@ Page({
     const grabStarted = this.detectGrabBottom(st);
     const newIds = this.detectNewCards(st, grabStarted);
     // 可亮牌呼吸（仅升级模式亮主阶段；三打一无亮主概念——主牌由庄家拿底后自选）
-    // 亮主呼吸光（升級模式）或新抓底牌高亮（三打一并底后 4.2s 内），互斥场景不叠加
-    const glowingIds = (isHumanTurnBid && !isSanDaYi) ? this.computeGlowingIds(st) : (this._grabHlIds || []);
+    const glowingIds = (isHumanTurnBid && !isSanDaYi) ? this.computeGlowingIds(st) : [];
+    // v2.2 新抓底牌抬高停顿（腾讯升级式）：并底后 4.2s 内抬起，点牌/超时落回
+    const liftIds = this._grabHlIds || [];
     // v1.3 残留墩展示：上一墩牌保留在桌面变暗，直到新墩第一张打出
     // 状态机在第 4 家出牌的同一 tick 内结算并把 currentTrick 置 null——
     // 此时渲染最后一墩（来自 completedTricks）变暗保留，避免"一闪而过"
@@ -303,6 +305,7 @@ Page({
       isHumanDealer,
       isHumanChooseTrump,
       glowingIds,
+      liftIds,
       playInIds: newIds,
       levels: st.levels,
       players: st.players.map((p, i) => ({
@@ -497,7 +500,7 @@ Page({
    *   fly：每 120ms 一张牌背从中央飞向庄家座位（复用 deal-fly 四向关键帧），
    *        庄家座位牌数 25→33 递增；真人庄家手牌同步逐张亮出
    *   收尾：恢复真实渲染 + driveAI（真人庄家选主条在 bid-bar 门控解除后出现）；
-   *        真人庄家的新底牌在手牌中呼吸高亮 4.2s（点牌即熄）
+   *        真人庄家的新底牌抬高停顿 4.2s（腾讯升级式，点牌即落）
    * @param {number} dealerIdx 庄家座位（0..3）
    */
   startGrabBottomAnimation(dealerIdx) {
@@ -590,8 +593,8 @@ Page({
 
   /**
    * 抓底牌动画收尾：恢复正常渲染（真实 33 张手牌全显）并恢复对局驱动（AI 选主 / 真人选主条出现）。
-   * 真人庄家：8 张新底牌在手牌中呼吸高亮（插在排序手牌里的位置一目了然），
-   * 4.2s 超时或首次点牌后熄灭。
+   * 真人庄家：8 张新底牌插到所属花色排序位后抬高停顿（腾讯升级式，落点一目了然），
+   * 4.2s 超时或首次点牌后平滑落回。
    */
   _endGrabBottom() {
     if (this._grabTimer) { clearTimeout(this._grabTimer); this._grabTimer = null; }
@@ -604,7 +607,7 @@ Page({
     const st = this.service && this.service.getState();
     if (st && st.players[st.dealerIdx] && st.players[st.dealerIdx].isHuman && (st.bottomCards || []).length) {
       this._grabHlIds = st.bottomCards.map((c) => c.id);
-      this.setData({ glowingIds: this._grabHlIds });
+      this.setData({ liftIds: this._grabHlIds });
       if (this._grabHlTimer) clearTimeout(this._grabHlTimer);
       const self = this;
       this._grabHlTimer = setTimeout(() => self._clearGrabHighlight(), 4200);
@@ -612,12 +615,12 @@ Page({
     this.driveAI();
   },
 
-  /** 熄灭新底牌高亮（渲染层由 render() 的 glowingIds 计算自动跟随清空） */
+  /** 新底牌落下归位（渲染层由 render() 的 liftIds 计算自动跟随清空） */
   _clearGrabHighlight() {
     if (this._grabHlTimer) { clearTimeout(this._grabHlTimer); this._grabHlTimer = null; }
     if (!this._grabHlIds) return;
     this._grabHlIds = null;
-    this.setData({ glowingIds: [] });
+    this.setData({ liftIds: [] });
   },
 
   /**
@@ -886,7 +889,7 @@ Page({
   },
 
   onCardTap(e) {
-    this._clearGrabHighlight(); // 新底牌高亮见好就收：玩家已开始操作
+    this._clearGrabHighlight(); // 新底牌抬高见好就收：玩家已开始操作
     const { card, selected } = e.detail;
     const st = this.service.getState();
     if (st.phase === 'BURYING') {

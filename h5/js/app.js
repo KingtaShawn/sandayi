@@ -89,7 +89,7 @@
     if (o.dense) cls += ' card--dense';
     if (o.playIn) cls += ' anim-play-in';
     if (o.shaking) cls += ' anim-shake';
-    if (o.glowing) cls += ' anim-glow';
+    if (o.lift) cls += ' card--lift';
     d.className = cls;
     if (o.styleText) d.setAttribute('style', o.styleText);
     if (o.playInDelay) d.style.animationDelay = o.playInDelay + 'ms';
@@ -148,7 +148,7 @@
     handVisibleCount: 999,
     dealAnim: { active: false, counts: [0, 0, 0, 0], flyCards: [] },
     grabBottom: { active: false, stage: 'show', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [], reveal: false },
-    newGrabIds: null,                   // 刚并入的底牌 id（手牌呼吸高亮，看清与手牌的配合）
+    newGrabIds: null,                   // 刚并入的底牌 id（手牌抬高停顿，看清与手牌的配合）
     _grabHlTimer: null,
     _dealAnimating: false,
     _grabAnimating: false,
@@ -265,7 +265,7 @@
     });
     const isDealing = all.length > n;
     const newIdSet = new Set(newIds || []);
-    const grabGlowSet = new Set(G.newGrabIds || []);
+    const grabLiftSet = new Set(G.newGrabIds || []);
     // keyed diff：仅当手牌集合变化才重建（防动画重放）；selected 变化走轻量 class 切换
     const handKey = sorted.map((c) => c.id).join(',') + '|' + n + '|' + (dense ? 1 : 0);
     if (handKey !== G.lastHandKey) {
@@ -282,7 +282,7 @@
           selected: G.selectedIds.includes(c.id),
           dense, playIn,
           playInDelay: isDealing ? (i % 5) * 30 : 0,
-          glowing: grabGlowSet.has(c.id),
+          lift: grabLiftSet.has(c.id),
           styleText
         });
         d.dataset.cardId = c.id;
@@ -754,8 +754,8 @@
     G._grabAnimating = false;
     G.handVisibleCount = 999;
     G.grabBottom = { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [], reveal: false };
-    // 真人庄家：8 张新底牌在手牌中呼吸高亮（插在排序手牌里的位置一目了然，
-    // 看清与手牌的配合），4.2s 超时或首次点牌后熄灭
+    // 真人庄家：8 张新底牌插到所属花色排序位后抬高停顿（腾讯升级式，落点一目了然，
+    // 看清与手牌的配合），4.2s 超时或首次点牌后平滑落回
     const st = G.service.getState();
     if (st && st.players[st.dealerIdx] && st.players[st.dealerIdx].isHuman && (st.bottomCards || []).length) {
       G.newGrabIds = st.bottomCards.map((c) => c.id);
@@ -766,12 +766,12 @@
     driveAI();
   }
 
-  /** 熄灭新底牌高亮：清数据 + 直接摘 DOM 类（手牌 keyed diff 不重建，类不会自己消失） */
+  /** 新底牌落下归位：清数据 + 直接摘 DOM 类（手牌 keyed diff 不重建，类不会自己消失） */
   function clearGrabHighlight() {
     if (G._grabHlTimer) { clearTimeout(G._grabHlTimer); G._grabHlTimer = null; }
     if (!G.newGrabIds) return;
     G.newGrabIds = null;
-    $('hand-row').querySelectorAll('.anim-glow').forEach((d) => d.classList.remove('anim-glow'));
+    $('hand-row').querySelectorAll('.card--lift').forEach((d) => d.classList.remove('card--lift'));
   }
 
   /* ---------- 末墩扣底暂停（最后一墩先看清，点「扣底」再结算） ---------- */

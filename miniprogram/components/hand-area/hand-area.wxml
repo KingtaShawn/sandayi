@@ -12,6 +12,7 @@
           selected="{{item.selected}}"
           disabled="{{item.disabled}}"
           glowing="{{item.glowing}}"
+          lift="{{item.lift}}"
           play-in="{{item.playIn}}"
           play-in-delay="{{item.playInDelay}}"
           style-text="{{item.styleText}}"

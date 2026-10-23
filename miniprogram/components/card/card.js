@@ -31,6 +31,8 @@ Component({
     glowing: { type: Boolean, value: false },
     /** 出牌飞入动画 */
     playIn: { type: Boolean, value: false },
+    /** v2.2 抬高停顿（新抓底牌）：抬起展示，摘属性即平滑落回 */
+    lift: { type: Boolean, value: false },
     /** v1.9 发牌动画：飞入延迟（ms，逐张错开） */
     playInDelay: { type: Number, value: 0 },
     /** v1.2：紧凑模式（手牌 >24 张时缩小牌面） */
