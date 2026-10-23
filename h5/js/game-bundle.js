@@ -4166,6 +4166,13 @@ class GreedyStrategy {
     const domainCards_ = hand.filter((c) => domainOf(c, ti) === combo.suit);
     let score = 0;
 
+    // 末墩抠底意识（庄家）：攻方有（基线），庄家此前没有——底牌是自己
+    // 埋的、分值门儿清，≥10 分就值得用最大牌抢末墩（末墩赢家收底分 ×1）
+    if (hand.length === cards_.length) {
+      const bp = (state.bottomCards || []).reduce((s, c) => s + pointValue(c, cfg), 0);
+      if (bp >= 10) score += 50 + strength / 100;
+    }
+
     if (combo.isTrump) {
       if (trumps.length > hand.length / 2) score += 15; // 主极多：清主消耗攻方
       else if (trumps.length > hand.length / 3) score += 8;
