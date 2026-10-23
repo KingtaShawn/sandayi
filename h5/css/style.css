@@ -310,6 +310,8 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .card--joker { background: linear-gradient(160deg, #fffef7 0%, #ffe9b8 100%); }
 .card--joker-big { background: linear-gradient(160deg, #fff5f3 0%, #ffd9c2 55%, #ffb98a 100%); }
 .card__rank--joker { font-size: 4rem; line-height: 1.1; }
+/* 小王空心星描边微加粗，避免小字号下空心轮廓不清 */
+.card--joker .card__rank--joker { font-weight: 700; text-shadow: 0 0 0.27rem currentColor; }
 .card--dense .card__rank--joker { font-size: 3.2rem; }
 
 /* 出牌区专属小牌规格（比 dense 再小一档）：横屏三行出牌必须塞进中央区可用高度，

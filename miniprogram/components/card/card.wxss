@@ -90,11 +90,17 @@
   left: 4rpx;
 }
 
-/* ========== v1.2 王：边角文字显示（大王=正 红 / 小王=副 黑） ========== */
-/* 正/副占牌面位（rank 行）、王占花色位——结构与普通牌完全同构，dense 下随全局字号缩放 */
+/* ========== v1.2 王：边角星形+正/副显示（大王=★正 红 / 小王=☆副 黑） ========== */
+/* 星占牌面位（rank 行）、正/副占花色位——结构与普通牌完全同构，dense 下随全局字号缩放 */
 .card__rank--joker {
   font-size: 30rpx;
   line-height: 1.1;
+}
+
+/* 小王空心星描边微加粗，避免小字号下空心轮廓不清 */
+.card--joker .card__rank--joker {
+  font-weight: 700;
+  text-shadow: 0 0 2rpx currentColor;
 }
 
 .card--dense .card__rank--joker {

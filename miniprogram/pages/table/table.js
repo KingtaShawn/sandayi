@@ -522,8 +522,8 @@ Page({
         card: reveal ? this.decorateCard(st, c) : null,
         face: reveal ? {
           red: isJoker ? c.rank === 'BJ' : (c.suit === 'H' || c.suit === 'D'),
-          rank: isJoker ? (c.rank === 'BJ' ? '正' : '副') : c.rank,
-          suit: isJoker ? '王' : (SUIT_SYMBOLS[c.suit] || '')
+          rank: isJoker ? (c.rank === 'BJ' ? '★' : '☆') : c.rank,
+          suit: isJoker ? (c.rank === 'BJ' ? '正' : '副') : (SUIT_SYMBOLS[c.suit] || '')
         } : null
       });
     }

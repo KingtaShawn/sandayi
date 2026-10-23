@@ -93,9 +93,9 @@
     d.className = cls;
     if (o.styleText) d.setAttribute('style', o.styleText);
     if (o.playInDelay) d.style.animationDelay = o.playInDelay + 'ms';
-    // 王：大王=正（红），小王=副（黑）——与普通牌同构的边角显示（正/副占牌面位、王占花色位）
-    const displayRank = isJoker ? (isBig ? '正' : '副') : card.rank;
-    const suitSymbol = isJoker ? '王' : (SYMBOLS[card.suit] || '');
+    // 王：大王=★（红）+正，小王=☆（黑）+副——星占牌面位、正/副占花色位
+    const displayRank = isJoker ? (isBig ? '★' : '☆') : card.rank;
+    const suitSymbol = isJoker ? (isBig ? '正' : '副') : (SYMBOLS[card.suit] || '');
     d.appendChild(el('div', 'card__corner',
       `<div class="card__rank${isJoker ? ' card__rank--joker' : ''}">${displayRank}</div><div class="card__suit">${suitSymbol}</div>`));
     return d;
