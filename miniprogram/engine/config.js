@@ -78,7 +78,7 @@ const DEFAULT_CONFIG = {
   sanDaYiAllowTractor: false,        // 默认不打拖拉机：连对视为多副对子甩牌，逐对检查成立性
   sanDaYiBidStart: 90,               // 起叫分（用户规则：90 起）
   sanDaYiBidStep: 10,                // 叫分最小步长（加价可跳档，如 90→130）
-  sanDaYiBidCap: 200,                // 叫分上限（=总分）
+  sanDaYiBidCap: 160,                // 叫分上限（报满即成交坐庄）
   sanDaYiNoBidAction: 'redeal',      // 全员不叫（重发，首报者轮到原首报者下家；force_lowest=首位强制打最低分）
   sanDaYiPeekBottomMaxBid: -1,       // 成交分 ≤ 此值时闲家可看底牌（-1=不公开；本玩法不适用看底规则）
 

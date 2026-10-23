@@ -21,11 +21,11 @@ module.exports = {
   // 起叫分（90 起）
   sanDaYiBidStart: 90,
 
-  // 叫分最小步长（90→100→110…→200；加价可跳档，如 90→130）
+  // 叫分最小步长（90→100→110…→160；加价可跳档，如 90→130）
   sanDaYiBidStep: 10,
 
-  // 叫分上限（=总分 200，报满即成交坐庄）
-  sanDaYiBidCap: 200,
+  // 叫分上限（160，报满即成交坐庄）
+  sanDaYiBidCap: 160,
 
   // 全员不叫时：redeal=重新发牌（首报者轮到原首报者下家） | force_lowest=首位强制打最低分
   sanDaYiNoBidAction: 'redeal',

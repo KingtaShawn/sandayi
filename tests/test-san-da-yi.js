@@ -3,7 +3,7 @@
  *
  * 覆盖：
  *   1. 配置校验（gameMode/sanDaYi 参数）
- *   2. 报分竞价：起报 90、+10 递增、可反复加价、必须高于当前最高、到 200 封顶
+ *   2. 报分竞价：起报 90、+10 递增、可反复加价、必须高于当前最高、到 160 封顶
  *   3. 竞价结束：最高者坐庄、主牌=王+2、1v3 阵营
  *   4. 全员不报 → 重发
  *   5. 结算：庄家得分≥合同分=庄胜；底牌×1 不翻倍；下局首报=上局赢家
@@ -43,7 +43,7 @@ test('SDY-配置1：默认参数合法', () => {
   assert.equal(cfg.gameMode, 'san_da_yi');
   assert.equal(cfg.sanDaYiBidStart, 90);
   assert.equal(cfg.sanDaYiBidStep, 10);
-  assert.equal(cfg.sanDaYiBidCap, 200);
+  assert.equal(cfg.sanDaYiBidCap, 160);
   assert.equal(cfg.sanDaYiNoBidAction, 'redeal');
   assert.equal(cfg.sanDaYiPeekBottomMaxBid, -1);
   assert.equal(validateConfig(cfg).ok, true);
@@ -58,13 +58,13 @@ test('SDY-配置2：非法参数被拦截', () => {
 
 /* ========== 2. 叫分竞价（用户规则：90 起，步长 10 可跳档，循环加价直到无人再加，放弃出局） ========== */
 
-test('SDY-叫分1：起叫 90，全档 90~200 步 10', () => {
+test('SDY-叫分1：起叫 90，全档 90~160 步 10', () => {
   const cfg = sdyCfg();
   const s = dealToBidding(cfg, 1);
   const opts = scoreBidOptions(s, 0, cfg);
-  assert.equal(opts.length, 12);
+  assert.equal(opts.length, 8);
   assert.equal(opts[0], 90);
-  assert.equal(opts[opts.length - 1], 200);
+  assert.equal(opts[opts.length - 1], 160);
 });
 
 test('SDY-叫分2：有人叫后可加价（+10 或跳档），必须高于当前最高', () => {
@@ -72,7 +72,7 @@ test('SDY-叫分2：有人叫后可加价（+10 或跳档），必须高于当�
   let s = dealToBidding(cfg, 2);
   s = transition(s, { type: 'SCORE_BID', playerIdx: 0, score: 90 });
   const opts = scoreBidOptions(s, s.turnIdx, cfg);
-  assert.deepEqual(opts, [100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]);
+  assert.deepEqual(opts, [100, 110, 120, 130, 140, 150, 160]);
   // 叫 90（不高于当前最高）应失败；跳档 130 合法
   assert.equal(canScoreBid(s, s.turnIdx, 90, cfg).ok, false);
   assert.equal(canScoreBid(s, s.turnIdx, 130, cfg).ok, true);
@@ -145,13 +145,13 @@ test('SDY-成交1：其余三家 pass → 最高者坐庄 → 进入选主；选
   assert.ok(!s.trumpInfo.trumpIds.has('S-5'), 'S5 不应为主牌');
 });
 
-test('SDY-成交2：报 200 封顶即成交 → 选主 → 埋底', () => {
+test('SDY-成交2：报 160 封顶即成交 → 选主 → 埋底', () => {
   const cfg = sdyCfg();
   let s = dealToBidding(cfg, 6);
-  s = transition(s, { type: 'SCORE_BID', playerIdx: 0, score: 200 });
+  s = transition(s, { type: 'SCORE_BID', playerIdx: 0, score: 160 });
   // 报满即成交（无需他人表态）
   assert.equal(s.phase, 'CHOOSE_TRUMP');
-  assert.equal(s.contractScore, 200);
+  assert.equal(s.contractScore, 160);
   assert.equal(s.bottomPeekable, false); // peek=-1 本玩法不公开看底
   // 选主 → 埋底
   s = transition(s, { type: 'CHOOSE_TRUMP', playerIdx: 0, suit: 'S' });
