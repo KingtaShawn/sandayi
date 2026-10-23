@@ -42,10 +42,11 @@ npm run build:h5   # 重打 game-bundle → h5/dist/（只含发布文件，注�
 
 ## 音乐素材
 
-背景音乐（`h5/music/bgm.m4a`）：[Wholesome — Kevin MacLeod](https://incompetech.com/music/royalty-free/)，
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)（马林巴暖甜轻快，风格参考《夜、萤火虫和你》）。
-取原曲两段拼成 72 秒无缝循环：段间与循环点均 3 秒等功率交叉淡化，接缝两侧响度差 <0.2dB，
-全程恒定 ≈ -19dB，单声道 64kbps AAC。🎵 开关状态与音效独立，存 `tractor:settings.music`。
+背景音乐（`h5/music/bgm.m4a`）：[Monkeys Spinning Monkeys — Kevin MacLeod](https://incompetech.com/music/royalty-free/)，
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)（俏皮钢琴，免费音乐圈最出名的曲目之一）。
+取原曲标志性钢琴起句 16 秒 + 全乐队热闹段 50 秒拼成 72 秒无缝循环：段间与循环点均 3 秒
+等功率交叉淡化，接缝两侧响度差 0.02dB，单声道 64kbps AAC。🎵 开关状态与音效独立，
+存 `tractor:settings.music`。
 
 EdgeOne Pages 控制台导入 GitHub 仓库：构建命令 `npm run build:h5`，输出目录 `h5/dist`。
 push 即自动部署；默认域名 `*.edgeone.app` 无需备案。
