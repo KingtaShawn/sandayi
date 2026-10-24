@@ -73,7 +73,7 @@ test('主牌拖拉机：对小王+对主级牌', () => {
   assert.equal(c.type, 'tractor');
 });
 
-test('主牌拖拉机：对主级牌+对同花色副级牌（PRD：需两张同花色副X）', () => {
+test('主牌拖拉机：对主级牌+对同花色副级牌（需两张同花色副X）', () => {
   const c = parseCombo([...cardsD('H2'), ...cardsD('S2')], TI);
   assert.equal(c.type, 'tractor');
 });

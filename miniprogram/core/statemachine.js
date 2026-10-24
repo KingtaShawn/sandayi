@@ -138,7 +138,7 @@ function doBid(s, action) {
     throw new RuleError(r.errorCode || 'E109', r.reason);
   }
   const cls = r.meta;
-  // 每次有效亮主/反主 → 最终定主者坐庄（PRD §5.5，含反主后 dealer 更新）
+  // 每次有效亮主/反主 → 最终定主者坐庄（最终定主者坐庄，含反主后 dealer 更新）
   s.dealerIdx = idx;
   s.attackTeam = s.players[idx].team === 0 ? 1 : 0;
   s.bids.push({

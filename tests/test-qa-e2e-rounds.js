@@ -83,10 +83,10 @@ test('QA-E2E2：连续多局——级数推进 / 庄传递 / attackTeam 重算 /
     assert.equal(next.phase, 'INIT_DEAL');
     assert.equal(next.roundNo, rounds + 1);
     assert.equal(next.dealerIdx, settle.nextDealerIdx);
-    // R16 庄传递（PRD 明确部分）：
+    // R16 庄传递：
     //   a) 守方胜（攻方未上台）→ 庄家方连庄（新庄家队伍 = 守方）
     //   b) 攻方上台 且 定主者属攻方 → 定主者当庄（新庄家队伍 = 攻方）
-    //   c) 攻方上台 但 定主者属守方 → PRD 未明确（实现沿用定主者=守方坐庄）——仅校验不崩溃
+    //   c) 攻方上台 但 定主者属守方 → 实现沿用定主者=守方坐庄——仅校验不崩溃
     const attackWon = beforeTeam !== state.players[state.dealerIdx].team;
     const bidWinnerTeam = state.bidWinnerIdx !== null
       ? state.players[state.bidWinnerIdx].team : null;

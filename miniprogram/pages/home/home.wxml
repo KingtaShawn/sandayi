@@ -1,7 +1,7 @@
 <!-- pages/home/home.wxml —— 首页 -->
 <view class="home">
   <view class="home__logo">
-    <text class="home__title">{{isSanDaYi ? '三打一' : '拖拉机'}}</text>
+    <text class="home__title">{{isSanDaYi ? '三打一' : '升级'}}</text>
     <text class="home__subtitle">{{isSanDaYi ? '1 庄 vs 3 家 · 报分 90 起' : '80 分 · 升级'}}</text>
   </view>
 

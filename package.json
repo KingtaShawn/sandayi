@@ -1,8 +1,8 @@
 {
-  "name": "tractor-80points",
+  "name": "san-da-yi",
   "version": "1.0.0",
   "private": true,
-  "description": "拖拉机（升级/80分）微信小程序 —— 单机版（1真人+3AI，2v2），纯 CommonJS 规则引擎，Node 直跑单测",
+  "description": "三打一（1庄家vs3闲家）微信小程序 + H5 —— 单机版（1真人+3AI），纯 CommonJS 规则引擎，Node 直跑单测",
   "engines": {
     "node": ">=18.0.0"
   },

@@ -1131,7 +1131,7 @@
   /* ---------- 首页/规则页 ---------- */
   function renderHome() {
     const isSDY = ruleConfig.gameMode === 'san_da_yi';
-    $('home-title').textContent = isSDY ? '三打一' : '拖拉机';
+    $('home-title').textContent = isSDY ? '三打一' : '升级';
     $('home-subtitle').textContent = isSDY ? '1 庄 vs 3 家 · 报分 90 起' : '80 分 · 升级';
     const records = storage.get(STORAGE_KEYS.STATS) || [];
     const s = stats.summarize(records);
@@ -1162,7 +1162,7 @@
       <li>最后一墩赢家收底牌分 ×1（不翻倍）</li>
       <li>庄家胜则继续坐庄，负则下家坐庄</li>
     ` : `
-      <h3>拖拉机（升级）规则速查</h3>
+      <h3>升级（2v2）规则速查</h3>
       <p>两副牌，2v2 对战，从打 2 开始升级到过 A。</p>
       <h3>亮主</h3>
       <li>亮级牌定主；对级牌/对王可反主</li>

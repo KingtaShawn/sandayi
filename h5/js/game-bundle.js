@@ -32,7 +32,7 @@ __def("engine/bid", function (exports, __require, module) {
  *   - 后亮优先级必须 > 当前最高；同级只允许出现一次；
  *   - 反主后原亮主者不可再反回（由优先级单调性自然保证）；
  *   - 单张级牌亮主只能在没有更高级亮主时进行；
- *   - 同优先级 pair_rank 可反 pair_rank？——否：同一优先级只能出现一次（PRD §5.5）。
+ *   - 同优先级 pair_rank 可反 pair_rank？——否：同一优先级只能出现一次。
  */
 
 'use strict';
@@ -384,9 +384,9 @@ __def("engine/combo", function (exports, __require, module) {
  *
  * 域（domain）概念：
  *   'TRUMP' 主牌域（含王/级牌/主花色）；'S'/'H'/'C'/'D' 各副牌花色域。
- *   一次合法出牌的所有牌必须同域（甩牌亦然，PRD §5.7）。
+ *   一次合法出牌的所有牌必须同域（甩牌亦然）。
  *
- * 拖拉机相邻（PRD §5.7）：
+ * 拖拉机相邻：
  *   副牌域：牌面值相邻（级牌被抽走后，如打5时 44 与 66 不相邻）；
  *   主牌域：逻辑 step 相邻（对王+对主X / 对主X+对同花色副X / 对副X+对主A / …）；
  *   R22=false（默认）：不同花色副级牌对互不相邻（同级 tie，非相邻）；
@@ -669,7 +669,7 @@ __def("engine/config", function (exports, __require, module) {
  *   const { DEFAULT_CONFIG, createConfig, validateConfig } = __require('engine/config');
  * 任何模块禁止字面量硬编码规则数值（UI 展示文案亦由本配置渲染）。
  *
- * 参数编号 R1~R24 与 PRD §7 参数总表一一对应。
+ * 参数编号 R1~R26 为内部规则编号（R26=三打一扩展）。
  */
 
 'use strict';
@@ -677,7 +677,7 @@ __def("engine/config", function (exports, __require, module) {
 /** 级牌完整序列（rankStart → rankEnd 的取值域，传统 2→A） */
 const FULL_RANK_SEQUENCE = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
-/** 分牌面值（PRD §5.1：5→5 分、10→10 分、K→10 分；总分 200 由双副牌自然得出） */
+/** 分牌面值（5→5 分、10→10 分、K→10 分；总分 200 由双副牌自然得出） */
 const DEFAULT_POINT_VALUES = { '5': 5, '10': 10, 'K': 10 };
 
 /**
@@ -779,7 +779,7 @@ function deepFreeze(obj) {
 }
 
 /**
- * 级牌数字面量归一化：2 → '2'（PRD jsonc 示例允许数字，内部统一字符串）。
+ * 级牌数字面量归一化：2 → '2'（rule-config 允许数字，内部统一字符串）。
  * @param {string|number} rank
  * @returns {string}
  */
@@ -1111,7 +1111,7 @@ function checkFollowStructure(leadCombo, playedCards, handBefore, trumpInfo, cfg
   const n = leadCombo.n;
   const available = domainCards(handBefore, domain, trumpInfo);
 
-  // 该域牌不足 n 张：全部给出即可（PRD §5.9 防御条款）
+  // 该域牌不足 n 张：全部给出即可（防御条款）
   if (available.length <= n) {
     return { ok: playedCards.length === available.length };
   }
@@ -1175,7 +1175,7 @@ function checkFollowStructure(leadCombo, playedCards, handBefore, trumpInfo, cfg
 }
 
 /**
- * 缺门将吃结构对应判定（PRD §5.9.3）。
+ * 缺门将吃结构对应判定。
  * @param {object} leadCombo
  * @param {Array<object>} playedCards 全部为主牌时
  * @param {object} trumpInfo
@@ -1294,7 +1294,7 @@ function bottomMultiplier(lastTrick, trumpInfo, cfg) {
 }
 
 /**
- * 升级数计算（R18 standard 表，公式化，PRD §5.12）。
+ * 升级数计算（R18 standard 表，公式化）。
  * @param {number} s 攻方得分
  * @param {object} cfg
  * @returns {{winnerTeam: 'defense'|'attack', levels: number}}
@@ -1317,7 +1317,7 @@ function computeLevelGain(s, cfg) {
 }
 
 /**
- * 级数推进（跳过序不存在，2→A 顺序；封顶 A，PRD §5.12/§5.14）。
+ * 级数推进（跳过序不存在，2→A 顺序；封顶 A）。
  * @param {string} rank 当前级
  * @param {number} levels 升级数
  * @param {object} cfg
@@ -1335,7 +1335,7 @@ function advanceRank(rank, levels, cfg) {
  * 过 A 判定（R15）。
  * @param {object} params {winnerTeamIsDealer, attackPoints, dealerRank, cfg}
  * @returns {{passedA: boolean, levelsGained: number}}
- *   未过A：按小光升 2 级但封顶停在 A（PRD §5.14）
+ *   未过A：按小光升 2 级但封顶停在 A
  */
 function checkPassA(params) {
   const { winnerIsDealer, attackPoints, dealerRank, cfg } = params;
@@ -1573,7 +1573,7 @@ module.exports = {
 });
 __def("engine/throw", function (exports, __require, module) {
 /**
- * engine/throw.js —— 甩牌成立性校验（PRD §5.8 / R14）。
+ * engine/throw.js —— 甩牌成立性校验（R14）。
  *
  * 领出甩牌成立条件：其他三家没有同门、同结构且严格更大的单元。
  * 相同大小不能压住先出的牌；对子、拖拉机中的牌也必须参与拆分比较。
@@ -1673,7 +1673,7 @@ __def("engine/trick", function (exports, __require, module) {
 /**
  * engine/trick.js —— 墩结算：争胜资格 / 逐家比较 / 赢墩 / 分牌收集。
  *
- * 争胜资格（PRD §5.10）：
+ * 争胜资格：
  *   1. 有效将吃的主牌 > 一切副牌；主牌之间按主牌序比；
  *   2. 同为领出花色：按领出结构比较（拖头/对/甩逐单元）；
  *   3. 后压过者胜（逐家滚动比较，最终最大者赢墩）；
@@ -1798,7 +1798,7 @@ __def("engine/trump", function (exports, __require, module) {
  * TrumpInfo 是 (trumpSuit, levelRank, cfg) 的纯函数：序列化时只需存三元组，
  * 反序列化时重建（core/state.js 依赖此特性）。
  *
- * 主牌大小（PRD §5.3，有主局，主花色 S、级牌 X）：
+ * 主牌大小（有主局，主花色 S、级牌 X）：
  *   大王 > 小王 > S-X > 副X（三门同级，先出为大 R13）> S-A > S-K > … > S-3
  * 无主局（R8）：仅 大王 > 小王 > 8 张级牌（四门同级，先出为大）。
  *
@@ -2153,7 +2153,7 @@ function followCandidates(state, playerIdx) {
   };
 
   if (avail.length > 0) {
-    // 该门不足 n 张：全部给出 + 最小垫牌补齐（PRD §5.9 防御条款）
+    // 该门不足 n 张：全部给出 + 最小垫牌补齐（防御条款）
     if (avail.length < n) {
       const rest = hand.filter((c) => domainOf(c, ti) !== domain)
         .sort((a, b) => strengthSortKey(a, ti) - strengthSortKey(b, ti));
@@ -3119,7 +3119,7 @@ function doBid(s, action) {
     throw new RuleError(r.errorCode || 'E109', r.reason);
   }
   const cls = r.meta;
-  // 每次有效亮主/反主 → 最终定主者坐庄（PRD §5.5，含反主后 dealer 更新）
+  // 每次有效亮主/反主 → 最终定主者坐庄（最终定主者坐庄，含反主后 dealer 更新）
   s.dealerIdx = idx;
   s.attackTeam = s.players[idx].team === 0 ? 1 : 0;
   s.bids.push({
@@ -3646,7 +3646,7 @@ module.exports = { buildMemory };
 });
 __def("ai/strategy-greedy", function (exports, __require, module) {
 /**
- * ai/strategy-greedy.js —— 贪心启发式 AI（P0，PRD §8.1）。
+ * ai/strategy-greedy.js —— 贪心启发式 AI（P0）。
  *
  * 铁律（架构 §8.9）：
  *   1. 出牌候选 = engine.validate.legalMoves(state, idx)（已含 validatePlay 过滤）；
@@ -3657,9 +3657,11 @@ __def("ai/strategy-greedy", function (exports, __require, module) {
  *   - 亮主：对级牌/对王必抢；单级牌首局倾向早亮；
  *   - 埋底：主强（≥1/3 手牌为主或有大拖）→ 分牌埋底藏分；主弱 → 埋短门废牌；
  *   - 出牌（贪心打分）：
- *     · 领出：庄家/主多 → 大拖/大对清主；有绝对大主 → 出主收墩；
+ *     · 领出：庄家/主多 → 大拖/大对清主；顶主守底（非末墩不领「剩余牌
+ *       无敌」的顶主——单大王换不来分，留作后手压分墩与末墩抠底）；
  *       攻方末墩意识（剩 1 墩且能赢 → 最大牌抠底）+ 末墩储备
- *       （剩 ≤5 墩不把无敌大主花在小分墩上，留力抠底）；
+ *       （剩 ≤5 墩不把无敌大主花在小分墩上，留力抠底）
+ *       + 配合领出（往庄家示缺门领空牌逼烧主——三家主牌碾压一家）；
  *     · 跟牌：末家必赢 → 甩分牌收分；能小赢 → 最小能赢牌；赢不了 → 垫最小/喂分给稳赢队友；
  *     · 缺门：墩内分 ≥ threshold → 主牌将吃（结构对应优先），否则垫分/垫小。
  */
@@ -3998,6 +4000,13 @@ class GreedyStrategy {
     // 留着末墩将吃抠底（升级模式无记牌上下文，维持基线）
     if (ctx && !ctx.sdy.isDealer) {
       score -= this._lastTrickReserve(state, playerIdx, cards_, ctx, 0);
+      // 配合领出（v4，实测校准）：庄家示缺门的副牌 → 领空牌逼庄烧主
+      // （三家主牌总量碾压一家，庄主耗尽即攻方收割；400 局同种子 A/B
+      // 对比「避让缺门 58.8% → 逼烧主 43.0% 庄胜率」，方向相反收益巨大）；
+      // 领分仍罚——被将吃等于白送庄家分。
+      if (!combo.isTrump && ctx.sdy.voids && ctx.sdy.voids.dealer.has(combo.suit)) {
+        score += 6 - pointsOf(cards_, cfg) * 1.5;
+      }
     }
 
     if (combo.isTrump) {
@@ -4113,7 +4122,28 @@ class GreedyStrategy {
       if (!di.byDomain.has(d)) di.byDomain.set(d, []);
       di.byDomain.get(d).push({ s: strengthInDomain(fake, ti), unseen });
     });
-    return { mem, di, sdy: this._sdyCtx(state, playerIdx) };
+    const sdy = this._sdyCtx(state, playerIdx);
+    sdy.voids = this._voidSuitsOf(state, ti);
+    return { mem, di, sdy };
+  }
+
+  /**
+   * 缺门情报（三打一配合核心）：扫已完墩——某门被领出时该家未跟这门
+   * （垫牌/将吃）→ 该家从此缺这门（缺门信息一经示出终身有效）。
+   * @returns {{dealer:Set<string>, others:Set<string>}} 庄家缺门 / 任意攻方缺门
+   */
+  _voidSuitsOf(state, ti) {
+    const dealer = state.sanDaYiTeams ? state.sanDaYiTeams.dealer : state.dealerIdx;
+    const res = { dealer: new Set(), others: new Set() };
+    (state.completedTricks || []).forEach((t) => {
+      if (!t.leadCombo || t.leadCombo.isTrump) return;
+      const dom = t.leadCombo.suit;
+      t.plays.forEach((p) => {
+        const followed = p.cards.every((c) => domainOf(c, ti) === dom);
+        if (!followed) (p.playerIdx === dealer ? res.dealer : res.others).add(dom);
+      });
+    });
+    return res;
   }
 
   /** 庄家形势：dealerIdx / 已得分 / 距合同差 / 剩余手牌 */
@@ -4212,8 +4242,16 @@ class GreedyStrategy {
       if (combo.type === 'tractor') score += 12;
       if (combo.type === 'pair') score += 6;
       if (combo.type === 'pair' && cards_[0].rank === 'BJ') score += 12; // 对大王整对必赢：别拆成两单送墩
-      if (combo.type === 'single' && cards_[0].rank === 'BJ') score += 8; // 大王控场
-      score += strength / 200; // 同型先出大主
+      // 顶主守底（v4，替代旧「单大王控场 +8」）：领出单大王/顶级主，
+      // 攻方压不过只会全垫小牌——白墩一张，得分≈0，还失去后手压制与
+      // 末墩守底/抠底资本。非末墩领出「剩余牌无敌」顶主按底分罚；
+      // 末墩本身不罚（该抠底就抠底）。
+      const tricksLeft = hand.length / cards_.length;
+      if (tricksLeft > 1 && this._unseenHigher(di, 'TRUMP', combo.units[0].strength) === 0) {
+        const bp = (state.bottomCards || []).reduce((s2, c) => s2 + pointValue(c, cfg), 0);
+        score -= (8 + Math.min(16, bp / 2)) * (tricksLeft >= 4 ? 1 : 0.6);
+      }
+      score += strength / 200; // 同型先出大主（小主清主仍可选）
     } else {
       // 基线：手牌内最大（逼近顶部，逼对手用真大牌压、消耗拦牌）
       if (combo.type === 'tractor' && this._isBiggestInDomain(cards_, domainCards_, ti, cfg)) score += 14;
@@ -4232,18 +4270,22 @@ class GreedyStrategy {
       if (combo.type === 'single') {
         score += (14 - strength) / 14 * 5 + (5 - Math.min(5, domainCards_.length)) * 1.2;
       }
+      // 攻方已示缺门 → 该门领出易被将吃/白送，轻罚
+      if (ctx.sdy.voids && ctx.sdy.voids.others.has(combo.suit)) score -= 4;
       score -= pointsOf(cards_, cfg) / 2; // 不送分
     }
     return score;
   }
 
   /**
-   * 三打一跟牌打分（v2，基准实测校准）：
-   * 攻方 = 贪心基线原逻辑（自对弈实测优于全面位置感知版）+ 两处升级：
-   *   庄家已出且队友领先 → 喂分系数 1.5 → 3（此时喂分 100% 安全）；
+   * 三打一跟牌打分（v4，基准实测校准）：
+   * 攻方 = 贪心基线 + 团队配合：
+   *   锁墩（庄家夺不走的墩）→ 全力喂分、垫废牌、绝不超压队友——
+   *   攻分是三家团队总分，谁赢墩无所谓（_teamLocked）；
+   *   队友领先未锁墩时 0 分超压小罚（赢牌留着防庄家）；
    *   末墩储备——剩 ≤5 墩不把「剩余牌无敌」大主花在小分墩（_lastTrickReserve）；
-   * 庄家 = 合同意识版：有分墩出强牌锁墩（身后攻方专压小赢牌），
-   *   稳赢组合再加成；白墩仍最小赢；输墩绝不送分。
+   * 庄家 = 合同意识版：有分墩锁墩但省力（记牌器稳赢时最小稳赢即可），
+   *   白墩仍最小赢；输墩绝不送分。
    */
   _scoreFollowSdy(state, playerIdx, cards_, ctx) {
     const cfg = state.config;
@@ -4257,8 +4299,6 @@ class GreedyStrategy {
     const isLast = trick.plays.length === 3;
     const strength = this._maxStrength(cards_, ti);
     const canWin = this._wouldWin(state, trick, playerIdx, cards_, combo);
-    const dealerInPlay = trick.leadPlayerIdx === sdy.dealerIdx
-      || trick.plays.some((p) => p.playerIdx === sdy.dealerIdx);
     const curWinnerTeam = this._currentWinnerTeam(state, trick, ti, cfg);
     const teamWinning = curWinnerTeam === this._camp(state, playerIdx);
     const allTrump = cards_.every((c) => domainOf(c, ti) === 'TRUMP');
@@ -4269,9 +4309,11 @@ class GreedyStrategy {
         if (isLast) {
           score += 30 + pts * 2 + trickPts; // 末家稳收：连自己分一起算
         } else if (trickPts + pts >= 10) {
-          // 有分墩：出强牌锁墩（身后攻方专压庄家的小赢牌）
-          score += 24 + strength / 150 + Math.min(pts, 10) + trickPts / 2;
-          if (this._isSureCombo(combo, di)) score += 6; // 剩余牌无更大 → 后手也压不过
+          // 有分墩：锁墩但省力——记牌器稳赢（剩余牌无更大）时最小稳赢即可，
+          // 未必稳赢才上大牌防身后攻方压过（大牌留着换后面的分）
+          score += 24 + Math.min(pts, 10) + trickPts / 2;
+          if (this._isSureCombo(combo, di)) score += 6 - strength / 150; // 后手也压不过
+          else score += strength / 150; // 有被压风险 → 大牌锁墩
         } else {
           score += 20 - strength / 100; // 白墩最小赢（庄家将吃抢节奏，不罚）
         }
@@ -4281,13 +4323,23 @@ class GreedyStrategy {
         score += (20 - strength) / 20 * 6; // 垫最小
       }
     } else {
-      // 攻方：贪心基线原逻辑
-      if (canWin) {
+      // 攻方：贪心基线 + 团队配合（v4）
+      // 锁墩：这墩已稳进我方（庄家出过且队友在压；或庄家未出但队友顶主
+      // 且剩余牌无更大主）→ 归属与我出什么无关
+      const lock = teamWinning && this._teamLocked(state, playerIdx, ctx, trick);
+      if (lock) {
+        // 配合核心：三打一攻分是团队总分，谁赢墩无所谓——全力喂分、
+        // 垫最废牌；绝不超压队友（赢牌留着对付庄家），(20-strength) 项
+        // 天然压制烧主牌（主留着后手将吃/末墩抠底）
+        score += pts * 4 + (20 - strength) / 20 * 6;
+      } else if (canWin) {
         if (isLast) {
           score += 30 + pts * 2 + trickPts;
         } else {
           score += 20 - strength / 100 + Math.min(pts, 10);
           if (teamWinning && trickPts >= TRUMP_IN_THRESHOLD) score += 8;
+          // 队友领先但未锁墩：0 分超压小罚——我的赢牌留着防庄家更有价值
+          if (teamWinning && pts === 0) score -= 6;
         }
         score += trickPts / 2 + pts; // 攻方收分意识
         // 末墩储备：剩墩 ≤5 时，花无敌大主只赢回小分 → 罚，留着抠底
@@ -4304,14 +4356,31 @@ class GreedyStrategy {
         // 缺门垫主 = 纯浪费（跟主牌领出被迫出主不算）
         if (allTrump && !lead.isTrump) score -= 20;
         if (teamWinning) {
-          score += pts * (dealerInPlay ? 3 : 1.5); // 庄家已出 → 喂分绝对安全
+          score += pts * 1.5; // 庄家未出仍可能夺走 → 少喂试探
         } else {
-          score -= pts;
+          score -= pts; // 庄家在压 → 绝不送分
         }
         score += (20 - strength) / 20 * 6;
       }
     }
     return score;
+  }
+
+  /**
+   * 墩是否已锁进攻方（庄家无论如何夺不走）。前提：当前最大是队友。
+   * 庄家已出且在压 → 必锁；庄家未出 → 仅当队友赢牌是主牌且剩余牌无
+   * 更大主（主牌赢牌无从被将吃，只怕更大主）。副牌赢牌不算锁：庄家
+   * 可能有未示出的缺门将吃偷墩——缺门情报只知已暴露的，安全侧不赌。
+   */
+  _teamLocked(state, playerIdx, ctx, trick) {
+    const ti = state.trumpInfo;
+    const cfg = state.config;
+    const { sdy, di } = ctx;
+    if (trick.plays.some((p) => p.playerIdx === sdy.dealerIdx)) return true;
+    const wp = this._currentWinnerPlay(state, trick, ti, cfg);
+    if (!wp) return false;
+    if (!wp.cards.every((c) => domainOf(c, ti) === 'TRUMP')) return false;
+    return this._unseenHigher(di, 'TRUMP', this._maxStrength(wp.cards, ti)) === 0;
   }
 
   /* ------------------------- 辅助 ------------------------- */
@@ -4379,6 +4448,12 @@ class GreedyStrategy {
   }
 
   _currentWinnerTeam(state, trick, ti, cfg) {
+    const wp = this._currentWinnerPlay(state, trick, ti, cfg);
+    return wp ? this._camp(state, wp.playerIdx) : -1;
+  }
+
+  /** 墩内当前最大者的出牌记录（PlayRecord|null），resolveTrick 探针裁决 */
+  _currentWinnerPlay(state, trick, ti, cfg) {
     const { resolveTrick } = __require('engine/trick');
     const probe = {
       leadPlayerIdx: trick.leadPlayerIdx,
@@ -4390,9 +4465,9 @@ class GreedyStrategy {
     try {
       resolveTrick(probe, ti, cfg);
     } catch (e) {
-      return -1;
+      return null;
     }
-    return this._camp(state, probe.winnerIdx);
+    return probe.plays.find((p) => p.playerIdx === probe.winnerIdx) || null;
   }
 }
 
@@ -5143,7 +5218,7 @@ module.exports = { SCHEMA_VERSION, STORAGE_KEYS };
 });
 __def("rule-config", function (exports, __require, module) {
 /**
- * rule-config.js —— 【拖拉机规则后台配置】
+ * rule-config.js —— 【三打一规则后台配置】
  *
  * 使用方法：改完保存 → 开发者工具点「编译」→ 开新一局生效。
  * 改错的值会自动回退默认，不会崩。

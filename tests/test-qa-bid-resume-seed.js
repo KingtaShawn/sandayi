@@ -1,7 +1,7 @@
 /**
  * tests/test-qa-bid-resume-seed.js —— QA 对抗性测试：反主优先级 / 无主局 / 断线续玩 / 随机种子。
  *
- * 覆盖（PRD §5.5 / R8 / R13 / R16-R20 / F-09）：
+ * 覆盖（R8 / R13 / R16-R20 / F-09）：
  *   1. 对王反无主 > 对级牌反主 > 单张亮主（优先级链路，经状态机全链路）
  *   2. 无主局主牌 = 12 张（王 4 + 级牌 8）；副级牌 tie 先出为大
  *   3. 反主后庄家传递：反主者应坐庄（首局）
@@ -98,8 +98,8 @@ test('QA-反3：反主优先级不足（对级牌反对级牌）被拒 E110', ()
 });
 
 test('QA-反4（已修复）：首局反主后庄家应改为反主者', () => {
-  // PRD §5.5：最终定主者坐庄。实现中 doBid 仅在首亮时设 dealerIdx，反主不更新。
-  // 本用例锁定当前行为与 PRD 的差异（bug #1），工程师修复后应反转为断言 dealerIdx===3。
+  // 最终定主者坐庄：实现中 doBid 仅在首亮时设 dealerIdx，反主不更新。
+  // 本用例锁定当前行为（bug #1），工程师修复后应反转为断言 dealerIdx===3。
   const st = craftBiddingState(1, [
     { suit: 'D', rank: '2', idx: 1, count: 1 },
     { suit: 'C', rank: '2', idx: 3, count: 2 }
@@ -108,7 +108,7 @@ test('QA-反4（已修复）：首局反主后庄家应改为反主者', () => {
   let s = transition(st, { type: 'BID', playerIdx: 1, cards: [d2] });
   const c2pair = s.players[3].hand.filter((c) => c.suit === 'C' && c.rank === '2');
   s = transition(s, { type: 'BID', playerIdx: 3, cards: c2pair });
-  // PRD 期望 dealerIdx === 3（定主者坐庄）——bug #1 已修复
+  // 期望 dealerIdx === 3（定主者坐庄）——bug #1 已修复
   assert.equal(s.dealerIdx, 3); // ← 工程师修复后启用此断言
 });
 

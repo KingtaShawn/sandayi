@@ -52,7 +52,7 @@ function checkFollowStructure(leadCombo, playedCards, handBefore, trumpInfo, cfg
   const n = leadCombo.n;
   const available = domainCards(handBefore, domain, trumpInfo);
 
-  // 该域牌不足 n 张：全部给出即可（PRD §5.9 防御条款）
+  // 该域牌不足 n 张：全部给出即可（防御条款）
   if (available.length <= n) {
     return { ok: playedCards.length === available.length };
   }
@@ -116,7 +116,7 @@ function checkFollowStructure(leadCombo, playedCards, handBefore, trumpInfo, cfg
 }
 
 /**
- * 缺门将吃结构对应判定（PRD §5.9.3）。
+ * 缺门将吃结构对应判定。
  * @param {object} leadCombo
  * @param {Array<object>} playedCards 全部为主牌时
  * @param {object} trumpInfo

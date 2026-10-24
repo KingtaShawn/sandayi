@@ -5,7 +5,7 @@
  *   const { DEFAULT_CONFIG, createConfig, validateConfig } = require('./config');
  * 任何模块禁止字面量硬编码规则数值（UI 展示文案亦由本配置渲染）。
  *
- * 参数编号 R1~R24 与 PRD §7 参数总表一一对应。
+ * 参数编号 R1~R26 为内部规则编号（R26=三打一扩展）。
  */
 
 'use strict';
@@ -13,7 +13,7 @@
 /** 级牌完整序列（rankStart → rankEnd 的取值域，传统 2→A） */
 const FULL_RANK_SEQUENCE = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
-/** 分牌面值（PRD §5.1：5→5 分、10→10 分、K→10 分；总分 200 由双副牌自然得出） */
+/** 分牌面值（5→5 分、10→10 分、K→10 分；总分 200 由双副牌自然得出） */
 const DEFAULT_POINT_VALUES = { '5': 5, '10': 10, 'K': 10 };
 
 /**
@@ -115,7 +115,7 @@ function deepFreeze(obj) {
 }
 
 /**
- * 级牌数字面量归一化：2 → '2'（PRD jsonc 示例允许数字，内部统一字符串）。
+ * 级牌数字面量归一化：2 → '2'（rule-config 允许数字，内部统一字符串）。
  * @param {string|number} rank
  * @returns {string}
  */

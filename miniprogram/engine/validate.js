@@ -220,7 +220,7 @@ function followCandidates(state, playerIdx) {
   };
 
   if (avail.length > 0) {
-    // 该门不足 n 张：全部给出 + 最小垫牌补齐（PRD §5.9 防御条款）
+    // 该门不足 n 张：全部给出 + 最小垫牌补齐（防御条款）
     if (avail.length < n) {
       const rest = hand.filter((c) => domainOf(c, ti) !== domain)
         .sort((a, b) => strengthSortKey(a, ti) - strengthSortKey(b, ti));

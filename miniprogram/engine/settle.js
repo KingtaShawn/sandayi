@@ -35,7 +35,7 @@ function bottomMultiplier(lastTrick, trumpInfo, cfg) {
 }
 
 /**
- * 升级数计算（R18 standard 表，公式化，PRD §5.12）。
+ * 升级数计算（R18 standard 表，公式化）。
  * @param {number} s 攻方得分
  * @param {object} cfg
  * @returns {{winnerTeam: 'defense'|'attack', levels: number}}
@@ -58,7 +58,7 @@ function computeLevelGain(s, cfg) {
 }
 
 /**
- * 级数推进（跳过序不存在，2→A 顺序；封顶 A，PRD §5.12/§5.14）。
+ * 级数推进（跳过序不存在，2→A 顺序；封顶 A）。
  * @param {string} rank 当前级
  * @param {number} levels 升级数
  * @param {object} cfg
@@ -76,7 +76,7 @@ function advanceRank(rank, levels, cfg) {
  * 过 A 判定（R15）。
  * @param {object} params {winnerTeamIsDealer, attackPoints, dealerRank, cfg}
  * @returns {{passedA: boolean, levelsGained: number}}
- *   未过A：按小光升 2 级但封顶停在 A（PRD §5.14）
+ *   未过A：按小光升 2 级但封顶停在 A
  */
 function checkPassA(params) {
   const { winnerIsDealer, attackPoints, dealerRank, cfg } = params;

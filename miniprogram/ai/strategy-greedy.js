@@ -1,5 +1,5 @@
 /**
- * ai/strategy-greedy.js —— 贪心启发式 AI（P0，PRD §8.1）。
+ * ai/strategy-greedy.js —— 贪心启发式 AI（P0）。
  *
  * 铁律（架构 §8.9）：
  *   1. 出牌候选 = engine.validate.legalMoves(state, idx)（已含 validatePlay 过滤）；
