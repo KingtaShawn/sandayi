@@ -676,8 +676,12 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
  * 仅金光呼吸闪烁 ~4.2s（7 次）点出「这几张是底牌进来的」——对子/连牌落位一目了然；
  * 动画不 forwards，闪完自然回常态，点牌/超时摘类收尾 */
 @keyframes card-flash {
-  0%, 100% { box-shadow: 0 0 0 rgba(243, 193, 75, 0); }
-  50% { box-shadow: 0 0 1.6rem 0.4rem rgba(243, 193, 75, 0.55); }
+  0%, 100% { filter: brightness(1); }
+  50% {
+    border-color: #ffdf80;
+    box-shadow: 0 0 2.4rem 0.53rem rgba(255, 205, 70, 0.85);
+    filter: brightness(1.32) saturate(1.2);
+  }
 }
 .card--flash { animation: card-flash 0.6s ease-in-out 7; }
 

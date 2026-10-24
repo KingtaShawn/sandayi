@@ -152,8 +152,12 @@
 /* 牌正常插进所属花色排序位（不抬高不突兀），金光呼吸闪烁 ~4.2s（7 次）点出
  * 「这几张是底牌进来的」；动画不 forwards，闪完自然回常态，摘类收尾 */
 @keyframes card-flash {
-  0%, 100% { box-shadow: 0 0 0 rgba(243, 193, 75, 0); }
-  50% { box-shadow: 0 0 12rpx 3rpx rgba(243, 193, 75, 0.55); }
+  0%, 100% { filter: brightness(1); }
+  50% {
+    border-color: #ffdf80;
+    box-shadow: 0 0 18rpx 4rpx rgba(255, 205, 70, 0.85);
+    filter: brightness(1.32) saturate(1.2);
+  }
 }
 
 .card--flash {
