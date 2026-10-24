@@ -18,6 +18,12 @@
   var LS_TOKEN = 'cloud:token';
   var LS_USER = 'cloud:user';
   var LS_LOCAL_AT = 'cloud:localAt';
+  /**
+   * 后端地址：空 = 同源相对路径（后端与页面同一域名，EdgeOne 部署的默认形态）；
+   * 页面与后端不同域时填后端完整 origin（如 GitHub Pages 静态站 + EdgeOne 后端跨域调用，
+   * 后端已放行 CORS *）。末尾不带斜杠。
+   */
+  var CLOUD_BASE = '';
   /** 参与云同步的存档键（currentGame 不同步：H5 无恢复对局流程，同步无意义）。 */
   var SYNC_KEYS = ['tractor:stats', 'tractor:settings', 'tractor:ruleOverrides', 'tractor:maxBids'];
 
@@ -85,7 +91,7 @@
     opts = opts || {};
     var headers = { 'Content-Type': 'application/json' };
     if (opts.auth && token) headers['Authorization'] = 'Bearer ' + token;
-    return fetch('/api/' + path, {
+    return fetch(CLOUD_BASE + '/api/' + path, {
       method: opts.method || 'GET',
       headers: headers,
       body: opts.body ? JSON.stringify(opts.body) : undefined

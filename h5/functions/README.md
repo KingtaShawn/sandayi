@@ -13,7 +13,8 @@
 2. **开通 KV**：控制台"存储 → KV"申请开通 → 创建命名空间（如 `sandayi`）→ 项目详情"KV 存储"绑定该命名空间，**变量名填 `KV`**（EdgeOne 会把它注入为全局变量，代码里 `runtime.js` 的 kvOf 同时兼容 env 注入）。
 3. **环境变量** `AUTH_SECRET`：随机长字符串（token 签名密钥，泄露=所有人可伪造登录态）。可用 `openssl rand -hex 32` 生成。
 4. 验证：访问 `https://<项目域名>.edgeone.app/api/leaderboard`，返回 `{"list":[...]}` 即通。
-5. （可选，开小程序微信登录时）`WX_APPID` / `WX_SECRET`：小程序正式 AppID + AppSecret（公众平台"开发管理"里拿）。不配则小程序端自动降级游客模式，功能不受损。
+5. 若继续用 GitHub Pages 域名（kingtashawn.github.io）当玩家入口：把 `h5/js/cloud.js` 顶部 `CLOUD_BASE` 填 EdgeOne 域名（跨域调用，后端已放行 CORS `*`）；用 EdgeOne 域名访问则保持空串（同源）。
+6. （可选，开小程序微信登录时）`WX_APPID` / `WX_SECRET`：小程序正式 AppID + AppSecret（公众平台"开发管理"里拿）。不配则小程序端自动降级游客模式，功能不受损。
 
 ### 小程序端（miniprogram）
 1. **域名**：把 `miniprogram/utils/cloud.js` 顶部 `CLOUD_BASE` 换成 EdgeOne Pages 实际域名（默认 `*.edgeone.app` 免备案）。
