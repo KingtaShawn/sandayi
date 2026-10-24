@@ -1,0 +1,74 @@
+/**
+ * h5/test/e2e-cloud.js —— 云账号功能冒烟（chrome-headless-shell）。
+ * 用法：先 node h5/serve.js 8930，另开终端 node h5/test/e2e-cloud.js
+ * 覆盖：页面正常启动 → 游客无感建档 → 升级正式账号 → 状态行/弹层联动 → 游戏可开局。
+ */
+
+'use strict';
+
+const puppeteer = require('puppeteer');
+
+const BASE = 'http://127.0.0.1:8930';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+let passed = 0, failed = 0;
+function check(name, cond, detail) {
+  if (cond) { passed++; console.log(`  ✅ ${name}`); }
+  else { failed++; console.log(`  ❌ ${name}${detail ? ' —— ' + detail : ''}`); }
+}
+
+(async () => {
+  const browser = await puppeteer.launch({ headless: 'shell' }); // chrome-headless-shell（本机无整装 Chrome）
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 900, height: 1600 });
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+
+    await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
+    await sleep(1200); // 游客建档是异步的，等云层落定
+
+    check('页面无脚本错误', errors.length === 0, errors.join(' | '));
+    check('无错误红条', !(await page.$('#err-bar')));
+
+    // 游客无感建档
+    const state0 = await page.$eval('#cloud-state', (el) => el.textContent);
+    check('游客自动建档（状态行=游客存档）', state0.includes('游客'), state0);
+    const token = await page.evaluate(() => localStorage.getItem('cloud:token'));
+    check('token 已落 localStorage', !!token && token.includes('.'));
+
+    // 打开账号弹层 → 升级
+    await page.click('#btn-cloud');
+    await sleep(200);
+    check('弹层打开', !(await page.$eval('#cloud-modal', (el) => el.hidden)));
+    const hasBind = await page.$eval('#btn-cloud-bind', (el) => !el.hidden);
+    check('游客态显示"升级为正式账号"按钮', hasBind);
+    await page.type('#cloud-name', '冒烟' + Date.now().toString(36).slice(-4));
+    await page.type('#cloud-pass', 'pass1234');
+    await page.type('#cloud-pass2', 'pass1234');
+    await page.click('#btn-cloud-bind');
+    await sleep(800);
+    check('升级后弹层自动关闭', await page.$eval('#cloud-modal', (el) => el.hidden));
+    const state1 = await page.$eval('#cloud-state', (el) => el.textContent);
+    check('状态行变为已同步', state1.includes('已同步'), state1);
+
+    // 云端档案应已就位（.dev-kv.json）
+    const pushed = await page.evaluate(async () => {
+      const t = localStorage.getItem('cloud:token');
+      const r = await fetch('/api/sync', { headers: { Authorization: 'Bearer ' + t } });
+      const j = await r.json();
+      return !!(j.save && j.save.data);
+    });
+    check('云端档案可拉取', pushed);
+
+    // 升级后游戏照常可开局（云层不破坏主流程）
+    await page.click('#btn-start');
+    await sleep(500);
+    check('开始对局正常', !(await page.$eval('#view-table', (el) => el.hidden)));
+    check('全程无脚本错误', errors.length === 0, errors.join(' | '));
+  } finally {
+    await browser.close();
+  }
+  console.log(`== 云账号冒烟：${passed} 过 ${failed} 挂 ==`);
+  process.exit(failed ? 1 : 0);
+})();

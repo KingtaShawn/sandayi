@@ -744,3 +744,36 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
     #app { width: 100dvh; height: 100dvw; }
   }
 }
+
+/* ========== v3.0 云账号（首页状态行 + 账号弹层） ========== */
+.home__cloud {
+  margin-top: 2.67rem;
+  display: flex; align-items: center; justify-content: center; gap: 2.4rem;
+}
+.home__cloud-state { font-size: 2.93rem; color: var(--color-text-dim); }
+.home__cloud-btn { font-size: 2.93rem; padding: 1.07rem 3.2rem; }
+
+.cloud-modal { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 100; }
+.cloud-modal__mask { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: var(--color-mask); }
+.cloud-modal__panel {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 100rem; max-height: 85vh;
+  background: linear-gradient(170deg, #fffdf5, #f7ecd2);
+  border-radius: 3.2rem; padding: 4rem;
+  display: flex; flex-direction: column;
+  box-shadow: 0 2.67rem 8rem rgba(0, 0, 0, 0.45);
+}
+.cloud-modal__title { font-size: 4rem; font-weight: 700; color: #8a5a2b; margin-bottom: 2.67rem; text-align: center; }
+.cloud-modal__hint { font-size: 2.93rem; color: #5c4a24; text-align: center; margin-bottom: 2.67rem; line-height: 1.6; }
+.cloud-modal__input {
+  font-size: 3.2rem; color: #4a3a1c;
+  background: #fff; border: 0.27rem solid #d8c79a; border-radius: 1.6rem;
+  padding: 2.13rem 2.67rem; margin-bottom: 2.13rem; width: 100%;
+  box-sizing: border-box;
+}
+.cloud-modal__input:focus { outline: none; border-color: #caa235; }
+.cloud-modal__input::placeholder { color: #b3a377; }
+.cloud-modal__actions { display: flex; gap: 2.67rem; margin-top: 1.07rem; }
+.cloud-modal__actions .btn { flex: 1; font-size: 3.2rem; padding: 2.4rem 0; }
+.cloud-modal__foot { font-size: 2.4rem; color: #8a6d3a; text-align: center; margin-top: 2.67rem; line-height: 1.6; }
+.cloud-modal__close { margin-top: 2.67rem; align-self: center; }

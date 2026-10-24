@@ -1115,6 +1115,7 @@
       attackPoints: prevSettle.attackPoints,
       tricksCount: st.completedTricks.length
     }));
+    if (window.Cloud) Cloud.notifyLocal(); // 战绩落本地后异步上云（防抖 2.5s）
     G.selectedIds = [];
     G.prevHandIds = null;
     render();
@@ -1138,6 +1139,55 @@
     $('home-stats').textContent = s.totalRounds
       ? `战绩 ${s.wins}胜 ${s.losses}负 · 胜率 ${(s.winRate * 100).toFixed(0)}%`
       : '';
+    updateCloudLine();
+  }
+
+  /* ---------- 云账号（cloud.js 未加载时静默跳过，游戏不受影响） ---------- */
+  function updateCloudLine() {
+    const line = $('cloud-state');
+    if (!line || !window.Cloud) return;
+    const s = Cloud.state();
+    if (s === 'user') line.textContent = '☁ 已同步：' + (Cloud.name() || Cloud.nick());
+    else if (s === 'guest') line.textContent = '☁ 游客存档（换设备会丢档）';
+    else line.textContent = '☁ 未连接';
+  }
+
+  function refreshCloudModal() {
+    const s = window.Cloud ? Cloud.state() : 'off';
+    $('cloud-hint').textContent = s === 'user'
+      ? `已登录：${Cloud.name() || Cloud.nick()}（用户名区分大小写）`
+      : (s === 'guest' ? '当前是游客存档，仅保存在本机' : '云端未连接（离线可玩，联网后自动同步）');
+    // 正式账号下没有"升级"一说：隐藏确认密码框与升级按钮，登录钮改为"切换账号"
+    $('cloud-pass2').hidden = (s !== 'guest');
+    $('btn-cloud-bind').hidden = (s !== 'guest');
+    $('btn-cloud-login').textContent = (s === 'user') ? '切换到此账号' : '登录已有账号';
+  }
+
+  function closeCloudModal() { $('cloud-modal').hidden = true; }
+
+  function submitCloud(mode) {
+    const name = $('cloud-name').value.trim();
+    const pass = $('cloud-pass').value;
+    if (!/^[a-zA-Z0-9_一-龥]{2,16}$/.test(name)) { toast('用户名需 2~16 位中文/字母/数字/下划线'); return; }
+    if (!/^[\x21-\x7e]{4,32}$/.test(pass)) { toast('密码需 4~32 位字母/数字/符号'); return; }
+    if (mode === 'bind' && pass !== $('cloud-pass2').value) { toast('两次密码不一致'); return; }
+    const btn = mode === 'bind' ? $('btn-cloud-bind') : $('btn-cloud-login');
+    btn.classList.add('btn--disabled');
+    const done = () => { btn.classList.remove('btn--disabled'); };
+    const p = (mode === 'bind')
+      ? Cloud.bind(name, pass)
+        .then(() => { toast('已升级为正式账号，战绩保留'); closeCloudModal(); })
+      : Cloud.login(name, pass)
+        .then(() => { toast('已登录，档案已同步'); closeCloudModal(); renderHome(); });
+    p.catch((e) => {
+      // 服务端文案不可见（api 层只抛 status），这里按状态码给出人话
+      const st = e && e.status;
+      if (mode === 'bind' && st === 409) toast('这个名字已被占用，换一个吧');
+      else if (mode === 'bind' && st === 401) toast('登录态失效，刷新页面后重试');
+      else if (st === 401) toast('用户名或密码错误');
+      else if (st === 400) toast('用户名或密码格式不对');
+      else toast('网络异常，请稍后再试');
+    }).then(done);
   }
 
   function renderRules() {
@@ -1186,6 +1236,7 @@
   $('btn-sound').addEventListener('click', () => {
     const on = Sfx.toggle();
     updateSoundBtn();
+    if (window.Cloud) Cloud.notifyLocal(); // 设置（tractor:settings）有变
     if (on) {
       // resume 是异步的：稍查状态，仍挂起说明被系统拦（低电量模式/静音拨片/微信 webview）
       setTimeout(() => {
@@ -1203,6 +1254,7 @@
     const on = Sfx.toggleMusic();
     updateMusicBtn();
     toast(on ? '音乐已开' : '音乐已关');
+    if (window.Cloud) Cloud.notifyLocal();
   });
   updateMusicBtn();
   // 音效解锁：每次手势都试（running 前内部重试 resume，低电量模式被拒后下次手势还有机会）；
@@ -1210,6 +1262,19 @@
   ['pointerdown', 'touchstart', 'click'].forEach((evt) => document.addEventListener(evt, () => Sfx.unlock(), { passive: true }));
   $('btn-history-close').addEventListener('click', () => { $('history-modal').hidden = true; });
   $('history-mask').addEventListener('click', () => { $('history-modal').hidden = true; });
+  // 云账号弹层
+  $('btn-cloud').addEventListener('click', () => {
+    refreshCloudModal();
+    $('cloud-name').value = '';
+    $('cloud-pass').value = '';
+    $('cloud-pass2').value = '';
+    $('cloud-modal').hidden = false;
+  });
+  $('btn-cloud-close').addEventListener('click', closeCloudModal);
+  $('cloud-mask').addEventListener('click', closeCloudModal);
+  $('btn-cloud-bind').addEventListener('click', () => submitCloud('bind'));
+  $('btn-cloud-login').addEventListener('click', () => submitCloud('login'));
+  if (window.Cloud) Cloud.on('state', updateCloudLine); // 游客建档/升级成功时首页状态行即时刷新
   $('btn-result-next').addEventListener('click', onNextRound);
   $('btn-result-home').addEventListener('click', () => {
     persist();
@@ -1241,6 +1306,7 @@
         render();
       }
       persist();
+      if (window.Cloud) Cloud.flush(); // 收尾时机立即上云（不等防抖）
     } else if (G.service && G.service.getState() && G.service.getState().phase !== 'GAME_OVER' && !$('view-table').hidden) {
       driveAI();
     }
@@ -1250,4 +1316,6 @@
   window.__probe = () => G.service && G.service.getState();
 
   renderHome();
+  // 云端启动：恢复/无感建档 + 拉远端档案（远端更新落地后 onSync 刷新首页战绩）
+  if (window.Cloud) Cloud.init({ onSync: () => renderHome() });
 })();

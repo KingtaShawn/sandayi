@@ -16,5 +16,8 @@ Thumbs.db
 miniprogram/_macosx/
 h5/test/shots/
 
+# 本地开发 KV 落盘（h5/serve.js 模拟云端存储，含测试账号口令）
+h5/.dev-kv.json
+
 # H5 发布目录（tools/build-h5.js 产物，部署时重新生成）
 h5/dist/

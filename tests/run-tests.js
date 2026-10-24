@@ -24,7 +24,8 @@ const TEST_FILES = [
   'test-qa-settle-koudi.js',
   'test-qa-bid-resume-seed.js',
   'test-qa-e2e-rounds.js',
-  'test-san-da-yi.js'
+  'test-san-da-yi.js',
+  'test-cloud-api.js'
 ];
 
 const dir = __dirname;

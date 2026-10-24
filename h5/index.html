@@ -28,6 +28,11 @@
       </div>
     </div>
     <div class="home__stats" id="home-stats"></div>
+    <!-- v3.0 云账号：游客无感建档，点开可升级正式账号（换设备不丢档） -->
+    <div class="home__cloud" id="home-cloud">
+      <span class="home__cloud-state" id="cloud-state">☁ 未连接</span>
+      <button class="btn btn--ghost home__cloud-btn" id="btn-cloud">账号</button>
+    </div>
   </section>
 
   <!-- ===== 规则页 ===== -->
@@ -123,12 +128,31 @@
     </div>
   </section>
 
+  <!-- 云账号弹层（游客升级 / 换设备登录） -->
+  <div class="cloud-modal" id="cloud-modal" hidden>
+    <div class="cloud-modal__mask" id="cloud-mask"></div>
+    <div class="cloud-modal__panel">
+      <div class="cloud-modal__title">云账号</div>
+      <div class="cloud-modal__hint" id="cloud-hint"></div>
+      <input class="cloud-modal__input" id="cloud-name" placeholder="用户名（2~16位中文/字母/数字）" maxlength="16" autocomplete="off">
+      <input class="cloud-modal__input" id="cloud-pass" type="password" placeholder="密码（4~32位）" maxlength="32" autocomplete="off">
+      <input class="cloud-modal__input" id="cloud-pass2" type="password" placeholder="确认密码（升级时填）" maxlength="32" autocomplete="off">
+      <div class="cloud-modal__actions">
+        <button class="btn btn--ghost" id="btn-cloud-login">登录已有账号</button>
+        <button class="btn btn--primary" id="btn-cloud-bind">升级为正式账号</button>
+      </div>
+      <div class="cloud-modal__foot">升级后换手机/浏览器登录同一账号，战绩不丢</div>
+      <button class="btn btn--ghost cloud-modal__close" id="btn-cloud-close">关闭</button>
+    </div>
+  </div>
+
   <!-- toast -->
   <div class="toast" id="toast" hidden></div>
 </div>
 
 <script src="js/game-bundle.js"></script>
 <script src="js/sound.js"></script>
+<script src="js/cloud.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
