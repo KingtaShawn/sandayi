@@ -18,6 +18,9 @@
       <view class="btn btn--ghost" bind:tap="onRules">
         <text>规则速查</text>
       </view>
+      <view class="btn btn--ghost" bind:tap="onLeaderboard">
+        <text>排行榜</text>
+      </view>
       <view class="btn btn--ghost" bind:tap="onSettings">
         <text>设置</text>
       </view>
@@ -26,5 +29,59 @@
 
   <view class="home__stats" wx:if="{{statsText}}">
     <text class="home__stats-text">{{statsText}}</text>
+  </view>
+
+  <!-- 云账号状态行 -->
+  <view class="home__cloud">
+    <text class="home__cloud-text">{{cloudText}}</text>
+    <view class="btn btn--ghost home__cloud-btn" bind:tap="onCloud">
+      <text>账号</text>
+    </view>
+  </view>
+</view>
+
+<!-- 云账号弹层（游客升级 / 换设备登录） -->
+<view class="cmodal" wx:if="{{cloudModal}}">
+  <view class="cmodal__mask" bind:tap="onCloudClose"></view>
+  <view class="cmodal__panel">
+    <text class="cmodal__title">云账号</text>
+    <text class="cmodal__hint">{{cloudHint}}</text>
+    <input class="cmodal__input" placeholder="用户名（2~16位中文/字母/数字）" maxlength="16" value="{{formName}}" bindinput="onNameInput" />
+    <input class="cmodal__input" placeholder="密码（4~32位）" maxlength="32" password value="{{formPass}}" bindinput="onPassInput" />
+    <input class="cmodal__input" wx:if="{{cloudIsGuest}}" placeholder="确认密码（升级时填）" maxlength="32" password value="{{formPass2}}" bindinput="onPass2Input" />
+    <view class="cmodal__actions">
+      <view class="btn btn--ghost cmodal__btn {{submitting ? 'btn--disabled' : ''}}" bind:tap="onLogin">
+        <text>{{cloudIsGuest ? '登录已有账号' : '切换到此账号'}}</text>
+      </view>
+      <view class="btn btn--primary cmodal__btn {{submitting ? 'btn--disabled' : ''}}" wx:if="{{cloudIsGuest}}" bind:tap="onBind">
+        <text>升级为正式账号</text>
+      </view>
+    </view>
+    <text class="cmodal__foot">升级后换手机/浏览器登录同一账号，战绩不丢</text>
+    <view class="btn btn--ghost cmodal__close" bind:tap="onCloudClose">
+      <text>关闭</text>
+    </view>
+  </view>
+</view>
+
+<!-- 排行榜弹层（报满坐庄榜） -->
+<view class="cmodal" wx:if="{{lbModal}}">
+  <view class="cmodal__mask" bind:tap="onLbClose"></view>
+  <view class="cmodal__panel cmodal__panel--lb">
+    <text class="cmodal__title">报满坐庄榜</text>
+    <text class="cmodal__hint cmodal__hint--sub">报满成交坐庄的次数 · 全网玩家</text>
+    <scroll-view class="cmodal__list" scroll-y>
+      <view wx:if="{{lbEmpty}}" class="cmodal__empty">
+        <text>{{lbEmpty}}</text>
+      </view>
+      <view wx:for="{{lbList}}" wx:key="index" class="cmodal__row {{item.isMe ? 'cmodal__row--me' : ''}}">
+        <text class="cmodal__rank">{{item.rank}}</text>
+        <text class="cmodal__nick">{{item.nick}}</text>
+        <text class="cmodal__count">报满 {{item.maxBids}} 次</text>
+      </view>
+    </scroll-view>
+    <view class="btn btn--ghost cmodal__close" bind:tap="onLbClose">
+      <text>关闭</text>
+    </view>
   </view>
 </view>

@@ -50,13 +50,15 @@ function main() {
   copyDir(path.join(H5, 'js'), path.join(DIST, 'js'));
   copyDir(path.join(H5, 'icons'), path.join(DIST, 'icons'));
   copyDir(path.join(H5, 'music'), path.join(DIST, 'music'));
+  // 云端接口（EdgeOne Pages 边缘函数按 dist/functions 目录部署，缺了整条后端上不了线）
+  copyDir(path.join(H5, 'functions'), path.join(DIST, 'functions'));
   fs.copyFileSync(path.join(H5, 'manifest.webmanifest'), path.join(DIST, 'manifest.webmanifest'));
 
   // 4. index.html 注入版本号（css/js/manifest 引用）
   const ver = version();
   let html = fs.readFileSync(path.join(H5, 'index.html'), 'utf8');
   html = html.replace(
-    /((?:href|src)="(?:css\/style\.css|js\/game-bundle\.js|js\/sound\.js|js\/app\.js|manifest\.webmanifest))"/g,
+    /((?:href|src)="(?:css\/style\.css|js\/game-bundle\.js|js\/sound\.js|js\/cloud\.js|js\/app\.js|manifest\.webmanifest))"/g,
     `$1?v=${ver}"`
   );
   fs.writeFileSync(path.join(DIST, 'index.html'), html, 'utf8');

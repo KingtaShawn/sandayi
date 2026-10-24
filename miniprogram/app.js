@@ -11,6 +11,7 @@
 const { createConfig, DEFAULT_CONFIG } = require('./engine/config');
 const storage = require('./storage/adapter');
 const { STORAGE_KEYS } = require('./storage/keys');
+const Cloud = require('./utils/cloud');
 /** 后台规则配置文件（用户直接编辑此文件调规则；非法时自动回退默认） */
 const RULE_CONFIG_FILE = require('./rule-config.js');
 
@@ -52,6 +53,8 @@ App({
     } catch (e) {
       this.globalData.stats = null;
     }
+    // 云端账号：微信登录（降级游客）+ 档案拉取合并，全程异步静默（见 utils/cloud.js）
+    Cloud.init();
     // 隐私合规授权（微信审核硬性要求，见 initPrivacy）
     this.initPrivacy();
   },
@@ -86,8 +89,8 @@ App({
 
   /**
    * 隐私合规授权（微信 2023 起强制要求）。
-   * 本游戏纯单机、不联网、不调用任何用户信息接口（无登录/定位/手机号等），
-   * 但仍需在首次启动触发微信官方隐私弹窗并取得用户同意，否则公众平台审核可能不通过。
+   * 云同步上线后本小程序会请求自有后端（utils/cloud.js，仅匿名 uid + 游戏档案，
+   * 不收集手机号/位置等个人信息），隐私指引措辞需在公众平台同步更新。
    * 前置条件：需在公众平台「设置 → 隐私保护指引」填写本小程序的隐私说明。
    * 用户同意后由微信端记录，后续启动不再弹出。
    */

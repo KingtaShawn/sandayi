@@ -72,3 +72,165 @@
   font-size: 22rpx;
   color: var(--color-text-dim);
 }
+
+/* ========== v3.x 云账号 + 排行榜 ========== */
+.home__cloud {
+  margin-top: 24rpx;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.home__cloud-text {
+  font-size: 22rpx;
+  color: var(--color-text-dim);
+}
+
+.home__cloud-btn {
+  padding: 8rpx 28rpx;
+  font-size: 22rpx;
+}
+
+.btn--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.cmodal {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+}
+
+.cmodal__mask {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-mask);
+}
+
+.cmodal__panel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 620rpx;
+  max-height: 80vh;
+  background: linear-gradient(170deg, #fffdf5, #f7ecd2);
+  border-radius: 32rpx;
+  padding: 40rpx;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 26rpx 80rpx rgba(0, 0, 0, 0.45);
+}
+
+.cmodal__title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #8a5a2b;
+  text-align: center;
+}
+
+.cmodal__hint {
+  font-size: 28rpx;
+  color: #5c4a24;
+  text-align: center;
+  margin: 12rpx 0 28rpx;
+  line-height: 1.6;
+}
+
+.cmodal__hint--sub {
+  color: #8a6d3a;
+  font-size: 24rpx;
+}
+
+.cmodal__input {
+  font-size: 30rpx;
+  color: #4a3a1c;
+  background: #fff;
+  border: 4rpx solid #d8c79a;
+  border-radius: 16rpx;
+  padding: 20rpx 26rpx;
+  margin-bottom: 20rpx;
+}
+
+.cmodal__actions {
+  display: flex;
+  gap: 24rpx;
+  margin-top: 10rpx;
+}
+
+.cmodal__btn {
+  flex: 1;
+  padding: 22rpx 0;
+}
+
+.cmodal__foot {
+  font-size: 22rpx;
+  color: #8a6d3a;
+  text-align: center;
+  margin-top: 24rpx;
+  line-height: 1.6;
+}
+
+.cmodal__close {
+  margin-top: 24rpx;
+  align-self: center;
+}
+
+.cmodal__list {
+  flex: 1;
+  overflow: hidden;
+  max-height: 55vh;
+}
+
+.cmodal__row {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 16rpx;
+  padding: 20rpx 26rpx;
+  margin-bottom: 16rpx;
+}
+
+.cmodal__row--me {
+  background: linear-gradient(180deg, #f7d478, #f3c14b);
+  border: 4rpx solid #caa235;
+}
+
+.cmodal__rank {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #8a5a2b;
+  width: 56rpx;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.cmodal__nick {
+  font-size: 30rpx;
+  color: #5c4a24;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmodal__count {
+  font-size: 30rpx;
+  color: #7a5f33;
+  flex-shrink: 0;
+}
+
+.cmodal__empty {
+  text-align: center;
+  color: #8a6d3a;
+  padding: 40rpx;
+  font-size: 30rpx;
+}

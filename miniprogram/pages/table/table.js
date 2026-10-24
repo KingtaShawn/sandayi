@@ -31,6 +31,7 @@ const { createRng } = require('../../utils/random');
 const fmt = require('../../utils/format');
 const { summarize, appendRecord } = require('../../services/stats');
 const { cardKey, SUIT_SYMBOLS } = require('../../engine/card');
+const Cloud = require('../../utils/cloud');
 
 /** AI 节奏定时器句柄 */
 let aiTimer = null;
@@ -139,6 +140,7 @@ Page({
     // 新底牌闪烁定时器同理掐掉（后台节流会拖到几分钟后再停）
     if (this._grabHlTimer) this._clearGrabHighlight();
     this.persist();
+    Cloud.flush(); // 收尾时机立即上云（不等防抖；无 token 时为空操作）
   },
 
   onUnload() {
@@ -1048,6 +1050,15 @@ Page({
       attackPoints: prevSettle.attackPoints,
       tricksCount: st.completedTricks.length
     }));
+    // 报满坐庄（我坐庄且成交分=叫分上限）：单独计数入排行榜，随档案上云（与 h5/app.js 同键同规则）
+    const fullBid = wasSDY && prevSettle.dealerIdx === 0
+      && Number(prevSettle.contractScore) >= (st.config && st.config.sanDaYiBidCap);
+    if (fullBid) {
+      const K = 'tractor:maxBids';
+      try { wx.setStorageSync(K, String((Number(wx.getStorageSync(K)) || 0) + 1)); } catch (e) { /* 忽略 */ }
+    }
+    Cloud.notifyLocal(); // 战绩落本地后异步上云（防抖 2.5s）
+    if (fullBid) Cloud.flush(); // 满分是稀罕事：不等防抖，立刻同步后台进榜
     this.lastAdded = null;
     this.setData({ selectedIds: [] });
     // 新局发牌动画：清空手牌追踪基线（否则 prevHandIds 还是上局 25 张旧 id，detectNewCards 不认新局）
