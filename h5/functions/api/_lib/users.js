@@ -12,6 +12,9 @@
 
 'use strict';
 
+import { b64urlEncode, b64urlDecode } from './b64.js';
+import { kvOf } from './runtime.js';
+
 const encoder = new TextEncoder();
 
 /** PBKDF2 迭代次数（边缘函数 CPU 受限，50k 是耗时/强度的折中，改这里需同步改测试预期外的耗时）。 */
@@ -31,19 +34,6 @@ function validatePass(pass) {
   return null;
 }
 
-function b64url(bytes) {
-  let s = '';
-  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function b64urlBytes(s) {
-  const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
 /** PBKDF2-SHA256 哈希，返回 base64url。 */
 async function pbkdf2(pass, saltBytes) {
   const key = await crypto.subtle.importKey('raw', encoder.encode(pass), 'PBKDF2', false, ['deriveBits']);
@@ -51,47 +41,41 @@ async function pbkdf2(pass, saltBytes) {
     { name: 'PBKDF2', hash: 'SHA-256', salt: saltBytes, iterations: PBKDF2_ITER },
     key, 256
   );
-  return b64url(new Uint8Array(bits));
+  return b64urlEncode(new Uint8Array(bits));
 }
 
 /** 造凭证（随机盐）。 */
 async function makeLogin(name, pass) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  return { name: name.trim(), nameKey: name.trim().toLowerCase(), salt: b64url(salt), hash: await pbkdf2(pass, salt) };
+  return { name: name.trim(), nameKey: name.trim().toLowerCase(), salt: b64urlEncode(salt), hash: await pbkdf2(pass, salt) };
 }
 
 /** 校验密码。 */
 async function verifyPass(pass, login) {
   if (!login || !login.salt || !login.hash) return false;
-  return (await pbkdf2(pass, b64urlBytes(login.salt))) === login.hash;
+  return (await pbkdf2(pass, b64urlDecode(login.salt))) === login.hash;
 }
 
-/* ---------- KV 读写（薄封装，值一律 JSON 字符串） ---------- */
-
-async function kvOf(env) {
-  const kv = (env && (env.KV || env.kv)) || null;
-  if (!kv) throw new Error('KV 存储未绑定（控制台绑定 KV 命名空间到变量 KV）');
-  return kv;
-}
+/* ---------- KV 读写（薄封装，值一律 JSON 字符串；绑定获取见 runtime.js） ---------- */
 
 export async function getUser(env, uid) {
-  const raw = await (await kvOf(env)).get('u:' + uid);
+  const raw = await kvOf(env).get('u:' + uid);
   if (!raw) return null;
   try { return JSON.parse(raw); } catch (e) { return null; }
 }
 
 export async function putUser(env, user) {
-  await (await kvOf(env)).put('u:' + user.uid, JSON.stringify(user));
+  await kvOf(env).put('u:' + user.uid, JSON.stringify(user));
 }
 
 /** 用户名 → uid（不存在返回 null）。 */
 export async function getUidByName(env, name) {
-  return await (await kvOf(env)).get('login:' + name.trim().toLowerCase());
+  return await kvOf(env).get('login:' + name.trim().toLowerCase());
 }
 
 /** 写用户名索引。 */
 export async function putNameIndex(env, name, uid) {
-  await (await kvOf(env)).put('login:' + name.trim().toLowerCase(), uid);
+  await kvOf(env).put('login:' + name.trim().toLowerCase(), uid);
 }
 
 /** 对外暴露的用户视图（不含盐/哈希）。 */

@@ -18,14 +18,8 @@
 
 import { jsonResp, errResp, readJson, getBearer } from './http.js';
 import { signToken, verifyToken, newUid, randDigits4 } from './token.js';
+import { kvOf } from './runtime.js';
 import Users from './users.js';
-
-/** 取 KV 绑定（控制台把 KV 命名空间绑到变量 KV）。 */
-function kvOf(env) {
-  const kv = env && (env.KV || env.kv);
-  if (!kv) throw new Error('KV 存储未绑定（控制台绑定 KV 命名空间到变量 KV）');
-  return kv;
-}
 
 /** 云端档案体积上限（KV 单值限 1MB，这里给同步留个远小于它的护栏）。 */
 const SAVE_MAX_BYTES = 200 * 1024;

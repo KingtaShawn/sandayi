@@ -52,8 +52,9 @@ npm run build:h5   # 重打 game-bundle → h5/dist/（只含发布文件，注�
 等功率交叉淡化，接缝两侧响度差 0.02dB，单声道 64kbps AAC。🎵 开关状态与音效独立，
 存 `tractor:settings.music`。
 
-EdgeOne Pages 控制台导入 GitHub 仓库：构建命令 `npm run build:h5`，输出目录 `h5/dist`。
-push 即自动部署；默认域名 `*.edgeone.app` 无需备案。
+两条部署线（2026-10 现状）：
+- **GitHub Pages（静态，已在跑）**：push 到 main → GitHub Actions（`.github/workflows/deploy-h5.yml`）构建 `h5/dist` 上线 `kingtashawn.github.io/sandayi/`。纯静态**没有后端**，云端账号/排行榜在该域名下自动静默降级（游戏可玩）。
+- **EdgeOne Makers（全栈，待建项目）**：控制台导入 GitHub 仓库，构建命令 `npm run build:h5`，输出目录 `h5/dist`；产物里 `functions/` 与 `edge-functions/` 双目录都带边缘函数。建好并按 `h5/functions/README.md` 绑 KV 后，`*.edgeone.app` 域名（免备案）才有 `/api` 后端。
 
 ## 规则配置
 

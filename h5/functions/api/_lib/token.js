@@ -9,19 +9,10 @@
 
 'use strict';
 
+import { b64urlEncode, b64urlDecode } from './b64.js';
+
 const encoder = new TextEncoder();
-
-/** Uint8Array → base64url（无填充）。 */
-function b64url(bytes) {
-  let s = '';
-  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-/** base64url → 原始字符串。 */
-function b64urlStr(s) {
-  return atob(s.replace(/-/g, '+').replace(/_/g, '/'));
-}
+const decoder = new TextDecoder();
 
 /** 常数时间比较（长度不同直接否，等长逐字节异或累积）。 */
 function timingSafeEqual(a, b) {
@@ -40,7 +31,7 @@ function secretOf(env) {
 async function hmac(env, data) {
   const key = await crypto.subtle.importKey('raw', encoder.encode(secretOf(env)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(data));
-  return b64url(new Uint8Array(sig));
+  return b64urlEncode(new Uint8Array(sig));
 }
 
 /**
@@ -51,7 +42,7 @@ async function hmac(env, data) {
  * @returns {Promise<string>}
  */
 export async function signToken(env, uid, ttlMs) {
-  const payload = b64url(encoder.encode(JSON.stringify({ u: uid, exp: Date.now() + (ttlMs || 90 * 24 * 3600 * 1000) })));
+  const payload = b64urlEncode(encoder.encode(JSON.stringify({ u: uid, exp: Date.now() + (ttlMs || 90 * 24 * 3600 * 1000) })));
   return payload + '.' + await hmac(env, payload);
 }
 
@@ -73,7 +64,7 @@ export async function verifyToken(env, token) {
   }
   if (!timingSafeEqual(sig, expect)) return null;
   try {
-    const { u, exp } = JSON.parse(b64urlStr(payload));
+    const { u, exp } = JSON.parse(decoder.decode(b64urlDecode(payload)));
     if (!u || typeof exp !== 'number' || exp < Date.now()) return null;
     return u;
   } catch (e) {

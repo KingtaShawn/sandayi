@@ -1,13 +1,19 @@
 # functions/ —— 云端接口（EdgeOne Pages 边缘函数）
 
-账号 + 云端档案 + 排行榜的全部后端。逻辑集中在 `_lib/api.js` 一份，边缘函数入口（`api/**`）与本地 `h5/serve.js` 共用，行为不分叉。**发布目录自动带上本目录**（tools/build-h5.js 已拷贝 functions/ → dist/functions/）。
+账号 + 云端档案 + 排行榜的全部后端。逻辑集中在 `_lib/api.js` 一份，边缘函数入口（`api/**`）与本地 `h5/serve.js` 共用，行为不分叉。**发布目录自动带上本目录**（tools/build-h5.js 拷贝 functions/ → dist/functions/ 与 dist/edge-functions/，兼容两种目录约定）。
 
 ## 上线清单（控制台操作，一次性）
 
-### EdgeOne Pages（H5 后端）
-1. **KV 存储**：控制台建一个 KV 命名空间，绑定到本项目，**变量名 `KV`**。
-2. **环境变量** `AUTH_SECRET`：随机长字符串（token 签名密钥，泄露=所有人可伪造登录态）。可用 `openssl rand -hex 32` 生成。
-3. （可选，开小程序微信登录时）`WX_APPID` / `WX_SECRET`：小程序正式 AppID + AppSecret（公众平台"开发管理"里拿）。不配则小程序端自动降级游客模式，功能不受损。
+> 2026-10 现状：push 只会部署 **GitHub Pages 静态站**（`.github/workflows/deploy-h5.yml`），那里**没有后端**，
+> 云端功能全部静默降级。要让 `/api` 真正工作，必须按下表在 **EdgeOne Makers 控制台**建一次项目。
+
+### EdgeOne Makers（H5 后端，console.cloud.tencent.com/edgeone/pages）
+1. **建项目**：导入 GitHub 仓库 `KingtaShawn/sandayi`；构建命令 `npm run build:h5`；输出目录 `h5/dist`。
+   （产物同时含 `functions/` 与 `edge-functions/` 双目录，两种目录约定都覆盖。）
+2. **开通 KV**：控制台"存储 → KV"申请开通 → 创建命名空间（如 `sandayi`）→ 项目详情"KV 存储"绑定该命名空间，**变量名填 `KV`**（EdgeOne 会把它注入为全局变量，代码里 `runtime.js` 的 kvOf 同时兼容 env 注入）。
+3. **环境变量** `AUTH_SECRET`：随机长字符串（token 签名密钥，泄露=所有人可伪造登录态）。可用 `openssl rand -hex 32` 生成。
+4. 验证：访问 `https://<项目域名>.edgeone.app/api/leaderboard`，返回 `{"list":[...]}` 即通。
+5. （可选，开小程序微信登录时）`WX_APPID` / `WX_SECRET`：小程序正式 AppID + AppSecret（公众平台"开发管理"里拿）。不配则小程序端自动降级游客模式，功能不受损。
 
 ### 小程序端（miniprogram）
 1. **域名**：把 `miniprogram/utils/cloud.js` 顶部 `CLOUD_BASE` 换成 EdgeOne Pages 实际域名（默认 `*.edgeone.app` 免备案）。

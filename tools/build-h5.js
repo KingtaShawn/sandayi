@@ -50,8 +50,9 @@ function main() {
   copyDir(path.join(H5, 'js'), path.join(DIST, 'js'));
   copyDir(path.join(H5, 'icons'), path.join(DIST, 'icons'));
   copyDir(path.join(H5, 'music'), path.join(DIST, 'music'));
-  // 云端接口（EdgeOne Pages 边缘函数按 dist/functions 目录部署，缺了整条后端上不了线）
+  // 云端接口：EdgeOne 官方模板用 functions/ 目录、新文档用 edge-functions/，双目录都拷（同内容不冲突）
   copyDir(path.join(H5, 'functions'), path.join(DIST, 'functions'));
+  copyDir(path.join(H5, 'functions'), path.join(DIST, 'edge-functions'));
   fs.copyFileSync(path.join(H5, 'manifest.webmanifest'), path.join(DIST, 'manifest.webmanifest'));
 
   // 4. index.html 注入版本号（css/js/manifest 引用）
