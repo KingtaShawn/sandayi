@@ -160,23 +160,27 @@ test('token 篡改：改一个字符即 401', async () => {
 
 /* ---------- 排行榜 ---------- */
 
-test('排行榜：不足 20 局不上榜；够局数按胜率排序', async () => {
-  const { env, token } = await mkGuest();
-  await api.handleSyncPut(mkReq('PUT', '/api/sync', { save: { updatedAt: Date.now(), data: {} }, lb: { rounds: 10, wins: 10, losses: 0 } }, token), env);
+test('排行榜（报满坐庄榜）：没报满不上榜；按报满次数排序；同 uid 整行替换', async () => {
+  const env = freshEnv();
+  const g1 = await mkGuestIn(env); // 打了 100 局但从未报满
+  await api.handleSyncPut(mkReq('PUT', '/api/sync', { save: { updatedAt: Date.now(), data: {} }, lb: { rounds: 100, wins: 90, losses: 10, maxBids: 0 } }, g1.token), env);
   let lb = await json(await api.handleLeaderboard(mkReq('GET', '/api/leaderboard'), env));
-  assert.strictEqual(lb.list.length, 0); // 10 局 100% 不上榜
+  assert.strictEqual(lb.list.length, 0); // maxBids=0 不上榜
 
-  const g2 = await mkGuest(); // 20 局 60%
-  await api.handleSyncPut(mkReq('PUT', '/api/sync', { save: { updatedAt: Date.now(), data: {} }, lb: { rounds: 20, wins: 12, losses: 8 } }, g2.token), g2.env);
-  lb = await json(await api.handleLeaderboard(mkReq('GET', '/api/leaderboard'), g2.env));
-  assert.strictEqual(lb.list.length, 1);
-  assert.strictEqual(lb.list[0].rounds, 20);
-  assert.strictEqual(lb.list[0].winRate, 0.6);
+  const g2 = await mkGuestIn(env); // 报满 2 次
+  await api.handleSyncPut(mkReq('PUT', '/api/sync', { save: { updatedAt: Date.now(), data: {} }, lb: { rounds: 30, wins: 15, losses: 15, maxBids: 2 } }, g2.token), env);
+  const g3 = await mkGuestIn(env); // 报满 5 次
+  await api.handleSyncPut(mkReq('PUT', '/api/sync', { save: { updatedAt: Date.now(), data: {} }, lb: { rounds: 10, wins: 3, losses: 7, maxBids: 5 } }, g3.token), env);
+  lb = await json(await api.handleLeaderboard(mkReq('GET', '/api/leaderboard'), env));
+  assert.strictEqual(lb.list.length, 2);
+  assert.strictEqual(lb.list[0].maxBids, 5); // 报满多者居首（局数少也算）
+  assert.strictEqual(lb.list[1].maxBids, 2);
 
   // 同 uid 再推：整行替换而不是重复插入
-  await api.handleSyncPut(mkReq('PUT', '/api/sync', { save: { updatedAt: Date.now(), data: {} }, lb: { rounds: 40, wins: 30, losses: 10 } }, g2.token), g2.env);
-  lb = await json(await api.handleLeaderboard(mkReq('GET', '/api/leaderboard'), g2.env));
-  assert.strictEqual(lb.list.length, 1);
+  await api.handleSyncPut(mkReq('PUT', '/api/sync', { save: { updatedAt: Date.now(), data: {} }, lb: { rounds: 40, wins: 20, losses: 20, maxBids: 7 } }, g2.token), env);
+  lb = await json(await api.handleLeaderboard(mkReq('GET', '/api/leaderboard'), env));
+  assert.strictEqual(lb.list.length, 2);
+  assert.strictEqual(lb.list[0].maxBids, 7);
   assert.strictEqual(lb.list[0].rounds, 40);
 });
 

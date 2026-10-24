@@ -19,7 +19,7 @@
   var LS_USER = 'cloud:user';
   var LS_LOCAL_AT = 'cloud:localAt';
   /** 参与云同步的存档键（currentGame 不同步：H5 无恢复对局流程，同步无意义）。 */
-  var SYNC_KEYS = ['tractor:stats', 'tractor:settings', 'tractor:ruleOverrides'];
+  var SYNC_KEYS = ['tractor:stats', 'tractor:settings', 'tractor:ruleOverrides', 'tractor:maxBids'];
 
   var listeners = { state: [], sync: [] };
   var user = null;          // {uid, nick, name, isGuest}
@@ -63,14 +63,17 @@
 
   function localAt() { return Number(lsGet(LS_LOCAL_AT)) || 0; }
 
-  /** 战绩汇总（排行榜数据源）；GameCore 未加载时返回 null 不上报。 */
+  /** 战绩汇总（排行榜数据源：报满坐庄次数为主，局数为辅）；GameCore 未加载时返回 null 不上报。 */
   function summarize() {
     try {
       var C = window.GameCore;
       if (!C || !C.stats || !C.storage || !C.STORAGE_KEYS) return null;
       var records = C.storage.get(C.STORAGE_KEYS.STATS) || [];
       var s = C.stats.summarize(records);
-      return { rounds: s.totalRounds, wins: s.wins, losses: s.losses };
+      return {
+        rounds: s.totalRounds, wins: s.wins, losses: s.losses,
+        maxBids: Number(lsGet('tractor:maxBids')) || 0
+      };
     } catch (e) { return null; }
   }
 
@@ -179,6 +182,7 @@
     },
     nick: function () { return user ? user.nick : ''; },
     name: function () { return (user && user.name) || ''; },
+    uid: function () { return (user && user.uid) || ''; },
 
     /** 本地数据有变（战绩/设置/房规写入后调）：更新时间戳 + 防抖推送。 */
     notifyLocal: function () {
@@ -205,6 +209,11 @@
           setState(r.user, r.token);
           return mergeRemote(r.save);
         });
+    },
+
+    /** 拉排行榜（报满坐庄榜，公开接口无需登录）。 */
+    leaderboard: function () {
+      return api('leaderboard').then(function (r) { return r.list || []; });
     },
 
     on: function (evt, fn) { if (listeners[evt]) listeners[evt].push(fn); }

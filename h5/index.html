@@ -25,6 +25,7 @@
       <button class="btn btn--primary home__start" id="btn-start">开始对局</button>
       <div class="home__secondary">
         <button class="btn btn--ghost" id="btn-rules">规则速查</button>
+        <button class="btn btn--ghost" id="btn-leaderboard">排行榜</button>
       </div>
     </div>
     <div class="home__stats" id="home-stats"></div>
@@ -127,6 +128,17 @@
       </div>
     </div>
   </section>
+
+  <!-- 排行榜弹层（报满坐庄榜） -->
+  <div class="lb-modal" id="lb-modal" hidden>
+    <div class="lb-modal__mask" id="lb-mask"></div>
+    <div class="lb-modal__panel">
+      <div class="lb-modal__title">报满坐庄榜</div>
+      <div class="lb-modal__sub">报满成交坐庄的次数 · 全网玩家</div>
+      <div class="lb-modal__list" id="lb-list"></div>
+      <button class="btn btn--ghost lb-modal__close" id="btn-lb-close">关闭</button>
+    </div>
+  </div>
 
   <!-- 云账号弹层（游客升级 / 换设备登录） -->
   <div class="cloud-modal" id="cloud-modal" hidden>

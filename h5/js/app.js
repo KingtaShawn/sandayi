@@ -1115,7 +1115,14 @@
       attackPoints: prevSettle.attackPoints,
       tricksCount: st.completedTricks.length
     }));
+    // 报满坐庄（我坐庄且成交分=叫分上限）：单独计数入排行榜，键与 cloud.js SYNC_KEYS 对齐随档案上云
+    const fullBid = wasSDY && prevSettle.dealerIdx === 0 && Number(prevSettle.contractScore) >= buildConfig().sanDaYiBidCap;
+    if (fullBid) {
+      const K = 'tractor:maxBids';
+      try { localStorage.setItem(K, String((Number(localStorage.getItem(K)) || 0) + 1)); } catch (e) { /* 忽略 */ }
+    }
     if (window.Cloud) Cloud.notifyLocal(); // 战绩落本地后异步上云（防抖 2.5s）
+    if (fullBid && window.Cloud) Cloud.flush(); // 满分是稀罕事：不等防抖，立刻同步后台进榜
     G.selectedIds = [];
     G.prevHandIds = null;
     render();
@@ -1164,6 +1171,38 @@
   }
 
   function closeCloudModal() { $('cloud-modal').hidden = true; }
+
+  /* ---------- 排行榜（报满坐庄榜） ---------- */
+  function renderLeaderboard(list) {
+    const box = $('lb-list');
+    box.innerHTML = '';
+    if (!list) {
+      box.appendChild(el('div', 'lb-modal__empty', '网络异常，稍后再试'));
+      return;
+    }
+    if (!list.length) {
+      box.appendChild(el('div', 'lb-modal__empty', '还没有人报满坐庄——去当第一个！'));
+      return;
+    }
+    const me = window.Cloud ? Cloud.uid() : '';
+    const MEDALS = ['①', '②', '③'];
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    list.forEach((r, i) => {
+      const d = el('div', 'lb-modal__row' + (r.uid && r.uid === me ? ' lb-modal__row--me' : ''));
+      d.innerHTML = `<span class="lb-modal__rank">${i < 3 ? MEDALS[i] : (i + 1)}</span>`
+        + `<span class="lb-modal__nick">${esc(r.nick)}</span>`
+        + `<span class="lb-modal__count">报满 ${Number(r.maxBids) || 0} 次</span>`;
+      box.appendChild(d);
+    });
+  }
+
+  function openLeaderboard() {
+    $('lb-list').innerHTML = '';
+    $('lb-list').appendChild(el('div', 'lb-modal__empty', '加载中…'));
+    $('lb-modal').hidden = false;
+    if (!window.Cloud) { renderLeaderboard(null); return; }
+    Cloud.leaderboard().then(renderLeaderboard).catch(() => renderLeaderboard(null));
+  }
 
   function submitCloud(mode) {
     const name = $('cloud-name').value.trim();
@@ -1229,6 +1268,9 @@
   });
   $('btn-rules').addEventListener('click', () => { renderRules(); showView('rules'); });
   $('btn-rules-back').addEventListener('click', () => showView('home'));
+  $('btn-leaderboard').addEventListener('click', openLeaderboard);
+  $('btn-lb-close').addEventListener('click', () => { $('lb-modal').hidden = true; });
+  $('lb-mask').addEventListener('click', () => { $('lb-modal').hidden = true; });
   $('btn-redeal').addEventListener('click', onRedeal);
   $('btn-history').addEventListener('click', onHistory);
   // 音效开关：状态持久化在 tractor:settings.sound，随局切换保持

@@ -8,7 +8,7 @@
 
 const puppeteer = require('puppeteer');
 
-const BASE = 'http://127.0.0.1:8930';
+const BASE = process.env.E2E_BASE || 'http://127.0.0.1:8930'; // E2E_BASE 指向替换服务器（如 HEAD 版 bundle 验证）
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let passed = 0, failed = 0;
@@ -60,6 +60,14 @@ function check(name, cond, detail) {
       return !!(j.save && j.save.data);
     });
     check('云端档案可拉取', pushed);
+
+    // 排行榜（报满坐庄榜）：弹层可开、空榜文案正确
+    await page.click('#btn-leaderboard');
+    await sleep(300);
+    check('排行榜弹层打开', !(await page.$eval('#lb-modal', (el) => el.hidden)));
+    const lbEmpty = await page.$eval('#lb-list', (el) => el.textContent);
+    check('空榜显示引导文案', lbEmpty.includes('报满'), lbEmpty);
+    await page.click('#btn-lb-close');
 
     // 升级后游戏照常可开局（云层不破坏主流程）
     await page.click('#btn-start');

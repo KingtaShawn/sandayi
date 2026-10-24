@@ -29,29 +29,26 @@ function kvOf(env) {
 
 /** 云端档案体积上限（KV 单值限 1MB，这里给同步留个远小于它的护栏）。 */
 const SAVE_MAX_BYTES = 200 * 1024;
-/** 排行榜上榜最低局数（防"1 局 100%"霸榜）。 */
-const LB_MIN_ROUNDS = 20;
 /** 排行榜保留行数。 */
 const LB_SIZE = 100;
 
-/** 排行榜合并：整行替换该 uid 数据后按胜率重排（单机战绩天然可刷，休闲榜不做反作弊）。 */
+/**
+ * 排行榜合并（报满坐庄榜）：整行替换该 uid 数据后按报满次数重排。
+ * 满分坐庄 = 报满成交坐庄（contractScore ≥ 上限）；计数来自客户端单机局，
+ * 天然可刷，休闲榜不做反作弊。
+ */
 async function updateLeaderboard(kv, uid, nick, lb) {
   if (!lb || typeof lb !== 'object') return;
-  const rounds = Math.floor(Number(lb.rounds));
-  const wins = Math.floor(Number(lb.wins));
-  if (!Number.isFinite(rounds) || !Number.isFinite(wins) || rounds < LB_MIN_ROUNDS || wins < 0 || wins > rounds) return;
+  const maxBids = Math.floor(Number(lb.maxBids));
+  if (!Number.isFinite(maxBids) || maxBids < 1) return; // 没报满过不上榜
+  const rounds = Math.max(0, Math.floor(Number(lb.rounds) || 0));
   let list;
   try { list = JSON.parse((await kv.get('lb:global')) || '[]'); } catch (e) { list = []; }
   if (!Array.isArray(list)) list = [];
-  const row = {
-    uid, nick,
-    rounds, wins, losses: Math.max(0, Math.floor(Number(lb.losses) || rounds - wins)),
-    winRate: Math.round((wins / rounds) * 10000) / 10000,
-    updatedAt: Date.now()
-  };
+  const row = { uid, nick, maxBids, rounds, updatedAt: Date.now() };
   const i = list.findIndex((r) => r && r.uid === uid);
   if (i >= 0) list[i] = row; else list.push(row);
-  list.sort((a, b) => (b.winRate - a.winRate) || (b.rounds - a.rounds));
+  list.sort((a, b) => (b.maxBids - a.maxBids) || (b.rounds - a.rounds));
   await kv.put('lb:global', JSON.stringify(list.slice(0, LB_SIZE)));
 }
 
