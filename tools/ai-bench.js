@@ -2,8 +2,9 @@
  * tools/ai-bench.js —— 三打一 AI 自对弈基准（A/B 对比）。
  *
  * 用法：node tools/ai-bench.js [局数=120] [--baseline <baseline策略文件>]
- *   baseline 缺省 = miniprogram/ai/.baseline-strategy.js（不入库；可用
- *   `git show <旧commit>:miniprogram/ai/strategy-greedy.js > miniprogram/ai/.baseline-strategy.js` 再生）
+ *   baseline 缺省 = miniprogram/ai/.baseline-strategy.js（不入库；= 提交 2a9c125
+ *   的策略快照，仅头注释差一行，可用
+ *   `git show 2a9c125:miniprogram/ai/strategy-greedy.js > miniprogram/ai/.baseline-strategy.js` 再生）
  *
  * 同一批种子 → 同样的牌、同样的报分（两种策略 decideScoreBid 相同），
  * 三种配置对比庄家胜率：
@@ -89,10 +90,11 @@ function main() {
   const oldS = new Old('normal');
 
   console.log(`局数=${games}  baseline=${path.relative(ROOT, baselinePath)}\n`);
-  console.log('配置     庄胜   平均庄分  平均攻分  平均合同  非法  分不守恒');
+  console.log('配置     庄胜   平均庄分  平均攻分  平均合同  非法  分不守恒  耗时(s)');
   for (const mode of ['base', 'd-new', 'all-new', 'a-new']) {
     const ai = routedAI(newS, oldS, mode);
     let wins = 0, done = 0, dPts = 0, aPts = 0, contract = 0, illegal = 0, bad = 0;
+    const t0 = Date.now();
     for (let seed = 1; seed <= games; seed++) {
       const s = playOne(cfg, ai, seed);
       if (!s) continue;
@@ -105,7 +107,7 @@ function main() {
     console.log(
       `${mode.padEnd(7)} ${(wins / done * 100).toFixed(1)}%  `
       + `${(dPts / done).toFixed(1)}    ${(aPts / done).toFixed(1)}    `
-      + `${(contract / done).toFixed(1)}    ${illegal}    ${bad}`
+      + `${(contract / done).toFixed(1)}    ${illegal}    ${bad}    ${((Date.now() - t0) / 1000).toFixed(1)}`
     );
   }
   console.log('\n判定：d-new 庄胜率 > base，且 a-new 庄胜率 < base → 新策略双向更强');

@@ -25,12 +25,66 @@ const { legalMoves, validatePlay } = require('../engine/validate');
 const { parseCombo, domainOf, pointsOf, strengthInDomain } = require('../engine/combo');
 const { pointValue, sortHand } = require('../engine/card');
 const { buildMemory } = require('./memory');
+const { createRng } = require('../utils/random');
 
 /** 将吃意愿门槛（墩内已有分） */
 const TRUMP_IN_THRESHOLD = 10;
 
+/** R5 残局求解预算（确定性：枚举上限 / 固定种子采样数 / 节点上限 / 剪枝宽度） */
+const R5_ENUM_CAP = 240;
+const R5_ENUM_NODE_CAP = 300000; // 枚举递归节点预算（缺门剪枝致结果稀产时的裸搜护栏）
+const R5_SAMPLE_N = 48;
+const R5_NODE_CAP = 120000;
+const R5_K_ROOT = 6;
+const R5_K_NODE = 3;
+const R5_RNG_SEED = 20261024;
+
+/** R3 PIMC 推演预算（确定性：固定种子采样 / 根候选宽度 / rollout 候选宽度 / rollout 步数总预算）
+ * 采样数随手牌（≈rollout 长度）递减：实测 h≤6 时单决策 ~6ms、h≤10 约 ~100ms，
+ * 每局触发 ~2.7 次，真机预算藏在 AI 思考延时内。 */
+const R3_SAMPLES = { 4: 24, 6: 16, 8: 12, 10: 10 }; // h 上限 → 采样数
+const R3_K_ROOT = 4;
+const R3_TAU = Number(envFlag('AI_R3_TAU') !== undefined ? envFlag('AI_R3_TAU') : 10); // 覆盖阈值：最优候选期望 V 须优于贪心选择这么多分（消融扫描 τ∈{0,3,5,8,10,12} 定在 10）
+const R3_ROLLOUT_K = 8;
+const R3_EVENT_CAP = 2400;
+const R3_RNG_SEED = 20261025;
+
+/** R4 情报先验：庄家自选主花色 → 持主天然富集——400 局实测（h=5/8/12 稳定）
+ * 合同 90 庄家占未见主牌 ~57%、合同 100 ~75%（均匀采样只给 ~25%）。
+ * 重要性重采样：采 3× 候选，按「庄家持主数偏离目标」升序罚取前 N。 */
+const R4_SHARE_BASE = 0.57;
+const R4_SHARE_SLOPE = 0.02; // 合同每高 1 分 +2pp
+const R4_SHARE_CAP = 0.8;
+
+/** R7 选主 rollout 预算（确定性：固定种子采样数 / 单局 transition 上限） */
+const R7_ROLLOUTS = 5;
+const R7_STEP_CAP = 800;
+const R7_RNG_SEED = 20261026;
+
 /** 末墩储备：攻方看不见底牌，按庄家「全埋副牌分」实测平均埋底 ~36 分估 */
 const BOTTOM_POINTS_EXP = 35;
+
+/** Node 侧消融开关读取（浏览器/小程序无 process，恒返回 undefined → 默认开） */
+function envFlag(name) {
+  try {
+    return typeof process !== 'undefined' && process.env ? process.env[name] : undefined;
+  } catch (e) {
+    return undefined;
+  }
+}
+
+/** R1 合同意识 / R2 甩牌风险管理 / R5 残局精确求解 消融开关（默认开；
+ *  Node 下 AI_R1=0、AI_R2=0、AI_R5=0 单独关闭跑基准归因；
+ *  R1 再分庄家侧 R1D（成庄墩）与攻方侧 R1A（卡点否决），可独立消融） */
+const FEAT_R1 = envFlag('AI_R1') !== '0';
+const FEAT_R1D = FEAT_R1 && envFlag('AI_R1D') !== '0';
+const FEAT_R1A = FEAT_R1 && envFlag('AI_R1A') !== '0';
+const FEAT_R2 = envFlag('AI_R2') !== '0';
+const FEAT_R5 = envFlag('AI_R5') !== '0';
+const FEAT_R3 = envFlag('AI_R3') !== '0';
+const FEAT_R4 = envFlag('AI_R4') !== '0';
+const FEAT_R6B = envFlag('AI_R6B') !== '0';
+const FEAT_R7 = envFlag('AI_R7') !== '0';
 
 class GreedyStrategy {
   /**
@@ -71,33 +125,132 @@ class GreedyStrategy {
 
   /**
    * 庄家选主花色（不受手牌限制，自由选）：
-   * 策略 = 选"加权牌力最强"的花色（长门 + 大牌 + 该门 2/王可配合）。
+   * 启发式 = 选"加权牌力最强"的花色（长门 + 大牌 + 该门 2/王可配合）；
+   * normal 难度再用 R7 小样本 rollout 复核（打表实测启发式仅 51% 命中最优
+   * 花色、平均每局差 16.7 分）。
    * @param {object} state CHOOSE_TRUMP 阶段
    * @param {number} playerIdx 庄家
    * @returns {string} 'S'|'H'|'C'|'D'
    */
   decideTrumpSuit(state, playerIdx) {
-    const hand = state.players[playerIdx].hand;
     const suits = ['S', 'H', 'C', 'D'];
+    const scores = suits.map((su) => this._trumpSuitScore(state, playerIdx, su));
     let best = suits[0];
     let bestScore = -1;
-    suits.forEach((su) => {
-      const cards = hand.filter((c) => !c.isJoker && c.rank !== '2' && c.suit === su);
-      let sc = cards.length * 4; // 长门基础分
-      cards.forEach((c) => {
-        const v = { A: 6, K: 4, Q: 3, J: 2 }[c.rank] || 0;
-        sc += v + (pointValue(c, state.config) > 0 ? 2 : 0); // 大牌+分牌
-      });
-      // 大牌对子（AA/KK/QQ/JJ）控制力翻倍
-      const byRank = new Map();
-      cards.forEach((c) => byRank.set(c.rank, (byRank.get(c.rank) || 0) + 1));
-      byRank.forEach((n, r) => { if (n >= 2 && { A: 1, K: 1, Q: 1, J: 1 }[r]) sc += 4; });
-      // 同门有 2（配合级牌控制）
-      const twos = hand.filter((c) => !c.isJoker && c.rank === '2' && c.suit === su).length;
-      sc += twos * 5;
-      if (sc > bestScore) { bestScore = sc; best = su; }
-    });
+    suits.forEach((su, i) => { if (scores[i] > bestScore) { bestScore = scores[i]; best = su; } });
+    if (FEAT_R7 && this.difficulty !== 'easy') {
+      const r7 = this._solveTrumpSuit(state, playerIdx, suits, scores);
+      if (r7) return r7;
+    }
     return best;
+  }
+
+  /** 启发式花色打分（rollout 失败回退 / tie-break 用） */
+  _trumpSuitScore(state, playerIdx, su) {
+    const hand = state.players[playerIdx].hand;
+    const cards = hand.filter((c) => !c.isJoker && c.rank !== '2' && c.suit === su);
+    let sc = cards.length * 4; // 长门基础分
+    cards.forEach((c) => {
+      const v = { A: 6, K: 4, Q: 3, J: 2 }[c.rank] || 0;
+      sc += v + (pointValue(c, state.config) > 0 ? 2 : 0); // 大牌+分牌
+    });
+    // 大牌对子（AA/KK/QQ/JJ）控制力翻倍
+    const byRank = new Map();
+    cards.forEach((c) => byRank.set(c.rank, (byRank.get(c.rank) || 0) + 1));
+    byRank.forEach((n, r) => { if (n >= 2 && { A: 1, K: 1, Q: 1, J: 1 }[r]) sc += 4; });
+    // 同门有 2（配合级牌控制）
+    const twos = hand.filter((c) => !c.isJoker && c.rank === '2' && c.suit === su).length;
+    sc += twos * 5;
+    return sc;
+  }
+
+  /* --------------------- R7 选主花色：小样本 rollout 复核 --------------------- */
+
+  /**
+   * 选主 rollout（打表实测启发式仅 51% 命中最优、平均差 16.7 分/局）：
+   * CHOOSE_TRUMP 态庄家已并底持 33 张（底牌已知），未知=三家 25×3 →
+   * 固定种子采样 R7_ROLLOUT 组三家手牌（共同随机数：同组采样评全部 4 花色），
+   * 每花色逐组用基线贪心快打到 SCORING，取庄家得分均值 argmax；启发式分
+   * 千分位做确定性 tie-break。确定性：固定种子+无时钟截断，bench 可复现。
+   * @returns {string|null} 花色；null=异常/账目不平 → 回退启发式
+   */
+  _solveTrumpSuit(state, dealerIdx, suits, heurScores) {
+    try {
+      const unseen = this._r7Unseen(state, dealerIdx);
+      if (unseen.length !== 3 * 25) return null; // 账目不平（防御）
+      const rng = createRng(R7_RNG_SEED);
+      const samples = [];
+      for (let m = 0; m < R7_ROLLOUTS; m++) {
+        const pool = rng.shuffle(unseen);
+        samples.push([pool.slice(0, 25), pool.slice(25, 50), pool.slice(50, 75)]);
+      }
+      let best = null;
+      let bestV = -Infinity;
+      for (let si = 0; si < suits.length; si++) {
+        let sum = 0;
+        for (const hands3 of samples) {
+          const ss = JSON.parse(JSON.stringify(state));
+          let k = 0;
+          for (let s = 0; s < 4; s++) {
+            if (s === dealerIdx) continue;
+            ss.players[s].hand = hands3[k++].slice();
+          }
+          const pts = this._r7Playout(ss, suits[si], dealerIdx);
+          if (pts === null) return null; // 局内异常 → 整体回退启发式
+          sum += pts;
+        }
+        const v = sum / samples.length + heurScores[si] / 1000; // 启发式分千分位 tie-break
+        if (v > bestV) { bestV = v; best = suits[si]; }
+      }
+      return best;
+    } catch (e) {
+      return null; // 求解器是增强件，异常静默回退
+    }
+  }
+
+  /** 庄家视角未见牌（全副 − 我 33 张；底牌已并入手，已知不采） */
+  _r7Unseen(state, dealerIdx) {
+    const RANKS = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+    const cnt = new Map();
+    state.players[dealerIdx].hand.forEach((c) => {
+      const k = `${c.suit}-${c.rank}`;
+      cnt.set(k, (cnt.get(k) || 0) + 1);
+    });
+    const out = [];
+    let uid = 0;
+    const push = (n, suit, rank, isJoker) => {
+      for (let i = 0; i < n; i++) out.push({ id: `r7${uid++}`, suit, rank, isJoker });
+    };
+    ['S', 'H', 'C', 'D'].forEach((su) => RANKS.forEach((r) => {
+      push(state.config.deckCount - (cnt.get(`${su}-${r}`) || 0), su, r, false);
+    }));
+    push(state.config.deckCount - (cnt.get('JOKER-BJ') || 0), 'JOKER', 'BJ', true);
+    push(state.config.deckCount - (cnt.get('JOKER-RJ') || 0), 'JOKER', 'RJ', true);
+    return out;
+  }
+
+  /** 从 CHOOSE_TRUMP 态打到 SCORING（埋底=本策略规则、出牌=基线贪心 rollout） */
+  _r7Playout(ss, suit, dealerIdx) {
+    const { transition } = require('../core/statemachine');
+    let st = transition(ss, { type: 'CHOOSE_TRUMP', playerIdx: dealerIdx, suit, ts: 0 });
+    let steps = 0;
+    while (steps++ < R7_STEP_CAP) {
+      if (st.phase === 'SCORING' || st.phase === 'GAME_OVER') {
+        return st.lastSettle ? st.lastSettle.dealerPoints : null;
+      }
+      if (st.phase === 'BURYING') {
+        const cards = this.decideBury(st, dealerIdx, null);
+        st = transition(st, { type: 'BURY', playerIdx: dealerIdx, cards, ts: 0 });
+        continue;
+      }
+      if (st.phase === 'PLAYING') {
+        const mv = this._r3RolloutMove(st, st.turnIdx, { n: 0 }); // 基线贪心（复用 R3）
+        st = transition(st, { type: 'PLAY', playerIdx: st.turnIdx, cards: mv, ts: 0 });
+        continue;
+      }
+      return null; // 未知相位（防御）
+    }
+    return null; // 超步数（防御）
   }
 
   /* ------------------------- 三打一：报分 ------------------------- */
@@ -315,6 +468,18 @@ class GreedyStrategy {
     if (this.difficulty === 'easy' && rng && scored.length > 1 && rng.next() < 0.25) {
       pick = scored[Math.min(1, scored.length - 1)].cards; // 25% 次优
     }
+    // R5 末墩精确求解：有真实选择权时替换贪心选择（预算超限/异常静默回退）
+    if (ctx && FEAT_R5 && this.difficulty !== 'easy') {
+      const r5 = this._solveEndgame(state, playerIdx, ctx);
+      if (r5) pick = r5;
+    }
+    // R3 中盘 PIMC 推演：大分墩/卡点墩的跟牌决策，仅当 rollout 期望值显著
+    // 优于贪心选择（τ 阈值，小样本 EV 有噪声、贪心是大量基准校准的先验）
+    // 才覆盖（R5 求解位手牌=2 与 R3 门互斥；超预算/异常同样静默回退）
+    if (ctx && FEAT_R3 && this.difficulty !== 'easy') {
+      const r3 = this._solvePIMC(state, playerIdx, ctx, pick);
+      if (r3) pick = r3;
+    }
     // 铁律：二次校验；失败回退首个候选
     const check = validatePlay(state, playerIdx, pick);
     if (!check.ok) {
@@ -340,7 +505,6 @@ class GreedyStrategy {
     const isDealerTeam = myTeam === 0;
     const hand = state.players[playerIdx].hand;
     const trumps = hand.filter((c) => domainOf(c, ti) === 'TRUMP');
-    const mem = buildMemory(state, playerIdx);
     let score = 0;
 
     // 末墩抠底意识：剩最后一墩（手牌=领出张数）且攻方 → 最大牌
@@ -359,6 +523,20 @@ class GreedyStrategy {
       // 领分仍罚——被将吃等于白送庄家分。
       if (!combo.isTrump && ctx.sdy.voids && ctx.sdy.voids.dealer.has(combo.suit)) {
         score += 6 - pointsOf(cards_, cfg) * 1.5;
+      }
+      // R2 甩牌风险管理：legalMoves 经 validateThrow 引擎真值校验，AI 甩牌
+      // 永不罚分，唯一败法=缺门家结构将吃整墩夺走（实测 400 局攻方副牌甩牌
+      // 36% 被庄家将吃夺墩、全是缺门将吃；但总暴露仅 ~0.25 分/局，整体期望
+      // 仍为正——庄家已示缺门的甩牌按上方「领分仍罚」计价已够）。此处只
+      // 补隐性缺门：按该门未见牌密度估（3 家共需 3n 张才能全跟），只罚带分
+      // 甩牌。主牌域甩牌不可能被将吃（validateThrow 已保证无更大主牌单元）。
+      if (FEAT_R2 && combo.type === 'throw' && !combo.isTrump
+          && !(ctx.sdy.voids && ctx.sdy.voids.dealer.has(combo.suit))) {
+        const ptsT = pointsOf(cards_, cfg);
+        const list = ctx.di.byDomain.get(combo.suit);
+        const unseenSuit = list ? list.reduce((s, e) => s + e.unseen, 0) : 0;
+        const risk = Math.max(0, Math.min(1, 1 - unseenSuit / (3 * combo.n)));
+        score -= ptsT * 1.5 * risk;
       }
     }
 
@@ -408,7 +586,6 @@ class GreedyStrategy {
     const lead = trick.leadCombo;
     const myTeam = this._camp(state, playerIdx);
     const isLast = trick.plays.length === 3; // 我是末家
-    const mem = buildMemory(state, playerIdx);
 
     const combo = parseCombo(cards_, ti, cfg);
     const pts = pointsOf(cards_, cfg);
@@ -476,26 +653,21 @@ class GreedyStrategy {
       di.byDomain.get(d).push({ s: strengthInDomain(fake, ti), unseen });
     });
     const sdy = this._sdyCtx(state, playerIdx);
-    sdy.voids = this._voidSuitsOf(state, ti);
+    // 缺门情报一次扫描出按席位集合，庄家/任意攻方视图由它派生（免二次扫描）
+    sdy.voids = this._voidsFromSeats(this._r5SeatVoids(state), sdy.dealerIdx);
     return { mem, di, sdy };
   }
 
   /**
-   * 缺门情报（三打一配合核心）：扫已完墩——某门被领出时该家未跟这门
-   * （垫牌/将吃）→ 该家从此缺这门（缺门信息一经示出终身有效）。
+   * 按席位缺门集 → 庄家/任意攻方两个聚合视图。
+   * 缺门信息一经示出终身有效（三打一配合核心情报，见 _r5SeatVoids）。
    * @returns {{dealer:Set<string>, others:Set<string>}} 庄家缺门 / 任意攻方缺门
    */
-  _voidSuitsOf(state, ti) {
-    const dealer = state.sanDaYiTeams ? state.sanDaYiTeams.dealer : state.dealerIdx;
-    const res = { dealer: new Set(), others: new Set() };
-    (state.completedTricks || []).forEach((t) => {
-      if (!t.leadCombo || t.leadCombo.isTrump) return;
-      const dom = t.leadCombo.suit;
-      t.plays.forEach((p) => {
-        const followed = p.cards.every((c) => domainOf(c, ti) === dom);
-        if (!followed) (p.playerIdx === dealer ? res.dealer : res.others).add(dom);
-      });
-    });
+  _voidsFromSeats(seatVoids, dealerIdx) {
+    const res = { dealer: seatVoids[dealerIdx], others: new Set() };
+    for (let s = 0; s < seatVoids.length; s++) {
+      if (s !== dealerIdx) seatVoids[s].forEach((v) => res.others.add(v));
+    }
     return res;
   }
 
@@ -599,6 +771,9 @@ class GreedyStrategy {
       // 攻方压不过只会全垫小牌——白墩一张，得分≈0，还失去后手压制与
       // 末墩守底/抠底资本。非末墩领出「剩余牌无敌」顶主按底分罚；
       // 末墩本身不罚（该抠底就抠底）。
+      // 注：曾试 R1「差≤20 分就解除囤顶主罚」（近败局直觉：顶主=成庄手段），
+      // 实测 d-new 54.3%→50.0%（−4.3pp）——庄家提前烧顶主后攻方垫空牌，
+      // 控制与底分双失，囤主罚不能动。
       const tricksLeft = hand.length / cards_.length;
       if (tricksLeft > 1 && this._unseenHigher(di, 'TRUMP', combo.units[0].strength) === 0) {
         const bp = (state.bottomCards || []).reduce((s2, c) => s2 + pointValue(c, cfg), 0);
@@ -635,7 +810,8 @@ class GreedyStrategy {
    * 攻方 = 贪心基线 + 团队配合：
    *   锁墩（庄家夺不走的墩）→ 全力喂分、垫废牌、绝不超压队友——
    *   攻分是三家团队总分，谁赢墩无所谓（_teamLocked）；
-   *   队友领先未锁墩时 0 分超压小罚（赢牌留着防庄家）；
+   *   队友领先未锁墩时 0 分超压小罚（赢牌留着防庄家）；R6 让路——
+   *   队友在压王/2 级主（≥950）时超压重罚（烧顶级主抢已近乎到手的墩）；
    *   末墩储备——剩 ≤5 墩不把「剩余牌无敌」大主花在小分墩（_lastTrickReserve）；
    * 庄家 = 合同意识版：有分墩锁墩但省力（记牌器稳赢时最小稳赢即可），
    *   白墩仍最小赢；输墩绝不送分。
@@ -658,6 +834,10 @@ class GreedyStrategy {
     let score = 0;
 
     if (sdy.isDealer) {
+      // R1D 合同意识（庄家侧）：落后时的「成庄墩」——赢下这墩即跨过
+      // 合同线。阶跃胜负制下这一墩的边际价值=整场胜负（400 局实测：
+      // need≤墩分时刻 121 次，庄家仅 42% 真赢下该墩）。
+      const seal = FEAT_R1D && sdy.need > 0 && trickPts + pts >= sdy.need;
       if (canWin) {
         if (isLast) {
           score += 30 + pts * 2 + trickPts; // 末家稳收：连自己分一起算
@@ -670,6 +850,12 @@ class GreedyStrategy {
         } else {
           score += 20 - strength / 100; // 白墩最小赢（庄家将吃抢节奏，不罚）
         }
+        if (seal) {
+          // 成庄墩：非末家还要防身后攻方超压——稳赢组合确定性大幅上调，
+          // 未必稳赢就直接上最大牌（这一墩丢了=后面全白搭）
+          score += 10;
+          if (!isLast) score += this._isSureCombo(combo, di) ? 8 : strength / 80;
+        }
       } else {
         if (allTrump) score -= 20; // 输墩浪费主牌
         score -= pts; // 输墩绝不送分
@@ -677,6 +863,14 @@ class GreedyStrategy {
       }
     } else {
       // 攻方：贪心基线 + 团队配合（v4）
+      // R1A 卡点防守（攻方侧）：庄家 need ≤ 墩内潜在分 → 这墩若归庄即
+      // 成庄，攻方夺墩=直接否决合同（阶跃胜负制，95 场/400 局胜负差
+      // ≤15 分）。否决价值高于末墩抠底期望与省牌 → 豁免储备/经济罚、
+      // 全力夺墩；垫分重罚（分进庄家兜里）。庄家已出且未在压 → 墩已
+      // 否决，无需烧资本。
+      const dealerPlayed = trick.plays.some((p) => p.playerIdx === sdy.dealerIdx);
+      const deny = FEAT_R1A && sdy.need > 0 && trickPts + pts >= sdy.need
+        && (!dealerPlayed || curWinnerTeam === 0);
       // 锁墩：这墩已稳进我方（庄家出过且队友在压；或庄家未出但队友顶主
       // 且剩余牌无更大主）→ 归属与我出什么无关
       const lock = teamWinning && this._teamLocked(state, playerIdx, ctx, trick);
@@ -693,17 +887,27 @@ class GreedyStrategy {
           if (teamWinning && trickPts >= TRUMP_IN_THRESHOLD) score += 8;
           // 队友领先但未锁墩：0 分超压小罚——我的赢牌留着防庄家更有价值
           if (teamWinning && pts === 0) score -= 6;
+          // R6 高主让路（走到这分支时庄家必未出，否则已锁墩）：队友在压的
+          // 是王/2 级主（强度 ≥950）——能反压的只剩更大的王，大概率不在庄家
+          // 手里；超压=再烧一张顶级主去抢一个已近乎到手的墩（攻分是团队
+          // 总分，谁赢墩无所谓），留给对付庄家更有价值
+          if (FEAT_R6B && teamWinning && !dealerPlayed
+              && this._mateTopTrump(state, trick, ti, cfg)) score -= 12;
         }
         score += trickPts / 2 + pts; // 攻方收分意识
+        if (deny) score += 10 + Math.min(sdy.need, 15);
         // 末墩储备：剩墩 ≤5 时，花无敌大主只赢回小分 → 罚，留着抠底
-        score -= this._lastTrickReserve(state, playerIdx, cards_, ctx, trickPts + pts);
+        // （deny 时豁免——否决成庄 > 抠底期望）
+        if (!deny) score -= this._lastTrickReserve(state, playerIdx, cards_, ctx, trickPts + pts);
         // 主牌经济：赢墩要花主牌时按墩内分值「付费」——
-        // 无分墩不烧主（主牌留着后手将吃大分墩），小分墩少烧
-        if (allTrump && !lead.isTrump) {
-          score -= Math.max(0, 18 - trickPts - pts);
-        } else if (allTrump && lead.isTrump && !isLast && trickPts + pts < 10) {
-          // 庄家清主小分墩：能输就输，留大主后手夺分
-          score -= Math.max(0, 16 - trickPts - pts);
+        // 无分墩不烧主（主牌留着后手将吃大分墩），小分墩少烧（deny 豁免）
+        if (!deny) {
+          if (allTrump && !lead.isTrump) {
+            score -= Math.max(0, 18 - trickPts - pts);
+          } else if (allTrump && lead.isTrump && !isLast && trickPts + pts < 10) {
+            // 庄家清主小分墩：能输就输，留大主后手夺分
+            score -= Math.max(0, 16 - trickPts - pts);
+          }
         }
       } else {
         // 缺门垫主 = 纯浪费（跟主牌领出被迫出主不算）
@@ -713,6 +917,7 @@ class GreedyStrategy {
         } else {
           score -= pts; // 庄家在压 → 绝不送分
         }
+        if (deny) score -= pts * 2; // 垫分=亲手送庄家跨合同线
         score += (20 - strength) / 20 * 6;
       }
     }
@@ -734,6 +939,520 @@ class GreedyStrategy {
     if (!wp) return false;
     if (!wp.cards.every((c) => domainOf(c, ti) === 'TRUMP')) return false;
     return this._unseenHigher(di, 'TRUMP', this._maxStrength(wp.cards, ti)) === 0;
+  }
+
+  /** 墩内当前在压的牌是否王/2 级顶级主（强度 ≥950：BJ/RJ/主2/副2；主花色 A 顶格 914 不算） */
+  _mateTopTrump(state, trick, ti, cfg) {
+    const wp = this._currentWinnerPlay(state, trick, ti, cfg);
+    if (!wp) return false;
+    return wp.cards.every((c) => domainOf(c, ti) === 'TRUMP')
+      && this._maxStrength(wp.cards, ti) >= 950;
+  }
+
+  /* --------------------- R5 残局精确求解（末两墩） --------------------- */
+
+  /**
+   * 残局精确求解（剩 ≤2 墩，即手牌 ≤2 张）：枚举/采样未见牌分布 →
+   * 每个候选出牌按「庄家方最大化、攻方最小化 V=庄家终局分−合同分」的
+   * 完全信息 minimax（α-β 剪枝）求值到全场打空，取期望 V 最优。
+   * 价值集中在末墩底分归属（末墩赢家整包收底）与合同卡点（胜负本身）。
+   * 选择权只在「手牌>本墩张数」（跟牌留牌）或「领出可拆/可整」（拆单
+   * vs 整对）时存在；手牌=本墩张数时合法出牌唯一，自动跳过。
+   * 确定性保证：分布按牌序全枚举（超上限改固定种子采样）、候选次序稳定、
+   * 节点超限整体回退贪心（不按时钟截断）→ bench 同种子可复现。
+   * PIMC 通病（对手知情过强）在只剩两墩时影响有限，接受。
+   * @returns {Array<object>|null} 最优出牌；null=不适用/超预算，走贪心
+   */
+  _solveEndgame(state, playerIdx, ctx) {
+    try {
+      const cfg = state.config;
+      const ti = state.trumpInfo;
+      const trick = state.currentTrick;
+      const h = state.players[playerIdx].hand.length;
+      if (h !== 2) return null; // v1 范围：手牌恰 2 张（≤2 墩）
+
+      // 胜负已定则不求解：need≤0 庄家已成（庄分只增不减）；
+      // need > 未见牌总分数 = 数学上追不上（未见分含底牌，攻方视角保守）
+      const need = ctx.sdy.need;
+      const mem = ctx.mem;
+      const unseenPts = mem.totalPoints - mem.pointsPlayed - mem.pointsInHand;
+      if (need <= 0 || need > unseenPts) return null;
+
+      const rootCands = legalMoves(state, playerIdx);
+      if (rootCands.length <= 1) return null; // 无选择权（如跟牌且手牌=本墩张数）
+
+      const isLead = !trick || trick.plays.length === 0;
+      const isDealerView = playerIdx === ctx.sdy.dealerIdx;
+
+      // 各对手剩余手牌张数（墩内已出者少 n 张——手牌按墩同步缩减）
+      const n = isLead ? null : trick.leadCombo.n;
+      const groups = [];
+      for (let s = 0; s < 4; s++) {
+        if (s === playerIdx) continue;
+        const playedIn = !isLead && trick.plays.some((p) => p.playerIdx === s);
+        groups.push({ seat: s, size: h - (playedIn ? n : 0), voids: null });
+      }
+      const seatVoids = this._r5SeatVoids(state);
+      groups.forEach((g) => { g.voids = seatVoids[g.seat]; });
+
+      // 未见牌（我视角）：全副 − 已出 − 我手牌；庄家再剔除真底牌
+      const unseen = this._r5UnseenCards(state, playerIdx);
+      const needCnt = groups.reduce((s, g) => s + g.size, 0) + (isDealerView ? 0 : cfg.bottomCards);
+      if (unseen.length !== needCnt) return null; // 账目不平（防御），不求解
+      // （R4 先验只喂 R3：h=2 池太小实测加权反而失真 40.0→40.3，勿接到此处）
+
+      const assignments = this._r5Assignments(unseen, groups, ti);
+      if (assignments.length === 0) return null;
+
+      const bottomPtsReal = (state.bottomCards || []).reduce((s, c) => s + pointValue(c, cfg), 0);
+      const seats = groups.map((g) => g.seat);
+      const rootPruned = this._r5Prune(state, playerIdx, rootCands, isLead ? null : trick, R5_K_ROOT);
+      const budget = { n: 0 };
+      const maximize = isDealerView;
+      let best = null;
+      let bestV = maximize ? -Infinity : Infinity;
+      for (const cards of rootPruned) {
+        const combo = parseCombo(cards, ti, cfg);
+        let sum = 0;
+        for (const asg of assignments) {
+          const ss = this._r5SimState(state, ctx, playerIdx, seats, asg,
+            isDealerView ? bottomPtsReal
+              : asg.bottom.reduce((s, c) => s + pointValue(c, cfg), 0));
+          this._r5Apply(ss, playerIdx, cards, combo);
+          let next;
+          if (ss.currentTrick) next = (playerIdx + 1) % 4;
+          else next = ss.tricks[ss.tricks.length - 1].winnerIdx;
+          sum += this._r5Search(ss, next, budget, -Infinity, Infinity);
+        }
+        const ev = sum / assignments.length;
+        if (maximize ? ev > bestV + 1e-9 : ev < bestV - 1e-9) {
+          bestV = ev;
+          best = cards;
+        }
+      }
+      return best;
+    } catch (e) {
+      if (e && e.r5Abort) return null; // 节点超限 → 回退贪心
+      return null; // 其余异常同样静默回退（求解器是增强件，不挡出牌）
+    }
+  }
+
+  /**
+   * 我视角的未见牌列表（合成 Card：id 唯一即可，引擎只用 suit/rank/isJoker）。
+   * 庄家额外剔除真底牌（底牌不在任何手牌里，也永不入局）。
+   */
+  _r5UnseenCards(state, viewerIdx) {
+    const mem = buildMemory(state, viewerIdx);
+    const unseen = [];
+    let uid = 0;
+    const RANKS = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+    const push = (n, suit, rank, isJoker) => {
+      for (let i = 0; i < n; i++) unseen.push({ id: `u${uid++}`, suit, rank, isJoker });
+    };
+    ['S', 'H', 'C', 'D'].forEach((su) => RANKS.forEach((r) => {
+      push(mem.remainingOfKey(`${su}-${r}`), su, r, false);
+    }));
+    push(mem.remainingOfKey('JOKER-BJ'), 'JOKER', 'BJ', true);
+    push(mem.remainingOfKey('JOKER-RJ'), 'JOKER', 'RJ', true);
+    const dealerIdx = state.sanDaYiTeams ? state.sanDaYiTeams.dealer : state.dealerIdx;
+    if (viewerIdx === dealerIdx && Array.isArray(state.bottomCards) && state.bottomCards.length) {
+      const drop = new Map();
+      state.bottomCards.forEach((c) => {
+        const k = `${c.suit}-${c.rank}`;
+        drop.set(k, (drop.get(k) || 0) + 1);
+      });
+      const kept = [];
+      for (const c of unseen) {
+        const k = `${c.suit}-${c.rank}`;
+        const d = drop.get(k) || 0;
+        if (d > 0) drop.set(k, d - 1);
+        else kept.push(c);
+      }
+      return kept;
+    }
+    return unseen;
+  }
+
+  /** 按席位的已示缺门（缺门情报一经示出终身有效；分配假设不得违反） */
+  _r5SeatVoids(state) {
+    const ti = state.trumpInfo;
+    const res = [new Set(), new Set(), new Set(), new Set()];
+    (state.completedTricks || []).forEach((t) => {
+      if (!t.leadCombo || t.leadCombo.isTrump) return;
+      const dom = t.leadCombo.suit;
+      t.plays.forEach((p) => {
+        const followed = p.cards.every((c) => domainOf(c, ti) === dom);
+        if (!followed) res[p.playerIdx].add(dom);
+      });
+    });
+    return res;
+  }
+
+  /**
+   * 未见牌 → (各席位按其剩余张数) + (攻方视角余下=假设底牌) 的分布集合。
+   * 组合数 ≤ 上限全枚举（带缺门剪枝），否则固定种子采样（拒绝缺门冲突）。
+   * 枚举同时受节点预算约束：缺门剪枝可让深层组几乎填不满 → 结果数长期不涨、
+   * 上限永不触发，组合树裸搜（实测 R3 尺寸池 35 张时单次 222s）——超节点
+   * 预算即视为溢出转采样。sampleNOverride 给定时跳过枚举直接采样（R3 大池
+   * 池枚举必溢出，纯浪费）。
+   */
+  _r5Assignments(unseen, groups, ti, sampleNOverride, weightSpec) {
+    const enumCap = R5_ENUM_CAP;
+    const sampleN = sampleNOverride || R5_SAMPLE_N;
+    const ok = (c, g) => !g.voids.has(domainOf(c, ti));
+    const out = [];
+    let overflow = false;
+    // 全枚举：按组递归，组内组合选取（chosen 引用比较足够：pool 无重复对象）
+    const rec = (gi, pool, acc) => {
+      if (overflow) return;
+      if (out.length > enumCap) { overflow = true; return; }
+      if (gi === groups.length) {
+        out.push({ hands: acc.slice(), bottom: pool.slice() });
+        return;
+      }
+      const g = groups[gi];
+      const comboRec = (start, chosen) => {
+        if (overflow) return;
+        if (chosen.length === g.size) {
+          const chosenSet = new Set(chosen);
+          const restPool = pool.filter((c) => !chosenSet.has(c));
+          acc.push(chosen.slice());
+          rec(gi + 1, restPool, acc);
+          acc.pop();
+          return;
+        }
+        for (let i = start; i < pool.length; i++) {
+          if (++enumNodes > R5_ENUM_NODE_CAP) { overflow = true; return; } // 防裸搜
+          if (!ok(pool[i], g)) continue;
+          chosen.push(pool[i]);
+          comboRec(i + 1, chosen);
+          chosen.pop();
+        }
+      };
+      comboRec(0, []);
+    };
+    let enumNodes = 0;
+    if (!sampleNOverride) rec(0, unseen, []);
+    else overflow = true; // 显式采样模式（R3 大池）：跳过枚举
+    if (!overflow) return out;
+    // 采样：固定种子洗牌后按序给各组取不冲突的牌，剩余即假设底牌。
+    // weightSpec（R4）时超采 3× 按「庄家持主数偏离目标」重要性排序取前 N。
+    out.length = 0;
+    const rng = createRng(R5_RNG_SEED);
+    const wantN = sampleN * (weightSpec ? 3 : 1);
+    for (let t = 0; t < wantN * 4 && out.length < wantN; t++) {
+      const pool = rng.shuffle(unseen);
+      const taken = new Set();
+      const hands = [];
+      let fail = false;
+      for (const g of groups) {
+        const take = [];
+        for (const c of pool) {
+          if (take.length >= g.size) break;
+          if (taken.has(c.id) || !ok(c, g)) continue;
+          taken.add(c.id);
+          take.push(c);
+        }
+        if (take.length < g.size) { fail = true; break; }
+        hands.push(take);
+      }
+      if (fail) continue;
+      out.push({ hands, bottom: pool.filter((c) => !taken.has(c.id)) });
+    }
+    if (weightSpec && out.length > sampleN) {
+      const scored = out.map((asg, i) => {
+        const dT = asg.hands[weightSpec.groupIdx]
+          .filter((c) => domainOf(c, ti) === 'TRUMP').length;
+        return { asg, key: -Math.abs(dT - weightSpec.target), i };
+      });
+      scored.sort((a, b) => b.key - a.key || a.i - b.i);
+      return scored.slice(0, sampleN).map((e) => e.asg);
+    }
+    return out;
+  }
+
+  /** 轻量模拟态：只含引擎校验/结算所需字段，手牌=假设分布 */
+  _r5SimState(state, ctx, myIdx, remainingSeats, asg, bottomPts) {
+    const players = [0, 1, 2, 3].map(() => ({ hand: [] }));
+    players[myIdx].hand = state.players[myIdx].hand.slice();
+    asg.hands.forEach((cards, k) => { players[remainingSeats[k]].hand = cards.slice(); });
+    const cur = state.currentTrick;
+    return {
+      config: state.config,
+      trumpInfo: state.trumpInfo,
+      players,
+      currentTrick: cur ? {
+        leadPlayerIdx: cur.leadPlayerIdx,
+        leadCombo: cur.leadCombo,
+        plays: cur.plays.map((p) => ({
+          playerIdx: p.playerIdx, cards: p.cards, combo: p.combo,
+          isDiscard: false, isEffectiveTrump: false
+        }))
+      } : null,
+      tricks: [],
+      dealerIdx: ctx.sdy.dealerIdx,
+      sanDaYiTeams: state.sanDaYiTeams || null, // rollout 贪心打分需判阵营
+      bankDealerPts: ctx.sdy.dealerPts,
+      bottomPts,
+      contractScore: state.contractScore
+    };
+  }
+
+  /** 模拟态上出一手牌（应用；返回撤销函数）。墩满即结算，轮到赢家。 */
+  _r5Apply(ss, seat, cards, combo) {
+    const hand = ss.players[seat].hand;
+    const ids = new Set(cards.map((c) => c.id));
+    const removed = [];
+    for (let i = hand.length - 1; i >= 0; i--) {
+      if (ids.has(hand[i].id)) removed.push(hand.splice(i, 1)[0]);
+    }
+    const wasLead = !ss.currentTrick;
+    if (wasLead) ss.currentTrick = { leadPlayerIdx: seat, leadCombo: combo, plays: [] };
+    const play = { playerIdx: seat, cards, combo, isDiscard: false, isEffectiveTrump: false };
+    ss.currentTrick.plays.push(play);
+    let snapshot = null;
+    let done = null;
+    if (ss.currentTrick.plays.length === 4) {
+      snapshot = ss.currentTrick;
+      const { resolveTrick } = require('../engine/trick');
+      resolveTrick(ss.currentTrick, ss.trumpInfo, ss.config);
+      done = { winnerIdx: snapshot.winnerIdx, points: snapshot.points };
+      ss.tricks.push(done);
+      ss.currentTrick = null;
+    }
+    return () => { // 撤销（resolveTrick 残留的 winnerIdx/points 会被下次结算覆盖）
+      if (done) {
+        ss.tricks.pop();
+        ss.currentTrick = snapshot;
+      }
+      const idx = ss.currentTrick.plays.indexOf(play);
+      if (idx >= 0) ss.currentTrick.plays.splice(idx, 1);
+      if (wasLead && ss.currentTrick.plays.length === 0) ss.currentTrick = null;
+      for (const c of removed) hand.push(c);
+    };
+  }
+
+  /**
+   * 完全信息 minimax（fail-soft α-β）：庄家席位最大化、攻方席位最小化
+   * V=庄家终局分−合同分。终局=手牌全空：庄家得分=已入账+模拟墩分+末墩赢家收底。
+   */
+  _r5Search(ss, toAct, budget, alpha, beta) {
+    budget.n++;
+    if (budget.n > R5_NODE_CAP) throw { r5Abort: true };
+    if (ss.players[toAct].hand.length === 0 && !ss.currentTrick) {
+      return this._r5TerminalOf(ss);
+    }
+    const cands = legalMoves(ss, toAct);
+    if (cands.length === 0) throw { r5Abort: true }; // 模拟异常，整体回退
+    const pruned = this._r5Prune(ss, toAct, cands, ss.currentTrick, R5_K_NODE);
+    const maximize = toAct === ss.dealerIdx;
+    let best = maximize ? -Infinity : Infinity;
+    for (const cards of pruned) {
+      const combo = parseCombo(cards, ss.trumpInfo, ss.config);
+      const undo = this._r5Apply(ss, toAct, cards, combo);
+      let next;
+      if (ss.currentTrick) next = (toAct + 1) % 4;
+      else next = ss.tricks[ss.tricks.length - 1].winnerIdx;
+      const v = this._r5Search(ss, next, budget, alpha, beta);
+      undo();
+      if (maximize) {
+        if (v > best) best = v;
+        if (best >= beta) break; // 剪枝
+        if (best > alpha) alpha = best;
+      } else {
+        if (v < best) best = v;
+        if (best <= alpha) break; // 剪枝
+        if (best < beta) beta = best;
+      }
+    }
+    return best;
+  }
+
+  _r5TerminalOf(ss) {
+    let dPts = ss.bankDealerPts;
+    for (const t of ss.tricks) if (t.winnerIdx === ss.dealerIdx) dPts += t.points;
+    const last = ss.tricks[ss.tricks.length - 1];
+    if (last && last.winnerIdx === ss.dealerIdx) dPts += ss.bottomPts;
+    return dPts - ss.contractScore;
+  }
+
+  /**
+   * 候选战术剪枝：跟牌按（能否赢墩、吃分、省牌力），领出按（分、大牌、结构）
+   * 排序取前 K；始终保留引擎首候选（防御性兜底）。
+   */
+  _r5Prune(stateOrSs, seat, cands, trick, k) {
+    const cfg = stateOrSs.config;
+    const ti = stateOrSs.trumpInfo;
+    const keyed = cands.map((cards, i) => {
+      const pts = pointsOf(cards, cfg);
+      const strength = this._maxStrength(cards, ti);
+      let key;
+      if (trick) {
+        const trickPts = trick.plays.reduce((s, p) => s + pointsOf(p.cards, cfg), 0);
+        const combo = parseCombo(cards, ti, cfg);
+        const canWin = this._wouldWin(stateOrSs, trick, seat, cards, combo) ? 100 : 0;
+        key = canWin + pts * 2 + trickPts * 0.5 - strength / 50;
+      } else {
+        const combo = parseCombo(cards, ti, cfg);
+        key = pts * 2 + strength / 300
+          + (combo && (combo.type === 'pair') ? 4 : 0)
+          + (combo && (combo.type === 'tractor' || combo.type === 'throw') ? 4 : 0)
+          + (combo && combo.isTrump ? 2 : 0);
+      }
+      return { cards, key, i };
+    });
+    keyed.sort((a, b) => b.key - a.key || a.i - b.i);
+    const out = keyed.slice(0, k).map((e) => e.cards);
+    if (out.length === 0) out.push(cands[0]);
+    return out;
+  }
+
+  /* ------------------- R3 PIMC 蒙特卡洛推演（中盘） ------------------- */
+
+  /**
+   * 中盘关键决策的 PIMC 推演：按记牌器采样三家手牌分布（同一组分布评所有
+   * 根候选 = 共同随机数，差分方差远小于独立采样）→ 每候选在模拟态上用基线
+   * 贪心快走打到收局 → 比期望 V=庄家终局分−合同分。
+   * 范围：手牌 3~10 张的跟牌，且为关键墩——墩内分 ≥10，或墩分 ≥ need
+   * （庄家赢下即达标 / 攻方夺走即否决，胜负边际价值最高的墩）。手牌=2 归 R5
+   * 精确求解；>10 张 rollout 太长不推演。rollout 策略 = 无上下文贪心基线
+   * （_scoreLead/_scoreFollow 基线路径：无记牌、快，且所有候选面对同一策略，
+   * 策略偏差在候选间近似抵消）。
+   * 确定性：固定种子采样 + 稳定次序 + 步数上限（非时钟截断），bench 可复现。
+   * 只在最优候选的期望 V 比贪心选择高出/低出 R3_TAU 分时才覆盖——小样本
+   * EV 有噪声，贪心本身是大量基准校准过的先验（消融开关 AI_R3_CAMP=att/dealer
+   * 可只对单阵营启用）。
+   * @param {Array<object>} greedyPick 贪心已选的出牌（作为对照先验）
+   * @returns {Array<object>|null} 覆盖的出牌；null=不适用/超预算/证据不足，走贪心
+   */
+  _solvePIMC(state, playerIdx, ctx, greedyPick) {
+    try {
+      const cfg = state.config;
+      const ti = state.trumpInfo;
+      const trick = state.currentTrick;
+      const h = state.players[playerIdx].hand.length;
+      if (h < 3 || h > 10) return null; // R5 管 h=2；>10 rollout 超预算
+      if (!trick || trick.plays.length === 0) return null; // v1 仅跟牌
+      const n = trick.leadCombo.n;
+      const need = ctx.sdy.need;
+      const mem = ctx.mem;
+      const unseenPts = mem.totalPoints - mem.pointsPlayed - mem.pointsInHand;
+      if (need <= 0 || need > unseenPts) return null; // 胜负已定
+      const trickPts = trick.plays.reduce((s, p) => s + pointsOf(p.cards, cfg), 0);
+      if (trickPts < 10 && trickPts < need) return null; // 只推演关键墩
+      const rootCands = legalMoves(state, playerIdx);
+      if (rootCands.length <= 1) return null;
+      const isDealerView = playerIdx === ctx.sdy.dealerIdx;
+      // 阵营消融：AI_R3_CAMP=att/dealer 只对单侧启用（缺省 both）
+      const camp = envFlag('AI_R3_CAMP') || 'both';
+      if (camp === 'att' && isDealerView) return null;
+      if (camp === 'dealer' && !isDealerView) return null;
+
+      // 对手分组（墩内已出者少 n 张）+ 未见牌账目校验（同 R5）
+      const groups = [];
+      for (let s = 0; s < 4; s++) {
+        if (s === playerIdx) continue;
+        const playedIn = trick.plays.some((p) => p.playerIdx === s);
+        groups.push({ seat: s, size: h - (playedIn ? n : 0), voids: null });
+      }
+      const seatVoids = this._r5SeatVoids(state);
+      groups.forEach((g) => { g.voids = seatVoids[g.seat]; });
+      const unseen = this._r5UnseenCards(state, playerIdx);
+      const needCnt = groups.reduce((s, g) => s + g.size, 0) + (isDealerView ? 0 : cfg.bottomCards);
+      if (unseen.length !== needCnt) return null;
+      const sampleN = h <= 4 ? R3_SAMPLES[4] : h <= 6 ? R3_SAMPLES[6]
+        : h <= 8 ? R3_SAMPLES[8] : R3_SAMPLES[10];
+      // R4 情报先验（攻方视角）：庄家自选主花色 → 采样分布按持主富集加权
+      let weightSpec = null;
+      if (FEAT_R4 && !isDealerView) {
+        const gi = groups.findIndex((g) => g.seat === ctx.sdy.dealerIdx);
+        if (gi >= 0) {
+          const unseenTrumps = unseen.filter((c) => domainOf(c, ti) === 'TRUMP').length;
+          const share = Math.min(R4_SHARE_CAP,
+            R4_SHARE_BASE + Math.max(0, state.contractScore - 90) * R4_SHARE_SLOPE);
+          weightSpec = { groupIdx: gi, target: share * unseenTrumps };
+        }
+      }
+      const assignments = this._r5Assignments(unseen, groups, ti, sampleN, weightSpec);
+      if (assignments.length === 0) return null;
+
+      const bottomPtsReal = (state.bottomCards || []).reduce((s, c) => s + pointValue(c, cfg), 0);
+      const seats = groups.map((g) => g.seat);
+      const rootPruned = this._r5Prune(state, playerIdx, rootCands, trick, R3_K_ROOT);
+      // 贪心选择必须在评估集内（对照先验；剪枝可能把它挤掉）
+      const evalSet = rootPruned.some((c) => c === greedyPick)
+        ? rootPruned : rootPruned.concat([greedyPick]);
+      const budget = { n: 0 };
+      const maximize = isDealerView;
+      const evOf = (cards) => {
+        const combo = parseCombo(cards, ti, cfg);
+        let sum = 0;
+        for (const asg of assignments) {
+          const ss = this._r5SimState(state, ctx, playerIdx, seats, asg,
+            isDealerView ? bottomPtsReal
+              : asg.bottom.reduce((s, c) => s + pointValue(c, cfg), 0));
+          this._r5Apply(ss, playerIdx, cards, combo);
+          let next;
+          if (ss.currentTrick) next = (playerIdx + 1) % 4;
+          else next = ss.tricks[ss.tricks.length - 1].winnerIdx;
+          sum += this._r3Rollout(ss, next, budget);
+        }
+        return sum / assignments.length;
+      };
+      let best = null;
+      let bestV = maximize ? -Infinity : Infinity;
+      let greedyV = null;
+      for (const cards of evalSet) {
+        const ev = evOf(cards);
+        if (cards === greedyPick) greedyV = ev; // 对照先验的期望（同组分布，公平比较）
+        if (maximize ? ev > bestV + 1e-9 : ev < bestV - 1e-9) {
+          bestV = ev;
+          best = cards;
+        }
+      }
+      if (best === greedyPick) return null; // rollout 没推翻贪心
+      if (greedyV === null) greedyV = evOf(greedyPick); // 防御（理论到不了）
+      if (maximize ? bestV - greedyV < R3_TAU : greedyV - bestV < R3_TAU) return null; // 优势不显著
+      return best;
+    } catch (e) {
+      if (e && e.r3Abort) return null; // rollout 步数超限 → 回退贪心
+      return null; // 求解器是增强件，其余异常同样静默回退
+    }
+  }
+
+  /**
+   * 单分布 rollout：从「我已出根候选」的模拟态起，全员基线贪心打到收局，
+   * 返回 V=庄家终局分−合同分（复用 _r5Apply 推进、_r5TerminalOf 终局估值）。
+   */
+  _r3Rollout(ss, toAct, budget) {
+    let guard = 0;
+    while (guard++ < 200) {
+      if (ss.players[toAct].hand.length === 0 && !ss.currentTrick) {
+        return this._r5TerminalOf(ss); // 全场打空
+      }
+      const mv = this._r3RolloutMove(ss, toAct, budget);
+      const combo = parseCombo(mv, ss.trumpInfo, ss.config);
+      this._r5Apply(ss, toAct, mv, combo);
+      toAct = ss.currentTrick ? (toAct + 1) % 4 : ss.tricks[ss.tricks.length - 1].winnerIdx;
+    }
+    throw { r3Abort: true }; // 异常长局，防御性放弃
+  }
+
+  /** rollout 单步：基线贪心打分（无上下文，快）；候选超宽按引擎序截断保确定性 */
+  _r3RolloutMove(ss, seat, budget) {
+    if (++budget.n > R3_EVENT_CAP) throw { r3Abort: true };
+    const cands = legalMoves(ss, seat);
+    if (cands.length === 0) throw { r3Abort: true };
+    if (cands.length <= 1) return cands[0];
+    const capped = cands.length > R3_ROLLOUT_K ? cands.slice(0, R3_ROLLOUT_K) : cands;
+    const isLead = !ss.currentTrick || ss.currentTrick.plays.length === 0;
+    let best = capped[0];
+    let bestS = -Infinity;
+    for (const c of capped) {
+      const s = isLead ? this._scoreLead(ss, seat, c, null) : this._scoreFollow(ss, seat, c, null);
+      if (s > bestS) { bestS = s; best = c; }
+    }
+    return best;
   }
 
   /* ------------------------- 辅助 ------------------------- */
