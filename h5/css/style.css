@@ -82,6 +82,12 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   color: var(--color-text-light);
   border: 0.27rem solid rgba(255, 255, 255, 0.35);
 }
+/* 棕色实底：浅色弹层里的次级强调钮（如"登录已有账号"），与金色主钮并排都醒目 */
+.btn--solid {
+  background: #8a5a2b;
+  color: #fffdf5;
+  border: 0.27rem solid #6d4520;
+}
 .btn--disabled { opacity: 0.4; pointer-events: none; }
 .btn:active { transform: scale(0.96); }
 
@@ -835,7 +841,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
     padding: 3.2vw 4vw; margin-bottom: 3.2vw;
   }
   .cloud-modal__input::placeholder { font-size: 3.4vw; }
-  .cloud-modal__actions { gap: 3.2vw; margin-top: 1.2vw; }
+  .cloud-modal__actions { flex-direction: column; gap: 3.2vw; margin-top: 1.2vw; }
   .cloud-modal__actions .btn { font-size: 4vw; padding: 3vw 0; border-width: 0.5vw; }
   .cloud-modal__foot { font-size: 3.2vw; margin-top: 3.2vw; }
   .cloud-modal__close { font-size: 3.8vw; padding: 2.2vw 5.5vw; margin-top: 3.2vw; }
