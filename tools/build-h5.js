@@ -53,6 +53,8 @@ function main() {
   // 云端接口：EdgeOne 官方模板用 functions/ 目录、新文档用 edge-functions/，双目录都拷（同内容不冲突）
   copyDir(path.join(H5, 'functions'), path.join(DIST, 'functions'));
   copyDir(path.join(H5, 'functions'), path.join(DIST, 'edge-functions'));
+  // Cloudflare Pages 部署时：源码目录不作为静态资产上传（_worker.js 才是后端入口，见 README）
+  fs.writeFileSync(path.join(DIST, '.assetsignore'), 'functions\nedge-functions\n', 'utf8');
   fs.copyFileSync(path.join(H5, 'manifest.webmanifest'), path.join(DIST, 'manifest.webmanifest'));
 
   // 4. index.html 注入版本号（css/js/manifest 引用）

@@ -1,0 +1,11 @@
+# Cloudflare Pages 部署配置（wrangler pages deploy 用，见 h5/functions/README.md）
+# 后端走 Advanced Mode：dist 根的 _worker.js（由 wrangler pages functions build 生成）
+# KV 绑定变量名 KV —— 与后端 runtime.js 的 kvOf(env.KV) 对口
+name = "sandayi"
+pages_build_output_dir = "h5/dist"
+compatibility_date = "2026-10-24"
+compatibility_flags = ["nodejs_compat"]
+
+[[kv_namespaces]]
+binding = "KV"
+id = "12347a64b1b447348e8794f4eba4db9e"

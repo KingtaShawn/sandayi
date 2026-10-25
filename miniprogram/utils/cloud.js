@@ -5,14 +5,14 @@
  * 档案同步搬 wx storage 原始字符串（与 H5 localStorage 同键同值，两端账号绑定后战绩互通）。
  * 一切网络失败静默：云端不可用 = 单机，游戏不受影响。
  *
- * ⚠️ 上线前必改：CLOUD_BASE 换成 EdgeOne Pages 实际域名，并在小程序后台把该域名
- *    加入 request 合法域名（详见 h5/functions/README.md）。
+ * 注意：CLOUD_BASE 指向 Cloudflare Pages（未备案域名）。微信开发者工具里勾选
+ * "不校验合法域名"即可调试；正式发布需在小程序后台配 request 合法域名（要备案域名）。
  */
 
 'use strict';
 
-/** 云端 API 基址（EdgeOne Pages 部署域名）。 */
-var CLOUD_BASE = 'https://sandayi.edgeone.app'; // ← 上线前替换为实际域名
+/** 云端 API 基址（Cloudflare Pages，与 h5/js/cloud.js 同一后端）。 */
+var CLOUD_BASE = 'https://sandayi.pages.dev';
 
 var LS_TOKEN = 'cloud:token';
 var LS_USER = 'cloud:user';

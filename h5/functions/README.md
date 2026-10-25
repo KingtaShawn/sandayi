@@ -2,24 +2,40 @@
 
 账号 + 云端档案 + 排行榜的全部后端。逻辑集中在 `_lib/api.js` 一份，边缘函数入口（`api/**`）与本地 `h5/serve.js` 共用，行为不分叉。**发布目录自动带上本目录**（tools/build-h5.js 拷贝 functions/ → dist/functions/ 与 dist/edge-functions/，兼容两种目录约定）。
 
-## 上线清单（控制台操作，一次性）
+## 上线清单（后端已上线：Cloudflare Pages）
 
-> 2026-10 现状：push 只会部署 **GitHub Pages 静态站**（`.github/workflows/deploy-h5.yml`），那里**没有后端**，
-> 云端功能全部静默降级。要让 `/api` 真正工作，必须按下表在 **EdgeOne Makers 控制台**建一次项目。
+> **2026-10-25 现状**：后端跑在 **https://sandayi.pages.dev**（Cloudflare Pages 免费档，KV + AUTH_SECRET 已配好，全端点 curl 验证通过）。
+> H5 前端 `CLOUD_BASE` 与小程序 `CLOUD_BASE` 均已指向它；github.io 静态站跨域调用同一后端（CORS 已放行）。
+>
+> 为什么不是 EdgeOne：EdgeOne 默认域名不备案只有 3 小时有效的预览链接、大陆直连 401（官方错误码文档明确），
+> 个人无备案域名用不了；`*.workers.dev` 又被大陆 SNI 阻断——`*.pages.dev` 是免费方案里唯一大陆可达的。EdgeOne 兼容代码（双目录 + 全局 KV）保留，将来有备案域名可迁回。
 
-### EdgeOne Makers（H5 后端，console.cloud.tencent.com/edgeone/pages）
-1. **建项目**：导入 GitHub 仓库 `KingtaShawn/sandayi`；构建命令 `npm run build:h5`；输出目录 `h5/dist`。
-   （产物同时含 `functions/` 与 `edge-functions/` 双目录，两种目录约定都覆盖。）
-2. **开通 KV**：控制台"存储 → KV"申请开通 → 创建命名空间（如 `sandayi`）→ 项目详情"KV 存储"绑定该命名空间，**变量名填 `KV`**（EdgeOne 会把它注入为全局变量，代码里 `runtime.js` 的 kvOf 同时兼容 env 注入）。
-3. **环境变量** `AUTH_SECRET`：随机长字符串（token 签名密钥，泄露=所有人可伪造登录态）。可用 `openssl rand -hex 32` 生成。
-4. 验证：访问 `https://<项目域名>.edgeone.app/api/leaderboard`，返回 `{"list":[...]}` 即通。
-5. 若继续用 GitHub Pages 域名（kingtashawn.github.io）当玩家入口：把 `h5/js/cloud.js` 顶部 `CLOUD_BASE` 填 EdgeOne 域名（跨域调用，后端已放行 CORS `*`）；用 EdgeOne 域名访问则保持空串（同源）。
-6. （可选，开小程序微信登录时）`WX_APPID` / `WX_SECRET`：小程序正式 AppID + AppSecret（公众平台"开发管理"里拿）。不配则小程序端自动降级游客模式，功能不受损。
+### 日常部署（改了后端代码 h5/functions/** 后）
+
+```bash
+npm run build:h5                                              # 重建 dist
+wrangler pages functions build --directory h5/dist/functions --outdir /tmp/sdy-worker
+cp /tmp/sdy-worker/index.js h5/dist/_worker.js                # Advanced Mode 后端入口
+wrangler pages deploy h5/dist --project-name sandayi --branch main
+curl https://sandayi.pages.dev/api/leaderboard                # 验证
+```
+
+坑位备忘（wrangler 4.15x，2026-10 实测）：
+- `functions build --directory` 必须指向 **h5/dist/functions 本体**——指向 dist 根会把目录名拼进路由（/functions/api/...），全部 404 回静态页
+- `--outfile` 有 bug 会把上传用的 multipart 原文写进文件，**只能用 --outdir 再拷贝**
+- dist/.assetsignore 只 ignore `functions`/`edge-functions`；**千万别把 `_worker.js` 写进去**（会连 worker 入口一起忽略）
+- 需要 `compatibility_flags = ["nodejs_compat"]`（wrangler.toml 已配，打包产物引用了 node:stream）
+- workers.dev 域名被大陆阻断，别用；pages.dev 可达
+
+### 已配置的资源（Cloudflare 账号内）
+- Pages 项目 `sandayi`（production 分支 main，域名 sandayi.pages.dev）
+- KV 命名空间 `sandayi-kv`（id 见 wrangler.toml，绑定变量名 KV）
+- Secret `AUTH_SECRET`（已注入，值不在代码库）
 
 ### 小程序端（miniprogram）
-1. **域名**：把 `miniprogram/utils/cloud.js` 顶部 `CLOUD_BASE` 换成 EdgeOne Pages 实际域名（默认 `*.edgeone.app` 免备案）。
-2. **request 合法域名**：微信公众平台"开发管理 → 开发设置 → 服务器域名"把该域名加入 request 合法域名。
-3. **正式 AppID**：project.config.json 目前是测试号占位（touristappid），发布前替换，并与上面 WX_APPID 一致。
+1. **域名**：`miniprogram/utils/cloud.js` 的 `CLOUD_BASE` 已指向 sandayi.pages.dev；开发者工具勾"不校验合法域名"即可联调。
+2. **request 合法域名**（正式发布前）：pages.dev 未备案，小程序后台加不进去——届时需备案域名做代理，或后端迁备案平台（EdgeOne 见上文）。
+3. **正式 AppID**：project.config.json 目前是测试号占位（touristappid），发布前替换；配 WX_APPID/WX_SECRET secret 后微信登录自动启用（现在 501 降级游客）。
 4. 隐私指引：公众平台"隐私保护指引"补充"匿名账号与游戏档案云同步"条目（app.js initPrivacy 注释已同步）。
 
 本地开发零配置：`node h5/serve.js` 自动用固定弱密钥 + `.dev-kv.json` 落盘模拟 KV。

@@ -53,8 +53,8 @@ npm run build:h5   # 重打 game-bundle → h5/dist/（只含发布文件，注�
 存 `tractor:settings.music`。
 
 两条部署线（2026-10 现状）：
-- **GitHub Pages（静态，已在跑）**：push 到 main → GitHub Actions（`.github/workflows/deploy-h5.yml`）构建 `h5/dist` 上线 `kingtashawn.github.io/sandayi/`。纯静态**没有后端**，云端账号/排行榜在该域名下自动静默降级（游戏可玩）。
-- **EdgeOne Makers（全栈，待建项目）**：控制台导入 GitHub 仓库，构建命令 `npm run build:h5`，输出目录 `h5/dist`；产物里 `functions/` 与 `edge-functions/` 双目录都带边缘函数。建好并按 `h5/functions/README.md` 绑 KV 后，`*.edgeone.app` 域名（免备案）才有 `/api` 后端。
+- **GitHub Pages（玩家主入口，静态）**：push 到 main → GitHub Actions（`.github/workflows/deploy-h5.yml`）构建 `h5/dist` 上线 `kingtashawn.github.io/sandayi/`。云端功能跨域调用下面的后端（`CLOUD_BASE` 已配置）。
+- **Cloudflare Pages（全栈，后端+备用入口）**：`https://sandayi.pages.dev`——同源带 `/api` 后端（KV + AUTH_SECRET 已配），部署命令见 `h5/functions/README.md`。EdgeOne 因无备案域名不可用（默认域名仅 3 小时预览链/大陆 401），兼容代码保留。
 
 ## 规则配置
 
