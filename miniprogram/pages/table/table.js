@@ -89,6 +89,7 @@ Page({
     this.burySelected = [];
     this.lastTapCardId = '';
     this.lastTapAt = 0;
+    this.accountedRoundNo = -1; // 结算两个出口共用的落账标记（onNextRound/onHome），进页重置
     if (query && query.mode === 'resume') {
       const saved = storage.get(STORAGE_KEYS.CURRENT_GAME);
       if (saved) {
@@ -1028,37 +1029,42 @@ Page({
 
   /* ==================== 结算 ==================== */
 
-  onNextRound() {
-    const prevSettle = this.service.getState().lastSettle || {};
-    const wasSDY = prevSettle.mode === 'san_da_yi';
-    this.service.nextRound();
+  /** 结算落账：战绩入档 + 报满计数 + 上云。「下一局」和「回到首页」两个出口都调（按局号防双记）。 */
+  accountSettle() {
     const st = this.service.getState();
-    // 记录战绩（三打一：真人阵营胜负；升级：队伍胜负）
+    const prev = st.lastSettle;
+    if (!prev || (st.phase !== 'SCORING' && st.phase !== 'GAME_OVER')) return;
+    if (st.roundNo === this.accountedRoundNo) return; // 两个出口都调：同一局只记一次
+    this.accountedRoundNo = st.roundNo;
+    const wasSDY = prev.mode === 'san_da_yi';
     const records = storage.get(STORAGE_KEYS.STATS) || [];
-    const myWon = wasSDY
-      ? (prevSettle.winnerTeam === 'dealer' ? st.lastDealerIdx === 0 : st.lastDealerIdx !== 0)
-      : prevSettle.winnerTeam === 0;
-    // 注：三打一庄家身份以结算时 sanDaYiTeams 为准，此处用 prevSettle.dealerIdx
+    // 记录战绩（三打一：真人阵营胜负，庄家身份以结算时 dealerIdx 为准；升级：队伍胜负）
     const sdyWon = wasSDY
-      ? (prevSettle.winnerTeam === 'dealer' ? prevSettle.dealerIdx === 0 : prevSettle.dealerIdx !== 0)
-      : prevSettle.winnerTeam === 0;
-    void myWon;
+      ? (prev.winnerTeam === 'dealer' ? prev.dealerIdx === 0 : prev.dealerIdx !== 0)
+      : prev.winnerTeam === 0;
     storage.set(STORAGE_KEYS.STATS, appendRecord(records, {
       roundNo: st.roundNo,
       myTeamWon: sdyWon,
-      passedA: prevSettle.passedA,
-      attackPoints: prevSettle.attackPoints,
+      passedA: prev.passedA,
+      attackPoints: prev.attackPoints,
       tricksCount: st.completedTricks.length
     }));
     // 报满坐庄（我坐庄且成交分=叫分上限）：单独计数入排行榜，随档案上云（与 h5/app.js 同键同规则）
-    const fullBid = wasSDY && prevSettle.dealerIdx === 0
-      && Number(prevSettle.contractScore) >= (st.config && st.config.sanDaYiBidCap);
+    const fullBid = wasSDY && prev.dealerIdx === 0
+      && Number(prev.contractScore) >= (st.config && st.config.sanDaYiBidCap);
     if (fullBid) {
       const K = 'tractor:maxBids';
       try { wx.setStorageSync(K, String((Number(wx.getStorageSync(K)) || 0) + 1)); } catch (e) { /* 忽略 */ }
+      wx.showToast({ title: '报满坐庄 +1，已计入全网报满榜', icon: 'none' });
     }
     Cloud.notifyLocal(); // 战绩落本地后异步上云（防抖 2.5s）
     if (fullBid) Cloud.flush(); // 满分是稀罕事：不等防抖，立刻同步后台进榜
+  },
+
+  onNextRound() {
+    this.accountSettle(); // 推进前先把这局入档（「回到首页」出口也调；原来只在这里记，从结算回家=整局白打）
+    this.service.nextRound();
+    const st = this.service.getState();
     this.lastAdded = null;
     this.setData({ selectedIds: [] });
     // 新局发牌动画：清空手牌追踪基线（否则 prevHandIds 还是上局 25 张旧 id，detectNewCards 不认新局）
@@ -1081,6 +1087,7 @@ Page({
   },
 
   onHome() {
+    this.accountSettle(); // 从结算直接回家也要落账（game over 时这是唯一出口，不记=最后一局白打）
     this.persist();
     wx.navigateBack({ delta: 1 });
   },

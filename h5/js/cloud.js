@@ -193,6 +193,7 @@
     notifyLocal: function () {
       lsSet(LS_LOCAL_AT, String(Date.now()));
       if (token) schedulePush();
+      else reGuest(); // 启动时建档失败会停在"未连接"：本地一有新数据就重试，连上即自动补推
     },
 
     /** 立即推送（页面隐藏等收尾时机）。 */

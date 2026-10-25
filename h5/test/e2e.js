@@ -85,12 +85,13 @@ function check(name, cond, detail) {
   // 走完 BIDDING（真人侧：如果轮到就报分或 pass；等 AI 走完）
   const state = () => window.__probe && window.__probe();
 
-  // 主循环：驱动到终局（真人操作用 DOM 点击；最多 5 分钟）
-  const t0 = Date.now();
+  // 主循环：驱动到结算弹层（真人操作用 DOM 点击；单局最多 5 分钟）。回归用例要连打两局
   let sawChooseTrump = false, sawBurying = false, sawPlaying = false, sawScoring = false;
   let sawGrabAnim = false, sawSettlePause = false;
   let lastPhaseLog = '';
-  while (Date.now() - t0 < 300000) {
+  const playToSettle = async () => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < 300000) {
     // 从 GameCore 无法直接拿 state（封装在闭包）——改从 DOM 推断：
     const label = (doc.getElementById('hand-label').textContent || '').trim();
     const grabActive = !doc.getElementById('grab-anim').hidden;
@@ -152,7 +153,9 @@ function check(name, cond, detail) {
       await sleep(200);
     }
     await sleep(220);
-  }
+    }
+  };
+  await playToSettle();
 
   check('经过选主阶段', sawChooseTrump || true, '（AI 庄家时不经过真人选主，弱断言）');
   check('抓底牌动画出现', sawGrabAnim || true, '（成交瞬间可能错过采样窗口，弱断言）');
@@ -165,13 +168,32 @@ function check(name, cond, detail) {
     const banner = doc.getElementById('result-banner').textContent;
     check('结算横幅非空', banner.length > 0, banner);
     check('结算有得分项', doc.querySelectorAll('#result-scores .result-modal__score-item').length >= 2);
-    // 下一局
+
+    // 回到首页也必须落账（回归：原来战绩/报满只在「下一局」里记，从结算回家=这局白打）
+    // 注意存储是双层字符串（wx 垫片 stringify 一次 + adapter setJSON 再一次），读要 parse 两次
+    const statsCount = () => {
+      try {
+        let v = JSON.parse(window.localStorage.getItem('tractor:stats') || '[]');
+        if (typeof v === 'string') v = JSON.parse(v);
+        return Array.isArray(v) ? v.length : -1;
+      } catch (e) { return -1; }
+    };
+    doc.getElementById('btn-result-home').click();
+    await sleep(250);
+    check('回到首页落到首页视图', !doc.getElementById('view-home').hidden);
+    check('回到首页后战绩入档（1 条）', statsCount() === 1, `got ${statsCount()}`);
+
+    // 再开一局打到结算，走「下一局」出口：两个出口各记一次、不双记
+    doc.getElementById('btn-start').click();
+    await playToSettle();
+    check('第二局到达结算', !doc.getElementById('result-modal').hidden);
     doc.getElementById('btn-result-next').click();
     await sleep(4300);
     const hand2 = doc.querySelectorAll('#hand-row .card').length;
     check('下一局发牌 25 张', hand2 === 25, `got ${hand2}`);
     // localStorage 存档（真实 key：tractor:currentGame）
     check('存档已写入', !!window.localStorage.getItem('tractor:currentGame'));
+    check('两局战绩共 2 条（两个出口各记一次）', statsCount() === 2, `got ${statsCount()}`);
   }
 
   console.log(`\n结果: ${passed} 通过 / ${failed} 失败`);
