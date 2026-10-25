@@ -16,7 +16,7 @@
 
 'use strict';
 
-import { jsonResp, errResp, readJson, getBearer } from './http.js';
+import { jsonResp, errResp, readJson, getBearer, corsPreflight } from './http.js';
 import { signToken, verifyToken, newUid, randDigits4 } from './token.js';
 import { kvOf } from './runtime.js';
 import Users from './users.js';
@@ -186,6 +186,8 @@ export const ROUTES = {
 
 /** 统一分发（serve.js 用；边缘函数入口直接引具体 handler）。 */
 export async function dispatch(request, env) {
+  // 跨域 POST/PUT（github.io → pages.dev）会先发 OPTIONS 预检，必须 2xx 放行
+  if (request.method === 'OPTIONS') return corsPreflight();
   const hit = ROUTES[request.method + ' ' + new URL(request.url).pathname];
   if (hit) return hit(request, env);
   return errResp(404, '接口不存在');

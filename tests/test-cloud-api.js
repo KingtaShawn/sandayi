@@ -191,3 +191,14 @@ test('wx 登录未配置时返回 501（占位可用）', async () => {
   const r = await api.handleWx(mkReq('POST', '/api/auth/wx', { code: 'x' }), env);
   assert.strictEqual(r.status, 501);
 });
+
+/* ---------- dispatch 路由层 ---------- */
+
+test('dispatch：OPTIONS 预检 2xx 放行（跨域 POST 必需）；未知路径 404', async () => {
+  const env = freshEnv();
+  const pre = await api.dispatch(mkReq('OPTIONS', '/api/auth/login'), env);
+  assert.ok([200, 204].includes(pre.status), '预检必须 2xx，否则浏览器跨域请求全挂');
+  assert.strictEqual(pre.headers.get('Access-Control-Allow-Origin'), '*');
+  const miss = await api.dispatch(mkReq('GET', '/api/nope'), env);
+  assert.strictEqual(miss.status, 404);
+});
