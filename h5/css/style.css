@@ -771,6 +771,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 }
 .cloud-modal__title { font-size: 4rem; font-weight: 700; color: #8a5a2b; margin-bottom: 2.67rem; text-align: center; }
 .cloud-modal__hint { font-size: 2.93rem; color: #5c4a24; text-align: center; margin-bottom: 2.67rem; line-height: 1.6; }
+.cloud-modal__diag { font-size: 2rem; color: #a08c5c; text-align: center; margin: -1.3rem 0 2.67rem; line-height: 1.5; word-break: break-all; }
 .cloud-modal__input {
   font-size: 3.2rem; color: #4a3a1c;
   background: #fff; border: 0.27rem solid #d8c79a; border-radius: 1.6rem;
@@ -835,6 +836,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   .cloud-modal__title, .lb-modal__title { font-size: 5vw; margin-bottom: 3.2vw; }
   .lb-modal__sub { font-size: 3.2vw; margin: 1.2vw 0 3.2vw; }
   .cloud-modal__hint { font-size: 3.6vw; margin-bottom: 3.2vw; }
+  .cloud-modal__diag { font-size: 2.8vw; margin: -2vw 0 3.2vw; }
   .cloud-modal__input {
     font-size: 4.2vw; line-height: 1.4;
     border-width: 0.5vw; border-radius: 2vw;

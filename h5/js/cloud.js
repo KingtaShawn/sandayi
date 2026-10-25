@@ -85,22 +85,30 @@
   /* ---------- 请求 ---------- */
   var hasFetch = (typeof fetch === 'function'); // jsdom/极老 webview 无 fetch：云端整体降级，游戏照常
 
+  /** 最近一次后端请求的结果（弹层诊断行用：定位"登录了却未连接"这类现场问题）。 */
+  var lastReq = null; // {path, ok, status, ms}；网络层异常时 status 为 0
+
   function api(path, opts) {
     if (!hasFetch) return Promise.reject(new Error('no fetch'));
     opts = opts || {};
     var headers = { 'Content-Type': 'application/json' };
     if (opts.auth && token) headers['Authorization'] = 'Bearer ' + token;
+    var t0 = Date.now();
     return fetch(CLOUD_BASE + '/api/' + path, {
       method: opts.method || 'GET',
       headers: headers,
       body: opts.body ? JSON.stringify(opts.body) : undefined
     }).then(function (r) {
+      lastReq = { path: path, ok: r.ok, status: r.status, ms: Date.now() - t0 };
       if (!r.ok) {
         var err = new Error('http ' + r.status);
         err.status = r.status;
         throw err;
       }
       return r.json();
+    }).catch(function (e) {
+      if (!lastReq || lastReq.path !== path) lastReq = { path: path, ok: false, status: (e && e.status) || 0, ms: Date.now() - t0 };
+      throw e;
     });
   }
 
@@ -220,6 +228,15 @@
     /** 拉排行榜（报满坐庄榜，公开接口无需登录）。 */
     leaderboard: function () {
       return api('leaderboard').then(function (r) { return r.list || []; });
+    },
+
+    /** 现场诊断（弹层诊断行用）：入口域名、本机登录态、最近一次后端请求结果。 */
+    diag: function () {
+      return {
+        host: (typeof location !== 'undefined' && location.host) || '?',
+        saved: !!(lsGet(LS_TOKEN) && lsGet(LS_USER)),
+        last: lastReq
+      };
     },
 
     on: function (evt, fn) { if (listeners[evt]) listeners[evt].push(fn); }

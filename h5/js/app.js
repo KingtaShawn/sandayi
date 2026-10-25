@@ -1179,6 +1179,14 @@
     $('cloud-pass2').hidden = (s !== 'guest');
     $('btn-cloud-bind').hidden = (s !== 'guest');
     $('btn-cloud-login').textContent = (s === 'user') ? '切换到此账号' : '登录已有账号';
+    // 诊断行：入口域名/本机登录态/最近一次后端请求——定位"登录了却未连接"这类现场问题
+    const d = window.Cloud ? Cloud.diag() : null;
+    if (d) {
+      const last = d.last
+        ? `后端 ${d.last.path} ${d.last.ok ? '通' : '败'}(${d.last.status}·${d.last.ms}ms)`
+        : '后端未请求';
+      $('cloud-diag').textContent = `入口 ${d.host} · 本机登录态${d.saved ? '有' : '无'} · ${last}`;
+    }
   }
 
   function closeCloudModal() { $('cloud-modal').hidden = true; }
