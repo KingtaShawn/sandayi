@@ -56,9 +56,9 @@ async function toWebRequest(req) {
 }
 
 async function handleApi(req, res) {
-  const { dispatch, corsPreflight } = await apiPromise;
+  const { dispatch } = await apiPromise;
   try {
-    if (req.method === 'OPTIONS') { const r = corsPreflight(); res.writeHead(r.status, Object.fromEntries(r.headers)); res.end(); return; }
+    // OPTIONS 预检等逻辑都在 dispatch 里（与线上同一路径，行为不分叉）
     const request = await toWebRequest(req);
     const r = await dispatch(request, ENV);
     const headers = Object.fromEntries(r.headers);

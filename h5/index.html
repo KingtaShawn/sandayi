@@ -129,6 +129,12 @@
     </div>
   </section>
 
+  <!-- toast -->
+  <div class="toast" id="toast" hidden></div>
+</div>
+
+<!-- 弹层在 #app 外：竖屏时 #app 整层旋转成横屏，而系统键盘按物理方向弹出，
+     输入框在旋转层内会导致"框和键盘字母方向不一致"，故账号/排行榜弹层不旋转 -->
   <!-- 排行榜弹层（报满坐庄榜） -->
   <div class="lb-modal" id="lb-modal" hidden>
     <div class="lb-modal__mask" id="lb-mask"></div>
@@ -157,10 +163,6 @@
       <button class="btn btn--ghost cloud-modal__close" id="btn-cloud-close">关闭</button>
     </div>
   </div>
-
-  <!-- toast -->
-  <div class="toast" id="toast" hidden></div>
-</div>
 
 <script src="js/game-bundle.js"></script>
 <script src="js/sound.js"></script>

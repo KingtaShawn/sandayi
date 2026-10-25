@@ -24,6 +24,14 @@ function check(name, cond, detail) {
     await page.setViewport({ width: 900, height: 1600 });
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e)));
+    // cloud.js 的 CLOUD_BASE 指向线上后端；e2e 必须打本地 serve.js —— 拦截跨域 /api 请求改写回来
+    await page.setRequestInterception(true);
+    const remoteApi = /^https?:\/\/(?!127\.0\.0\.1|localhost)[^/]+(\/api\/.*)$/;
+    page.on('request', (req) => {
+      const m = remoteApi.exec(req.url());
+      if (m) return req.continue({ url: BASE + m[1] });
+      req.continue();
+    });
 
     await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
     await sleep(1200); // 游客建档是异步的，等云层落定

@@ -806,3 +806,34 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .lb-modal__count { font-size: 3.2rem; color: #7a5f33; flex-shrink: 0; }
 .lb-modal__empty { text-align: center; color: #8a6d3a; padding: 4rem; font-size: 3.2rem; }
 .lb-modal__close { margin-top: 2.67rem; align-self: center; }
+
+/* ========== v3.2 竖屏弹层适配（弹层已移出 #app 旋转层，见 index.html） ==========
+   竖屏时 html 字号按"旋转后视口"计算（min(100dvh/160, 100dvw/90)），对正立的弹层而言
+   rem 会放大溢出——这里改用 vw 重新标定弹层内部全部尺寸，横屏/桌面不受影响。 */
+@media (orientation: portrait) and (pointer: coarse) {
+  .cloud-modal__panel, .lb-modal__panel {
+    width: 92vw; padding: 5.5vw 4.5vw; border-radius: 4vw;
+    box-shadow: 0 3vw 9vw rgba(0, 0, 0, 0.45);
+  }
+  .cloud-modal__title, .lb-modal__title { font-size: 5vw; margin-bottom: 3.2vw; }
+  .lb-modal__sub { font-size: 3.2vw; margin: 1.2vw 0 3.2vw; }
+  .cloud-modal__hint { font-size: 3.6vw; margin-bottom: 3.2vw; }
+  .cloud-modal__input {
+    font-size: 4.2vw; line-height: 1.4;
+    border-width: 0.5vw; border-radius: 2vw;
+    padding: 3.2vw 4vw; margin-bottom: 3.2vw;
+  }
+  .cloud-modal__input::placeholder { font-size: 3.4vw; }
+  .cloud-modal__actions { gap: 3.2vw; margin-top: 1.2vw; }
+  .cloud-modal__actions .btn { font-size: 4vw; padding: 3vw 0; border-width: 0.5vw; }
+  .cloud-modal__foot { font-size: 3.2vw; margin-top: 3.2vw; }
+  .cloud-modal__close { font-size: 3.8vw; padding: 2.2vw 5.5vw; margin-top: 3.2vw; }
+  .lb-modal__list { max-height: 52vh; }
+  .lb-modal__row { gap: 3.2vw; border-radius: 2vw; padding: 3.2vw 3.6vw; margin-bottom: 2.4vw; }
+  .lb-modal__row--me { border-width: 0.5vw; }
+  .lb-modal__rank { font-size: 4vw; width: 7vw; }
+  .lb-modal__nick { font-size: 3.8vw; }
+  .lb-modal__count { font-size: 3.6vw; }
+  .lb-modal__empty { padding: 4vw; font-size: 3.8vw; }
+  .lb-modal__close { font-size: 3.8vw; padding: 2.2vw 5.5vw; margin-top: 2.4vw; }
+}
