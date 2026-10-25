@@ -807,6 +807,17 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .lb-modal__empty { text-align: center; color: #8a6d3a; padding: 4rem; font-size: 3.2rem; }
 .lb-modal__close { margin-top: 2.67rem; align-self: center; }
 
+/* 四个弹层面板同为米黄底（上面各处 #fffdf5→#f7ecd2），btn--ghost 的浅色字是为深色牌桌
+   设计的，直接用=白字铺米黄看不见（"登录"按钮显示成空白的就是它）——弹层内换成棕字描边 */
+.cloud-modal .btn--ghost,
+.lb-modal .btn--ghost,
+.history-modal .btn--ghost,
+.result-modal .btn--ghost {
+  color: #8a5a2b;
+  border-color: rgba(138, 90, 43, 0.4);
+  background: rgba(138, 90, 43, 0.06);
+}
+
 /* ========== v3.2 竖屏弹层适配（弹层已移出 #app 旋转层，见 index.html） ==========
    竖屏时 html 字号按"旋转后视口"计算（min(100dvh/160, 100dvw/90)），对正立的弹层而言
    rem 会放大溢出——这里改用 vw 重新标定弹层内部全部尺寸，横屏/桌面不受影响。 */
