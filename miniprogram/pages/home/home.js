@@ -121,7 +121,7 @@ Page({
   onBind() { if (!this.data.submitting) this.submitCloud('bind'); },
   onLogin() { if (!this.data.submitting) this.submitCloud('login'); },
 
-  /* ---------- 排行榜（报满坐庄榜） ---------- */
+  /* ---------- 排行榜（满分庄家榜） ---------- */
   onLeaderboard() {
     this.setData({ lbModal: true, lbList: null, lbEmpty: '加载中…' });
     Cloud.leaderboard().then((list) => {
@@ -133,7 +133,7 @@ Page({
           maxBids: Number(r.maxBids) || 0,
           isMe: !!(r.uid && r.uid === me)
         })),
-        lbEmpty: (list && list.length) ? '' : '还没有人报满坐庄——去当第一个！'
+        lbEmpty: (list && list.length) ? '' : '还没有人满分坐庄——去当第一个！'
       });
     }).catch(() => {
       this.setData({ lbList: null, lbEmpty: '网络异常，稍后再试' });

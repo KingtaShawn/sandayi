@@ -27,14 +27,14 @@ const SAVE_MAX_BYTES = 200 * 1024;
 const LB_SIZE = 100;
 
 /**
- * 排行榜合并（报满坐庄榜）：整行替换该 uid 数据后按报满次数重排。
- * 满分坐庄 = 报满成交坐庄（contractScore ≥ 上限）；计数来自客户端单机局，
+ * 排行榜合并（满分庄家榜）：整行替换该 uid 数据后按满分坐庄次数重排。
+ * 满分坐庄 = 我坐庄独揽全部 200 分（客户端判 dealerPoints ≥ 200）；计数来自客户端单机局，
  * 天然可刷，休闲榜不做反作弊。
  */
 async function updateLeaderboard(kv, uid, nick, lb) {
   if (!lb || typeof lb !== 'object') return;
   const maxBids = Math.floor(Number(lb.maxBids));
-  if (!Number.isFinite(maxBids) || maxBids < 1) return; // 没报满过不上榜
+  if (!Number.isFinite(maxBids) || maxBids < 1) return; // 没满分坐庄过不上榜
   const rounds = Math.max(0, Math.floor(Number(lb.rounds) || 0));
   let list;
   try { list = JSON.parse((await kv.get('lb:global')) || '[]'); } catch (e) { list = []; }

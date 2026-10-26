@@ -64,12 +64,12 @@
   </view>
 </view>
 
-<!-- 排行榜弹层（报满坐庄榜） -->
+<!-- 排行榜弹层（满分庄家榜） -->
 <view class="cmodal" wx:if="{{lbModal}}">
   <view class="cmodal__mask" bind:tap="onLbClose"></view>
   <view class="cmodal__panel cmodal__panel--lb">
-    <text class="cmodal__title">报满坐庄榜</text>
-    <text class="cmodal__hint cmodal__hint--sub">报满成交坐庄的次数 · 全网玩家</text>
+    <text class="cmodal__title">满分庄家榜</text>
+    <text class="cmodal__hint cmodal__hint--sub">你坐庄独揽 200 分的次数 · 全网玩家</text>
     <scroll-view class="cmodal__list" scroll-y>
       <view wx:if="{{lbEmpty}}" class="cmodal__empty">
         <text>{{lbEmpty}}</text>
@@ -77,7 +77,7 @@
       <view wx:for="{{lbList}}" wx:key="index" class="cmodal__row {{item.isMe ? 'cmodal__row--me' : ''}}">
         <text class="cmodal__rank">{{item.rank}}</text>
         <text class="cmodal__nick">{{item.nick}}</text>
-        <text class="cmodal__count">报满 {{item.maxBids}} 次</text>
+        <text class="cmodal__count">满分 {{item.maxBids}} 次</text>
       </view>
     </scroll-view>
     <view class="btn btn--ghost cmodal__close" bind:tap="onLbClose">

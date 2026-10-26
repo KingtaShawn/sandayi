@@ -77,12 +77,12 @@ function check(name, cond, detail) {
     });
     check('云端档案可拉取', pushed);
 
-    // 排行榜（报满坐庄榜）：弹层可开、空榜文案正确
+    // 排行榜（满分庄家榜）：弹层可开、空榜文案正确
     await page.click('#btn-leaderboard');
     await sleep(300);
     check('排行榜弹层打开', !(await page.$eval('#lb-modal', (el) => el.hidden)));
     const lbEmpty = await page.$eval('#lb-list', (el) => el.textContent);
-    check('空榜显示引导文案', lbEmpty.includes('报满'), lbEmpty);
+    check('空榜显示引导文案', lbEmpty.includes('满分'), lbEmpty);
     await page.click('#btn-lb-close');
 
     // 升级后游戏照常可开局（云层不破坏主流程）

@@ -67,7 +67,7 @@ function applyData(data) {
 
 function localAt() { return Number(lsGet(LS_LOCAL_AT)) || 0; }
 
-/** 战绩汇总（排行榜数据源：报满坐庄次数为主，局数为辅）。 */
+/** 战绩汇总（排行榜数据源：满分坐庄次数为主，局数为辅）。 */
 function summarize() {
   try {
     var stats = require('../services/stats');
@@ -224,7 +224,7 @@ module.exports = {
       });
   },
 
-  /** 拉排行榜（报满坐庄榜，公开接口）。 */
+  /** 拉排行榜（满分庄家榜，公开接口）。 */
   leaderboard: function () {
     return request('GET', 'leaderboard', undefined, false).then(function (r) { return (r && r.list) || []; });
   },

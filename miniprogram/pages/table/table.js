@@ -1029,7 +1029,7 @@ Page({
 
   /* ==================== 结算 ==================== */
 
-  /** 结算落账：战绩入档 + 报满计数 + 上云。「下一局」和「回到首页」两个出口都调（按局号防双记）。 */
+  /** 结算落账：战绩入档 + 满分坐庄计数 + 上云。「下一局」和「回到首页」两个出口都调（按局号防双记）。 */
   accountSettle() {
     const st = this.service.getState();
     const prev = st.lastSettle;
@@ -1049,16 +1049,15 @@ Page({
       attackPoints: prev.attackPoints,
       tricksCount: st.completedTricks.length
     }));
-    // 报满坐庄（我坐庄且成交分=叫分上限）：单独计数入排行榜，随档案上云（与 h5/app.js 同键同规则）
-    const fullBid = wasSDY && prev.dealerIdx === 0
-      && Number(prev.contractScore) >= (st.config && st.config.sanDaYiBidCap);
-    if (fullBid) {
+    // 满分坐庄（我坐庄独揽全部 200 分，含对方罚分）：单独计数入排行榜，随档案上云（与 h5/app.js 同键同规则）
+    const perfectWin = wasSDY && prev.dealerIdx === 0 && Number(prev.dealerPoints) >= 200;
+    if (perfectWin) {
       const K = 'tractor:maxBids';
       try { wx.setStorageSync(K, String((Number(wx.getStorageSync(K)) || 0) + 1)); } catch (e) { /* 忽略 */ }
-      wx.showToast({ title: '报满坐庄 +1，已计入全网报满榜', icon: 'none' });
+      wx.showToast({ title: '满分坐庄 +1，已计入全网榜', icon: 'none' });
     }
     Cloud.notifyLocal(); // 战绩落本地后异步上云（防抖 2.5s）
-    if (fullBid) Cloud.flush(); // 满分是稀罕事：不等防抖，立刻同步后台进榜
+    if (perfectWin) Cloud.flush(); // 满分是稀罕事：不等防抖，立刻同步后台进榜
   },
 
   onNextRound() {

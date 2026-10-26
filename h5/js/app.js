@@ -1101,7 +1101,7 @@
     $('history-modal').hidden = false;
   }
 
-  /** 结算落账：战绩入档 + 报满计数 + 上云。「下一局」和「回到首页」两个出口都调（按局号防双记）。 */
+  /** 结算落账：战绩入档 + 满分坐庄计数 + 上云。「下一局」和「回到首页」两个出口都调（按局号防双记）。 */
   function accountSettle() {
     const st = G.service.getState();
     const prev = st.lastSettle;
@@ -1120,15 +1120,15 @@
       attackPoints: prev.attackPoints,
       tricksCount: st.completedTricks.length
     }));
-    // 报满坐庄（我坐庄且成交分=叫分上限）：单独计数入排行榜，键与 cloud.js SYNC_KEYS 对齐随档案上云
-    const fullBid = wasSDY && prev.dealerIdx === 0 && Number(prev.contractScore) >= buildConfig().sanDaYiBidCap;
-    if (fullBid) {
+    // 满分坐庄（我坐庄且独揽全部 200 分，含对方罚分）：单独计数入排行榜，键与 cloud.js SYNC_KEYS 对齐随档案上云
+    const perfectWin = wasSDY && prev.dealerIdx === 0 && Number(prev.dealerPoints) >= 200;
+    if (perfectWin) {
       const K = 'tractor:maxBids';
       try { localStorage.setItem(K, String((Number(localStorage.getItem(K)) || 0) + 1)); } catch (e) { /* 忽略 */ }
-      toast('报满坐庄 +1，已计入全网报满榜');
+      toast('满分坐庄 +1，已计入全网榜');
     }
     if (window.Cloud) Cloud.notifyLocal(); // 战绩落本地后异步上云（防抖 2.5s）
-    if (fullBid && window.Cloud) Cloud.flush(); // 满分是稀罕事：不等防抖，立刻同步后台进榜
+    if (perfectWin && window.Cloud) Cloud.flush(); // 满分是稀罕事：不等防抖，立刻同步后台进榜
   }
 
   function onNextRound() {
@@ -1191,7 +1191,7 @@
 
   function closeCloudModal() { $('cloud-modal').hidden = true; }
 
-  /* ---------- 排行榜（报满坐庄榜） ---------- */
+  /* ---------- 排行榜（满分庄家榜） ---------- */
   function renderLeaderboard(list) {
     const box = $('lb-list');
     box.innerHTML = '';
@@ -1200,7 +1200,7 @@
       return;
     }
     if (!list.length) {
-      box.appendChild(el('div', 'lb-modal__empty', '还没有人报满坐庄——去当第一个！'));
+      box.appendChild(el('div', 'lb-modal__empty', '还没有人满分坐庄——去当第一个！'));
       return;
     }
     const me = window.Cloud ? Cloud.uid() : '';
@@ -1210,7 +1210,7 @@
       const d = el('div', 'lb-modal__row' + (r.uid && r.uid === me ? ' lb-modal__row--me' : ''));
       d.innerHTML = `<span class="lb-modal__rank">${i < 3 ? MEDALS[i] : (i + 1)}</span>`
         + `<span class="lb-modal__nick">${esc(r.nick)}</span>`
-        + `<span class="lb-modal__count">报满 ${Number(r.maxBids) || 0} 次</span>`;
+        + `<span class="lb-modal__count">满分 ${Number(r.maxBids) || 0} 次</span>`;
       box.appendChild(d);
     });
   }
