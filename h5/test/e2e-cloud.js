@@ -60,6 +60,14 @@ function check(name, cond, detail) {
     const state1 = await page.$eval('#cloud-state', (el) => el.textContent);
     check('状态行变为已同步', state1.includes('已同步'), state1);
 
+    // 重载后登录态恢复：状态行必须仍是已同步（回归：init 恢复分支曾不通知 UI，首页一直"未连接"）
+    await page.reload({ waitUntil: 'networkidle2' });
+    await sleep(1200);
+    const stateR = await page.$eval('#cloud-state', (el) => el.textContent);
+    check('重载后登录态保持（状态行仍已同步）', stateR.includes('已同步'), stateR);
+    const tokenR = await page.evaluate(() => localStorage.getItem('cloud:token'));
+    check('重载后 token 仍在', !!tokenR && tokenR.includes('.'));
+
     // 云端档案应已就位（.dev-kv.json）
     const pushed = await page.evaluate(async () => {
       const t = localStorage.getItem('cloud:token');

@@ -181,6 +181,7 @@
       token = lsGet(LS_TOKEN);
       try { user = JSON.parse(lsGet(LS_USER) || 'null'); } catch (e) { user = null; }
       if (token && user) {
+        emit('state'); // 恢复登录态要立刻通知 UI：boot 时 renderHome 先于 init 跑过，状态行还停在"未连接"
         pull();
       } else {
         setState(null, null);

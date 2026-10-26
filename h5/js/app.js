@@ -1380,4 +1380,5 @@
   renderHome();
   // 云端启动：恢复/无感建档 + 拉远端档案（远端更新落地后 onSync 刷新首页战绩）
   if (window.Cloud) Cloud.init({ onSync: () => renderHome() });
+  updateCloudLine(); // 云层启动后状态行再刷一次（init 前首页已渲染过，登录态恢复不该等下一次事件）
 })();

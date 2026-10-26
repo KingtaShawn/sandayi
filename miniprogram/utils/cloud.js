@@ -181,6 +181,7 @@ module.exports = {
     token = lsGet(LS_TOKEN) || null;
     try { user = JSON.parse(lsGet(LS_USER) || 'null'); } catch (e) { user = null; }
     if (token && user) {
+      emit('state'); // 恢复登录态要立刻通知 UI：首次渲染先于 init 跑时，状态行还停在"未连接"
       pull();
     } else {
       setState(null, null);
