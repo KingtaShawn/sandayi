@@ -33,6 +33,16 @@ function check(name, cond, detail) {
       req.continue();
     });
 
+    // 预置老战绩（1 局满分坐庄 + 1 局普通胜）且无计数键：启动应自动回填满分坐庄 1 次。
+    // 双重 stringify 与 h5 wx shim（setStorageSync 再包一层）写出的存档形态一致
+    await page.evaluateOnNewDocument(() => {
+      localStorage.setItem('tractor:stats', JSON.stringify(JSON.stringify([
+        { roundNo: 1, myTeamWon: true, passedA: false, attackPoints: 0, tricksCount: 20 },
+        { roundNo: 2, myTeamWon: true, passedA: false, attackPoints: 65, tricksCount: 25 }
+      ])));
+      localStorage.removeItem('tractor:maxBids');
+    });
+
     await page.goto(BASE + '/', { waitUntil: 'networkidle2' });
     await sleep(1200); // 游客建档是异步的，等云层落定
 
@@ -44,6 +54,10 @@ function check(name, cond, detail) {
     check('游客自动建档（状态行=游客存档）', state0.includes('游客'), state0);
     const token = await page.evaluate(() => localStorage.getItem('cloud:token'));
     check('token 已落 localStorage', !!token && token.includes('.'));
+
+    // 老战绩回填：boot 时同步跑完，普通胜（对方 65 分）不计数，只有满分坐庄那局算
+    const mb = await page.evaluate(() => localStorage.getItem('tractor:maxBids'));
+    check('老战绩回填满分坐庄 1 次', mb === '1', String(mb));
 
     // 打开账号弹层 → 升级
     await page.click('#btn-cloud');

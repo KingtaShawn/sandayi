@@ -55,8 +55,26 @@ App({
     }
     // 云端账号：微信登录（降级游客）+ 档案拉取合并，全程异步静默（见 utils/cloud.js）
     Cloud.init();
+    this.backfillMaxBids(); // 老战绩里的满分坐庄一次性补上（放 init 后：补完 notifyLocal 自动上云进榜）
     // 隐私合规授权（微信审核硬性要求，见 initPrivacy）
     this.initPrivacy();
+  },
+
+  /**
+   * 一次性回填满分坐庄：改口径前的老对局没留过计数键，战绩里「我方胜且对方 0 分」
+   * = 我坐庄独揽全部 200 分（对方 0 分时赢家只能是庄家）。键已存在就跳过（与 h5/app.js 同口径）。
+   */
+  backfillMaxBids() {
+    try {
+      const K = 'tractor:maxBids';
+      if (wx.getStorageSync(K) !== '') return; // 不存在的键 wx.getStorageSync 返回 ''（不是 null）
+      const records = storage.getJSON(STORAGE_KEYS.STATS) || [];
+      const n = records.filter(r => r && r.myTeamWon && Number(r.attackPoints) === 0).length;
+      if (n > 0) {
+        wx.setStorageSync(K, String(n)); // 与 table.js 计数器同键同格式
+        Cloud.notifyLocal();
+      }
+    } catch (e) { /* 回填失败不影响游戏 */ }
   },
 
   /**

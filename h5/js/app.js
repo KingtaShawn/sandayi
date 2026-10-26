@@ -1131,6 +1131,25 @@
     if (perfectWin && window.Cloud) Cloud.flush(); // 满分是稀罕事：不等防抖，立刻同步后台进榜
   }
 
+  /**
+   * 一次性回填满分坐庄：改口径前（2026-10-26）的老对局没留过计数键，但战绩里
+   * 「我方胜且对方 0 分」= 我坐庄独揽了全部 200 分（对方 0 分时赢家只能是庄家，即我）。
+   * 键已存在（新口径记过或回填过）就跳过，绝不重复加。
+   */
+  function backfillMaxBids() {
+    const K = 'tractor:maxBids';
+    try {
+      if (localStorage.getItem(K) !== null) return;
+      const n = (storage.get(STORAGE_KEYS.STATS) || [])
+        .filter(r => r && r.myTeamWon && Number(r.attackPoints) === 0).length;
+      if (n > 0) {
+        localStorage.setItem(K, String(n));
+        toast(`补记历史满分坐庄 ${n} 次，已计入全网榜`);
+        if (window.Cloud) Cloud.notifyLocal(); // 云层 init 后本函数才跑：token 已就位，补完即排队上云
+      }
+    } catch (e) { /* 回填失败不影响游戏 */ }
+  }
+
   function onNextRound() {
     accountSettle(); // 推进前先把这局入档（「回到首页」出口也调；原来只在这里记，从结算回家=整局白打）
     G.service.nextRound();
@@ -1380,5 +1399,6 @@
   renderHome();
   // 云端启动：恢复/无感建档 + 拉远端档案（远端更新落地后 onSync 刷新首页战绩）
   if (window.Cloud) Cloud.init({ onSync: () => renderHome() });
+  backfillMaxBids(); // 老战绩里的满分坐庄一次性补上（放 init 后：notifyLocal 已有 token，补完自动上云进榜）
   updateCloudLine(); // 云层启动后状态行再刷一次（init 前首页已渲染过，登录态恢复不该等下一次事件）
 })();
