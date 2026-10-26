@@ -21,3 +21,14 @@ h5/.dev-kv.json
 
 # H5 发布目录（tools/build-h5.js 产物，部署时重新生成）
 h5/dist/
+
+# Tencent Cloud EdgeOne
+.env
+.edgeone/*
+.tef_dist/*
+
+# Cloudflare Wrangler 本地状态（部署/调试时生成）
+.wrangler/
+
+# ai-bench/ai-elo 基线策略快照（git show 2a9c125:miniprogram/ai/strategy-greedy.js 可再生）
+miniprogram/ai/.baseline-strategy.js
