@@ -66,8 +66,10 @@
 }
 
 .card__suit {
-  font-size: 24rpx;
+  font-size: 28rpx;
   line-height: 1.1;
+  /* 花色是跟牌/识主的命门，手机上 ♠♣ 小字易糊——与牌面差距收窄并加粗（同步 h5） */
+  font-weight: 700;
 }
 
 /* ========== v1.2 紧凑模式（手牌 >24 张） ========== */
@@ -82,7 +84,7 @@
 }
 
 .card--dense .card__suit {
-  font-size: 20rpx;
+  font-size: 24rpx;
 }
 
 .card--dense .card__corner {

@@ -308,10 +308,11 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .card--disabled { opacity: 0.35; filter: grayscale(0.8); }
 .card__corner { position: absolute; top: 0.8rem; left: 1.07rem; display: flex; flex-direction: column; align-items: center; }
 .card__rank { font-size: 4rem; font-weight: 700; line-height: 1.1; }
-.card__suit { font-size: 3.2rem; line-height: 1.1; }
+/* 花色是跟牌/识主的命门，手机上 ♠♣ 小字易糊——与牌面差距收窄并加粗 */
+.card__suit { font-size: 3.73rem; line-height: 1.1; font-weight: 700; }
 .card--dense { width: 8.53rem; height: 12.8rem; border-radius: 1.07rem; }
 .card--dense .card__rank { font-size: 3.2rem; }
-.card--dense .card__suit { font-size: 2.67rem; }
+.card--dense .card__suit { font-size: 3.2rem; }
 .card--dense .card__corner { top: 0.53rem; left: 0.53rem; }
 .card--joker { background: linear-gradient(160deg, #fffef7 0%, #ffe9b8 100%); }
 .card--joker-big { background: linear-gradient(160deg, #fff5f3 0%, #ffd9c2 55%, #ffb98a 100%); }
@@ -321,11 +322,12 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .card--dense .card__rank--joker { font-size: 3.2rem; }
 
 /* 出牌区专属小牌规格（比 dense 再小一档）：横屏三行出牌必须塞进中央区可用高度，
-   否则 space-between 会把南家牌挤出下边界压到工具条 */
+   否则 space-between 会把南家牌挤出下边界压到工具条——牌身不动，只放大角标：
+   牌高 9.2rem，角标列 0.4+3.2×1.1+2.67×1.1≈6.9rem 仍放得下 */
 .trick-area .card { width: 6.4rem; height: 9.2rem; }
-.trick-area .card__rank { font-size: 2.67rem; }
-.trick-area .card__suit { font-size: 2.13rem; }
-.trick-area .card__rank--joker { font-size: 2.67rem; }
+.trick-area .card__rank { font-size: 3.2rem; }
+.trick-area .card__suit { font-size: 2.67rem; }
+.trick-area .card__rank--joker { font-size: 3.2rem; }
 .trick-area .card__corner { top: 0.4rem; left: 0.53rem; }
 
 /* ========== 座位信息 ========== */
