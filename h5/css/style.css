@@ -338,7 +338,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   align-items: center;
   justify-content: center;
 }
-.trick-area .card__pip { display: flex; font-size: 4.8rem; line-height: 1; }
+.trick-area .card__pip { display: flex; font-size: 4.27rem; line-height: 1; padding-top: 2.13rem; /* 缩一档并下移，给左上角牌面数字让位 */ }
 
 /* ========== 座位信息 ========== */
 .seat-info {
