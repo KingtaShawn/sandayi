@@ -48,11 +48,10 @@ async function driveToPlaying(page) {
 
 (async () => {
   const browser = await puppeteer.launch({
-    headless: 'new',
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+    headless: 'shell', // chrome-headless-shell（本机无整装 Chrome）
     args: ['--no-sandbox', '--disable-gpu', '--no-proxy-server'], timeout: 90000
   });
-  for (const [w, h, tag] of [[1440, 900, 'desktop'], [375, 812, 'mobile']]) {
+  for (const [w, h, tag] of [[1440, 900, 'desktop'], [844, 390, 'phone-landscape'], [375, 812, 'mobile']]) {
     const page = await browser.newPage();
     await page.setViewport({ width: w, height: h });
     await page.goto(BASE + '/?_t=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 60000 });
