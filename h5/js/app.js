@@ -98,6 +98,9 @@
     const suitSymbol = isJoker ? (isBig ? '正' : '副') : (SYMBOLS[card.suit] || '');
     d.appendChild(el('div', 'card__corner',
       `<div class="card__rank${isJoker ? ' card__rank--joker' : ''}">${displayRank}</div><div class="card__suit">${suitSymbol}</div>`));
+    // 中央大花色 pip：默认隐藏，出牌区启用（.trick-area .card__pip）——叠牌时只有末张全露，
+    // 角标仍保留给被压住的前几张当小字冗余
+    d.appendChild(el('div', 'card__pip', suitSymbol));
     return d;
   }
 
