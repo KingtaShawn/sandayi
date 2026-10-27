@@ -326,7 +326,8 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
    牌高 9.2rem，角标列 0.4+3.2×1.1+2.67×1.1≈6.9rem 仍放得下 */
 .trick-area .card { width: 6.4rem; height: 9.2rem; }
 .trick-area .card__rank { font-size: 3.2rem; }
-.trick-area .card__suit { font-size: 2.67rem; }
+/* 花色只在中央 pip 显示一次，角标不再重复（用户要求：只要中间的） */
+.trick-area .card__suit { display: none; }
 .trick-area .card__rank--joker { font-size: 3.2rem; }
 .trick-area .card__corner { top: 0.4rem; left: 0.53rem; }
 /* 中央大花色：跟牌识主要看花色，pip 比角标大近一倍；手牌叠压只露左缘故不启用 */
