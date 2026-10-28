@@ -16,6 +16,8 @@
  *       （剩 ≤5 墩不把无敌大主花在小分墩上，留力抠底）
  *       + 配合领出（往庄家示缺门领空牌逼烧主——三家主牌碾压一家）；
  *     · 跟牌：末家必赢 → 甩分牌收分；能小赢 → 最小能赢牌；赢不了 → 垫最小/喂分给稳赢队友；
+ *       结构防守（v6）：庄家垫牌/领出拆对罚 + JQKA 大单保护（AI_PAIR）、
+ *       庄家冲满分时攻方破光抢分豁免省牌罚（AI_SWEEP）；
  *     · 缺门：墩内分 ≥ threshold → 主牌将吃（结构对应优先），否则垫分/垫小。
  */
 
@@ -85,6 +87,9 @@ const FEAT_R3 = envFlag('AI_R3') !== '0';
 const FEAT_R4 = envFlag('AI_R4') !== '0';
 const FEAT_R6B = envFlag('AI_R6B') !== '0';
 const FEAT_R7 = envFlag('AI_R7') !== '0';
+/** v6 结构防守（消融开关，默认开）：PAIR=庄家拆对/大单保护，SWEEP=满分破光 */
+const FEAT_PAIR = envFlag('AI_PAIR') !== '0';
+const FEAT_SWEEP = envFlag('AI_SWEEP') !== '0';
 
 class GreedyStrategy {
   /**
@@ -523,6 +528,8 @@ class GreedyStrategy {
       // （三家主牌总量碾压一家，庄主耗尽即攻方收割；400 局同种子 A/B
       // 对比「避让缺门 58.8% → 逼烧主 43.0% 庄胜率」，方向相反收益巨大）；
       // 领分仍罚——被将吃等于白送庄家分。
+      // 缺门空甩张数加成已试删（v6.2 负结果：100 局仅 5 次攻方选甩，
+      // 逐张小单逼烧主牌效更优，a-new 无变化）。
       if (!combo.isTrump && ctx.sdy.voids && ctx.sdy.voids.dealer.has(combo.suit)) {
         score += 6 - pointsOf(cards_, cfg) * 1.5;
       }
@@ -801,6 +808,10 @@ class GreedyStrategy {
       // 庄家小单领出保控制 + 短门加成（制造缺门后续将吃）
       if (combo.type === 'single') {
         score += (14 - strength) / 14 * 5 + (5 - Math.min(5, domainCards_.length)) * 1.2;
+        // 拆对罚（v6 AI_PAIR）：清场甩牌收割靠对子结构，小单优先领真散单
+        if (FEAT_PAIR && hand.some((h) => h !== cards_[0] && h.suit === cards_[0].suit && h.rank === cards_[0].rank)) {
+          score -= 3;
+        }
       }
       // 攻方已示缺门 → 该门领出易被将吃/白送，轻罚
       if (ctx.sdy.voids && ctx.sdy.voids.others.has(combo.suit)) score -= 4;
@@ -826,6 +837,7 @@ class GreedyStrategy {
     const trick = state.currentTrick;
     const lead = trick.leadCombo;
     const { sdy, di } = ctx;
+    const hand = state.players[playerIdx].hand;
     const combo = parseCombo(cards_, ti, cfg);
     const pts = pointsOf(cards_, cfg);
     const trickPts = trick.plays.reduce((s, p) => s + pointsOf(p.cards, cfg), 0);
@@ -835,6 +847,10 @@ class GreedyStrategy {
     const curWinnerTeam = this._currentWinnerTeam(state, trick, ti, cfg);
     const teamWinning = curWinnerTeam === this._camp(state, playerIdx);
     const allTrump = cards_.every((c) => domainOf(c, ti) === 'TRUMP');
+    // 满分破光（AI_SWEEP，v6）：庄家已成庄且 ≥180 分（攻方 ≤20）——
+    // 每一分都关系庄家「满分坐庄」上全网榜（app.js 满分计数），攻方
+    // 拿一分即破光。抢分优先于省牌：豁免主牌经济/末墩储备罚，垫分加倍罚。
+    const sweep = FEAT_SWEEP && sdy.need <= 0 && sdy.dealerPts >= 180;
     let score = 0;
 
     if (sdy.isDealer) {
@@ -863,7 +879,8 @@ class GreedyStrategy {
       } else {
         if (allTrump) score -= 20; // 输墩浪费主牌
         score -= pts; // 输墩绝不送分
-        score += (20 - strength) / 20 * 6; // 垫最小
+        if (sweep) score -= pts * 2; // 破光期：垫分=亲手送庄家满分榜
+        score += (20 - strength) / 20 * 6 + this._discardKeep(cards_, hand, ti, ctx); // 垫最小（+结构保护）
       }
     } else {
       // 攻方：贪心基线 + 团队配合（v4）
@@ -882,7 +899,7 @@ class GreedyStrategy {
         // 配合核心：三打一攻分是团队总分，谁赢墩无所谓——全力喂分、
         // 垫最废牌；绝不超压队友（赢牌留着对付庄家），(20-strength) 项
         // 天然压制烧主牌（主留着后手将吃/末墩抠底）
-        score += pts * 4 + (20 - strength) / 20 * 6;
+        score += pts * 4 + (20 - strength) / 20 * 6 + this._discardKeep(cards_, hand, ti, ctx);
       } else if (canWin) {
         if (isLast) {
           score += 30 + pts * 2 + trickPts;
@@ -899,13 +916,15 @@ class GreedyStrategy {
               && this._mateTopTrump(state, trick, ti, cfg)) score -= 12;
         }
         score += trickPts / 2 + pts; // 攻方收分意识
+        // 破光期：墩内每一分都是庄家满分榜的丧钟，抢分优先于省牌
+        if (sweep) score += trickPts * 2 + pts;
         if (deny) score += 10 + Math.min(sdy.need, 15);
         // 末墩储备：剩墩 ≤5 时，花无敌大主只赢回小分 → 罚，留着抠底
-        // （deny 时豁免——否决成庄 > 抠底期望）
-        if (!deny) score -= this._lastTrickReserve(state, playerIdx, cards_, ctx, trickPts + pts);
+        // （deny/sweep 时豁免——否决成庄、破光 > 抠底期望）
+        if (!deny && !sweep) score -= this._lastTrickReserve(state, playerIdx, cards_, ctx, trickPts + pts);
         // 主牌经济：赢墩要花主牌时按墩内分值「付费」——
-        // 无分墩不烧主（主牌留着后手将吃大分墩），小分墩少烧（deny 豁免）
-        if (!deny) {
+        // 无分墩不烧主（主牌留着后手将吃大分墩），小分墩少烧（deny/sweep 豁免）
+        if (!deny && !sweep) {
           if (allTrump && !lead.isTrump) {
             score -= Math.max(0, 18 - trickPts - pts);
           } else if (allTrump && lead.isTrump && !isLast && trickPts + pts < 10) {
@@ -922,7 +941,8 @@ class GreedyStrategy {
           score -= pts; // 庄家在压 → 绝不送分
         }
         if (deny) score -= pts * 2; // 垫分=亲手送庄家跨合同线
-        score += (20 - strength) / 20 * 6;
+        if (sweep) score -= pts * 2; // 破光期垫分=送庄家满分榜
+        score += (20 - strength) / 20 * 6 + this._discardKeep(cards_, hand, ti, ctx);
       }
     }
     return score;
@@ -951,6 +971,31 @@ class GreedyStrategy {
     if (!wp) return false;
     return wp.cards.every((c) => domainOf(c, ti) === 'TRUMP')
       && this._maxStrength(wp.cards, ti) >= 950;
+  }
+
+  /**
+   * 垫牌结构保护（v6.1，AI_PAIR，仅庄家侧）：
+   *   - 庄家：拆对罚 4（清场甩牌收割靠对子结构，足以让「拆小对」
+   *     劣于「垫 JQKA 大单」）+ JQKA 大单保护 1.2（控制牌）。
+   * 攻方侧已试尽删（2026-10-28 负结果存档）：普遍保对 −2pp、缺门大户
+   * 养甩结构 −1.5pp——1v3 清场威胁下攻方对子结构难兑现，而保结构的
+   * 机会成本（垫牌扭曲）立即支付；缺门逼烧主逐张小单已是最优形态
+   * （整甩 100 局仅 5 次被选，张数加成无效果）。
+   * 只动垫牌选项间的相对序，不动绝对量级（2026-10-28 教训：跨分支绝对
+   * 值是「能赢就赢」强行为的隐形实现，实测勿碰）。
+   */
+  _discardKeep(cards_, hand, ti, ctx) {
+    if (!FEAT_PAIR) return 0;
+    const isDealer = ctx && ctx.sdy.isDealer;
+    if (!isDealer) return 0;
+    let s = 0;
+    cards_.forEach((c) => {
+      const mate = hand.some((h) => h !== c && h.suit === c.suit && h.rank === c.rank);
+      const bigSingle = !c.isJoker && c.rank !== ti.levelRank && !mate && rankNum(c) >= 11;
+      if (mate) s -= 4;
+      else if (bigSingle) s -= 1.2;
+    });
+    return s;
   }
 
   /* --------------------- R5 残局精确求解（末两墩） --------------------- */
