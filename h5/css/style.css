@@ -272,7 +272,9 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 /* ========== 手牌区 ========== */
 .hand-area { width: 100%; padding: 0.8rem 0; }
 .hand-area__label { font-size: 2.67rem; color: var(--color-text-dim); margin-bottom: 0.4rem; padding-left: 2.13rem; min-height: 3.2rem; }
-.hand-area__row { display: flex; align-items: flex-end; padding: 3.2rem 1.07rem 0.8rem; min-height: 17.5rem; }
+/* 居中：margin 实算铺满时是恒等变换；margin 被夹（残局牌少/测宽异常）时居中收拢，
+   不再像 flex-start 那样整把牌堆到左边（手机端曾见：后台渲染拿到 0 宽 → margin 夹底） */
+.hand-area__row { display: flex; justify-content: center; align-items: flex-end; padding: 3.2rem 1.07rem 0.8rem; min-height: 17.5rem; }
 .hand-area__divider {
   align-self: stretch;
   width: 0.53rem;

@@ -242,7 +242,11 @@
     const dense = n > 30; // 埋底 33 张才降密度；横屏手牌区宽，25 张常规牌放得下
     const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 1;
     const rowCs = getComputedStyle(row);
-    const usable = Math.max(30, (row.clientWidth - parseFloat(rowCs.paddingLeft) - parseFloat(rowCs.paddingRight)) / remPx);
+    // 行宽取不到时退视口宽：jsdom（e2e）无布局 clientWidth 恒 0；真机上切后台/被挂起的
+    // webview 也测不到行宽。按 0 算会把 margin 夹到 -8.8rem 下限、整把牌挤作一团还被
+    // keyed diff 冻结（手机端手牌堆左边的病根）；按视口宽只是略宽，行居中后两侧对称
+    const rowW = row.clientWidth || window.innerWidth || 0;
+    const usable = Math.max(30, (rowW - parseFloat(rowCs.paddingLeft) - parseFloat(rowCs.paddingRight)) / remPx);
     const cardW = dense ? 8.53 : 11.73;
     let margin = n > 1 ? Math.floor(((usable - cardW) / (n - 1)) * 100) / 100 - cardW : 0;
     if (margin > -0.8) margin = -0.8;
@@ -1438,6 +1442,10 @@
       persist();
       if (window.Cloud) Cloud.flush(); // 收尾时机立即上云（不等防抖）
     } else if (G.service && G.service.getState() && G.service.getState().phase !== 'GAME_OVER' && !$('view-table').hidden) {
+      // 回前台：清手牌 key 强制重排——后台期间的渲染行宽走的是视口宽兜底，
+      // 此刻按真实行宽重算，兜底偏差（旋转过屏幕等）不会留到玩家出下一张牌
+      G.lastHandKey = '';
+      render();
       driveAI();
     }
   });
