@@ -1382,7 +1382,11 @@
   $('btn-cloud-login').addEventListener('click', () => submitCloud('login'));
   $('tab-cloud-login').addEventListener('click', () => setCloudMode('login'));
   $('tab-cloud-bind').addEventListener('click', () => setCloudMode('bind'));
-  if (window.Cloud) Cloud.on('state', updateCloudLine); // 游客建档/升级成功时首页状态行即时刷新
+  if (window.Cloud) Cloud.on('state', () => {
+    updateCloudLine(); // 游客建档/升级成功时首页状态行即时刷新
+    // 后端慢时（实测 guest 建档可 6s+）弹层先以"未连接"单表单打开，建档落地后自动长出升级Tab
+    if (!$('cloud-modal').hidden) refreshCloudModal();
+  });
   $('btn-result-next').addEventListener('click', onNextRound);
   $('btn-result-home').addEventListener('click', () => {
     accountSettle(); // 从结算直接回家也要落账（game over 时这是唯一出口，不记=最后一局白打）
