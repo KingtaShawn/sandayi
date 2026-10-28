@@ -88,7 +88,11 @@
   /** 最近一次后端请求的结果（弹层诊断行用：定位"登录了却未连接"这类现场问题）。 */
   var lastReq = null; // {path, ok, status, ms}；网络层异常时 status 为 0
 
-  /** 单请求超时（ms）：移动网络偶发黑洞会让 fetch 永久挂起，登录按钮一点就"永久没反应"。 */
+  /**
+   * 单请求超时（ms）：移动网络偶发黑洞会让 fetch 永久挂起，登录按钮一点就"永久没反应"。
+   * 用 Promise.race 而非 AbortController——老内核（安卓微信 X5 等）没有 AbortController，
+   * signal 方案在那会静默退化成无超时，按钮照样永久卡死；race 只要有 Promise 就成立。
+   */
   var REQ_TIMEOUT_MS = 10000;
 
   function api(path, opts) {
@@ -97,17 +101,18 @@
     var headers = { 'Content-Type': 'application/json' };
     if (opts.auth && token) headers['Authorization'] = 'Bearer ' + token;
     var t0 = Date.now();
-    var ctl = null, timer = null; // 老内核无 AbortController：退回无超时（不比原来差）
-    if (typeof AbortController === 'function') {
-      ctl = new AbortController();
-      timer = setTimeout(function () { ctl.abort(); }, REQ_TIMEOUT_MS);
-    }
-    var settle = function () { if (timer) clearTimeout(timer); };
-    return fetch(CLOUD_BASE + '/api/' + path, {
+    var timer = null;
+    var timeoutP = new Promise(function (_, reject) {
+      timer = setTimeout(function () {
+        var e = new Error('timeout');
+        e.status = 0;
+        reject(e);
+      }, REQ_TIMEOUT_MS);
+    });
+    var reqP = fetch(CLOUD_BASE + '/api/' + path, {
       method: opts.method || 'GET',
       headers: headers,
-      body: opts.body ? JSON.stringify(opts.body) : undefined,
-      signal: ctl ? ctl.signal : undefined
+      body: opts.body ? JSON.stringify(opts.body) : undefined
     }).then(function (r) {
       lastReq = { path: path, ok: r.ok, status: r.status, ms: Date.now() - t0 };
       if (!r.ok) {
@@ -116,11 +121,11 @@
         throw err;
       }
       return r.json();
-    }).catch(function (e) {
-      if (e && e.name === 'AbortError') e = new Error('timeout'); // 换成可识别的错误，UI 才能提示"超时"
+    });
+    return Promise.race([reqP, timeoutP]).catch(function (e) {
       if (!lastReq || lastReq.path !== path) lastReq = { path: path, ok: false, status: (e && e.status) || 0, ms: Date.now() - t0 };
       throw e;
-    }).then(function (v) { settle(); return v; }, function (e) { settle(); throw e; });
+    }).then(function (v) { clearTimeout(timer); return v; }, function (e) { clearTimeout(timer); throw e; });
   }
 
   /* ---------- 同步核心 ---------- */

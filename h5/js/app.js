@@ -55,13 +55,13 @@
     return d;
   };
   let toastTimer = null;
-  function toast(msg) {
+  function toast(msg, ms) {
     const t = $('toast');
     t.textContent = msg;
     t.hidden = false;
     t.classList.remove('toast--hidden');
     if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { t.classList.add('toast--hidden'); setTimeout(() => { t.hidden = true; }, 300); }, 1800);
+    toastTimer = setTimeout(() => { t.classList.add('toast--hidden'); setTimeout(() => { t.hidden = true; }, 300); }, ms || 1800);
   }
   const SYMBOLS = { S: '♠', H: '♥', C: '♣', D: '♦' };
   const SEAT_LABELS = ['南', '东', '北', '西'];
@@ -1262,12 +1262,14 @@
 
   function submitCloud(mode) {
     // cloud.js 没加载上时点按钮＝静默 ReferenceError，两个键看起来都"没反应"——先挡下给人话
-    if (!window.Cloud) { toast('云端组件未加载，刷新页面或换个浏览器再试'); return; }
+    if (!window.Cloud) { toast('云端组件未加载，刷新页面或换个浏览器再试', 3200); return; }
     const name = $('cloud-name').value.trim();
     const pass = $('cloud-pass').value;
     if (!/^[a-zA-Z0-9_一-龥]{2,16}$/.test(name)) { toast('用户名需 2~16 位中文/字母/数字/下划线'); return; }
     if (!/^[\x21-\x7e]{4,32}$/.test(pass)) { toast('密码需 4~32 位字母/数字/符号'); return; }
     if (mode === 'bind' && pass !== $('cloud-pass2').value) { toast('两次密码不一致'); return; }
+    // 未连接态点击：立即给反馈，别让用户干等 10 秒超时才见动静
+    if (Cloud.state() === 'off') toast('云端未连接，正在尝试（最多等10秒）…', 3200);
     const btn = mode === 'bind' ? $('btn-cloud-bind') : $('btn-cloud-login');
     const label = btn.textContent;
     btn.classList.add('btn--disabled');
@@ -1281,12 +1283,12 @@
     p.catch((e) => {
       // 服务端文案不可见（api 层只抛 status），这里按状态码给出人话
       const st = e && e.status;
-      if (mode === 'bind' && st === 409) toast('这个名字已被占用，换一个吧');
-      else if (mode === 'bind' && st === 401) toast('登录态失效，刷新页面后重试');
-      else if (st === 401) toast('用户名或密码错误');
-      else if (st === 400) toast('用户名或密码格式不对');
-      else if (e && e.message === 'timeout') toast('连不上云端（10秒超时），换个网络或稍后再试');
-      else toast('网络异常，请稍后再试');
+      if (mode === 'bind' && st === 409) toast('这个名字已被占用，换一个吧', 3200);
+      else if (mode === 'bind' && st === 401) toast('登录态失效，刷新页面后重试', 3200);
+      else if (st === 401) toast('用户名或密码错误', 3200);
+      else if (st === 400) toast('用户名或密码格式不对', 3200);
+      else if (e && e.message === 'timeout') toast('连不上云端（10秒超时），换个网络或稍后再试', 3200);
+      else toast('网络异常，请稍后再试', 3200);
       refreshCloudModal(); // 失败后原地刷新诊断行：当场看到这次后端请求的结果
     }).then(done);
   }
