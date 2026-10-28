@@ -88,16 +88,26 @@
   /** 最近一次后端请求的结果（弹层诊断行用：定位"登录了却未连接"这类现场问题）。 */
   var lastReq = null; // {path, ok, status, ms}；网络层异常时 status 为 0
 
+  /** 单请求超时（ms）：移动网络偶发黑洞会让 fetch 永久挂起，登录按钮一点就"永久没反应"。 */
+  var REQ_TIMEOUT_MS = 10000;
+
   function api(path, opts) {
     if (!hasFetch) return Promise.reject(new Error('no fetch'));
     opts = opts || {};
     var headers = { 'Content-Type': 'application/json' };
     if (opts.auth && token) headers['Authorization'] = 'Bearer ' + token;
     var t0 = Date.now();
+    var ctl = null, timer = null; // 老内核无 AbortController：退回无超时（不比原来差）
+    if (typeof AbortController === 'function') {
+      ctl = new AbortController();
+      timer = setTimeout(function () { ctl.abort(); }, REQ_TIMEOUT_MS);
+    }
+    var settle = function () { if (timer) clearTimeout(timer); };
     return fetch(CLOUD_BASE + '/api/' + path, {
       method: opts.method || 'GET',
       headers: headers,
-      body: opts.body ? JSON.stringify(opts.body) : undefined
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+      signal: ctl ? ctl.signal : undefined
     }).then(function (r) {
       lastReq = { path: path, ok: r.ok, status: r.status, ms: Date.now() - t0 };
       if (!r.ok) {
@@ -107,9 +117,10 @@
       }
       return r.json();
     }).catch(function (e) {
+      if (e && e.name === 'AbortError') e = new Error('timeout'); // 换成可识别的错误，UI 才能提示"超时"
       if (!lastReq || lastReq.path !== path) lastReq = { path: path, ok: false, status: (e && e.status) || 0, ms: Date.now() - t0 };
       throw e;
-    });
+    }).then(function (v) { settle(); return v; }, function (e) { settle(); throw e; });
   }
 
   /* ---------- 同步核心 ---------- */

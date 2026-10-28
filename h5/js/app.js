@@ -1246,14 +1246,18 @@
   }
 
   function submitCloud(mode) {
+    // cloud.js 没加载上时点按钮＝静默 ReferenceError，两个键看起来都"没反应"——先挡下给人话
+    if (!window.Cloud) { toast('云端组件未加载，刷新页面或换个浏览器再试'); return; }
     const name = $('cloud-name').value.trim();
     const pass = $('cloud-pass').value;
     if (!/^[a-zA-Z0-9_一-龥]{2,16}$/.test(name)) { toast('用户名需 2~16 位中文/字母/数字/下划线'); return; }
     if (!/^[\x21-\x7e]{4,32}$/.test(pass)) { toast('密码需 4~32 位字母/数字/符号'); return; }
     if (mode === 'bind' && pass !== $('cloud-pass2').value) { toast('两次密码不一致'); return; }
     const btn = mode === 'bind' ? $('btn-cloud-bind') : $('btn-cloud-login');
+    const label = btn.textContent;
     btn.classList.add('btn--disabled');
-    const done = () => { btn.classList.remove('btn--disabled'); };
+    btn.textContent = '连接中…'; // 点击要有可见反馈；网络黑洞时 10s 超时由 cloud.js 兜底恢复
+    const done = () => { btn.classList.remove('btn--disabled'); btn.textContent = label; };
     const p = (mode === 'bind')
       ? Cloud.bind(name, pass)
         .then(() => { toast('已升级为正式账号，战绩保留'); closeCloudModal(); })
@@ -1266,7 +1270,9 @@
       else if (mode === 'bind' && st === 401) toast('登录态失效，刷新页面后重试');
       else if (st === 401) toast('用户名或密码错误');
       else if (st === 400) toast('用户名或密码格式不对');
+      else if (e && e.message === 'timeout') toast('连不上云端（10秒超时），换个网络或稍后再试');
       else toast('网络异常，请稍后再试');
+      refreshCloudModal(); // 失败后原地刷新诊断行：当场看到这次后端请求的结果
     }).then(done);
   }
 
