@@ -3905,6 +3905,9 @@ const FEAT_R7 = envFlag('AI_R7') !== '0';
 /** v6 结构防守（消融开关，默认开）：PAIR=庄家拆对/大单保护，SWEEP=满分破光 */
 const FEAT_PAIR = envFlag('AI_PAIR') !== '0';
 const FEAT_SWEEP = envFlag('AI_SWEEP') !== '0';
+/** R12 送分风险（消融开关，默认开）：庄家未出、队友在压的副牌真的很弱
+ *  （暗处更大 ≥4 张）或庄家已示缺门（将吃口）时，喂分收益按风险折减 */
+const FEAT_FEEDRISK = envFlag('AI_FEEDRISK') !== '0';
 
 class GreedyStrategy {
   /**
@@ -4758,6 +4761,10 @@ class GreedyStrategy {
           if (teamWinning && trickPts >= TRUMP_IN_THRESHOLD) score += 8;
           // 队友领先但未锁墩：0 分超压小罚——我的赢牌留着防庄家更有价值
           if (teamWinning && pts === 0) score -= 6;
+          // [R12 负结果归档] 非无敌副牌不超压队友（K 压队友 J 而 A 在暗处）：
+          // 单开 a-new 37.5→37.0 有效、探针风险超压 89→42 减半，但与
+          // FEEDRISK 叠加攻方在未锁墩上全面不敢接盘（严苛版合体 38.3、
+          // 软化版合体 37.0，均劣于 FEEDRISK 单开 36.0）——已回退勿再叠。
           // R6 高主让路（走到这分支时庄家必未出，否则已锁墩）：队友在压的
           // 是王/2 级主（强度 ≥950）——能反压的只剩更大的王，大概率不在庄家
           // 手里；超压=再烧一张顶级主去抢一个已近乎到手的墩（攻分是团队
@@ -4786,7 +4793,24 @@ class GreedyStrategy {
         // 缺门垫主 = 纯浪费（跟主牌领出被迫出主不算）
         if (allTrump && !lead.isTrump) score -= 20;
         if (teamWinning) {
-          score += pts * 1.5; // 庄家未出仍可能夺走 → 少喂试探
+          // R12 喂分风险折减（走到本分支庄家必未出）：仅压「队友在压牌真的很
+          // 弱」的极端情形（暗处比它大的 ≥4 张：如全门未出 J 在压，Q/K/A×2
+          // =6 张暗牌，喂 10 ≈ 白送）；≤3 张视为正常试探全额喂。庄家已示
+          // 缺门的副牌墩=将吃口，分牌折到两成（R0c 逼烧主的墩只送空牌）。
+          // 调参档案：无门槛 hi*0.3 全折版单开 37.0、与超压罚合体 38.3
+          //（vs HEAD 37.5）双双否；本版（≥4 起折、地板 0.1）单开 36.0 落地。
+          let feedF = 1;
+          if (FEAT_FEEDRISK) {
+            const wp = this._currentWinnerPlay(state, trick, ti, cfg);
+            if (wp) {
+              const wpTrump = wp.cards.every((c) => domainOf(c, ti) === 'TRUMP');
+              const hi = this._unseenHigher(
+                di, wpTrump ? 'TRUMP' : lead.suit, this._maxStrength(wp.cards, ti));
+              feedF = Math.max(0.1, 1 - Math.max(0, hi - 3) * 0.3);
+              if (!wpTrump && ctx.sdy.voids && ctx.sdy.voids.dealer.has(lead.suit)) feedF = 0.2;
+            }
+          }
+          score += pts * 1.5 * feedF; // 折减后的喂分试探
         } else {
           score -= pts; // 庄家在压 → 绝不送分
         }
