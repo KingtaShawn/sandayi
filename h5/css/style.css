@@ -782,6 +782,12 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   box-shadow: 0 2.67rem 8rem rgba(0, 0, 0, 0.45);
 }
 .cloud-modal__title { font-size: 4rem; font-weight: 700; color: #8a5a2b; margin-bottom: 2.67rem; text-align: center; }
+.cloud-modal__tabs { display: flex; gap: 1.6rem; margin-bottom: 2.67rem; }
+.cloud-modal__tab {
+  flex: 1; font: inherit; font-size: 2.93rem; padding: 1.6rem 0; border-radius: 1.6rem;
+  background: #f0e4c2; color: #8a6d3a; border: 0.27rem solid transparent; cursor: pointer;
+}
+.cloud-modal__tab--on { background: #fff; border-color: #caa235; color: #8a5a2b; font-weight: 700; }
 .cloud-modal__hint { font-size: 2.93rem; color: #5c4a24; text-align: center; margin-bottom: 2.67rem; line-height: 1.6; }
 .cloud-modal__diag { font-size: 2rem; color: #a08c5c; text-align: center; margin: -1.3rem 0 2.67rem; line-height: 1.5; word-break: break-all; }
 .cloud-modal__input {

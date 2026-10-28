@@ -1192,14 +1192,29 @@
     else line.textContent = '☁ 未连接';
   }
 
+  /* 弹层模式：'login' 登录（默认）/ 'bind' 游客升级。要确认密码的是升级不是登录——
+     换新手机的首个意图是登录，别默认摆出注册式双密码表单 */
+  let cloudMode = 'login';
+
+  function setCloudMode(mode) {
+    cloudMode = mode;
+    const upgradeable = (window.Cloud ? Cloud.state() : 'off') === 'guest' && mode === 'bind';
+    $('tab-cloud-login').classList.toggle('cloud-modal__tab--on', mode === 'login');
+    $('tab-cloud-bind').classList.toggle('cloud-modal__tab--on', mode === 'bind');
+    $('cloud-pass2').hidden = !upgradeable;
+    $('btn-cloud-login').hidden = (mode !== 'login');
+    $('btn-cloud-bind').hidden = !upgradeable;
+  }
+
   function refreshCloudModal() {
     const s = window.Cloud ? Cloud.state() : 'off';
     $('cloud-hint').textContent = s === 'user'
       ? `已登录：${Cloud.name() || Cloud.nick()}（用户名区分大小写）`
       : (s === 'guest' ? '当前是游客存档，仅保存在本机' : '云端未连接（离线可玩，联网后自动同步）');
-    // 正式账号下没有"升级"一说：隐藏确认密码框与升级按钮，登录钮改为"切换账号"
-    $('cloud-pass2').hidden = (s !== 'guest');
-    $('btn-cloud-bind').hidden = (s !== 'guest');
+    // 游客态才有"升级"Tab；正式账号/未连接都是单登录表单
+    $('cloud-tabs').hidden = (s !== 'guest');
+    if (s !== 'guest') cloudMode = 'login';
+    setCloudMode(cloudMode);
     $('btn-cloud-login').textContent = (s === 'user') ? '切换到此账号' : '登录已有账号';
     // 诊断行：入口域名/本机登录态/最近一次后端请求——定位"登录了却未连接"这类现场问题
     const d = window.Cloud ? Cloud.diag() : null;
@@ -1354,6 +1369,7 @@
   $('history-mask').addEventListener('click', () => { $('history-modal').hidden = true; });
   // 云账号弹层
   $('btn-cloud').addEventListener('click', () => {
+    cloudMode = 'login'; // 每次打开回到默认"登录"视图
     refreshCloudModal();
     $('cloud-name').value = '';
     $('cloud-pass').value = '';
@@ -1364,6 +1380,8 @@
   $('cloud-mask').addEventListener('click', closeCloudModal);
   $('btn-cloud-bind').addEventListener('click', () => submitCloud('bind'));
   $('btn-cloud-login').addEventListener('click', () => submitCloud('login'));
+  $('tab-cloud-login').addEventListener('click', () => setCloudMode('login'));
+  $('tab-cloud-bind').addEventListener('click', () => setCloudMode('bind'));
   if (window.Cloud) Cloud.on('state', updateCloudLine); // 游客建档/升级成功时首页状态行即时刷新
   $('btn-result-next').addEventListener('click', onNextRound);
   $('btn-result-home').addEventListener('click', () => {

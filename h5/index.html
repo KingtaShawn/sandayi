@@ -151,14 +151,18 @@
     <div class="cloud-modal__mask" id="cloud-mask"></div>
     <div class="cloud-modal__panel">
       <div class="cloud-modal__title">云账号</div>
+      <div class="cloud-modal__tabs" id="cloud-tabs" hidden>
+        <button class="cloud-modal__tab" id="tab-cloud-login" type="button">登录</button>
+        <button class="cloud-modal__tab" id="tab-cloud-bind" type="button">升级为正式账号</button>
+      </div>
       <div class="cloud-modal__hint" id="cloud-hint"></div>
       <div class="cloud-modal__diag" id="cloud-diag"></div>
       <input class="cloud-modal__input" id="cloud-name" placeholder="用户名（2~16位中文/字母/数字）" maxlength="16" autocomplete="off">
       <input class="cloud-modal__input" id="cloud-pass" type="password" placeholder="密码（4~32位）" maxlength="32" autocomplete="off">
-      <input class="cloud-modal__input" id="cloud-pass2" type="password" placeholder="确认密码（升级时填）" maxlength="32" autocomplete="off">
+      <input class="cloud-modal__input" id="cloud-pass2" type="password" placeholder="确认密码（4~32位）" maxlength="32" autocomplete="off">
       <div class="cloud-modal__actions">
-        <button class="btn btn--solid" id="btn-cloud-login">登录已有账号</button>
-        <button class="btn btn--primary" id="btn-cloud-bind">升级为正式账号</button>
+        <button class="btn btn--primary" id="btn-cloud-login">登录已有账号</button>
+        <button class="btn btn--primary" id="btn-cloud-bind" hidden>升级为正式账号</button>
       </div>
       <div class="cloud-modal__foot">升级后换手机/浏览器登录同一账号，战绩不丢</div>
       <button class="btn btn--ghost cloud-modal__close" id="btn-cloud-close">关闭</button>

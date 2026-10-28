@@ -22,6 +22,8 @@ Page({
     cloudModal: false,
     cloudHint: '',
     cloudIsGuest: true,
+    cloudIsUser: false,
+    cloudMode: 'login', // 'login' 登录（默认）/ 'bind' 游客升级：要确认密码的是升级不是登录
     formName: '',
     formPass: '',
     formPass2: '',
@@ -80,7 +82,9 @@ Page({
     const s = Cloud.state();
     this.setData({
       cloudModal: true,
-      cloudIsGuest: s !== 'user',
+      cloudIsGuest: s === 'guest',
+      cloudIsUser: s === 'user',
+      cloudMode: 'login', // 每次打开回到默认"登录"视图
       cloudHint: s === 'user' ? `已登录：${Cloud.name() || Cloud.nick()}（用户名区分大小写）`
         : s === 'guest' ? '当前是游客存档，仅保存在本机' : '云端未连接（离线可玩，联网后自动同步）',
       formName: '', formPass: '', formPass2: ''
@@ -88,6 +92,8 @@ Page({
   },
 
   onCloudClose() { this.setData({ cloudModal: false }); },
+
+  onCloudTab(e) { this.setData({ cloudMode: e.currentTarget.dataset.mode }); },
 
   onNameInput(e) { this.setData({ formName: e.detail.value }); },
   onPassInput(e) { this.setData({ formPass: e.detail.value }); },

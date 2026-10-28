@@ -63,8 +63,12 @@ function check(name, cond, detail) {
     await page.click('#btn-cloud');
     await sleep(200);
     check('弹层打开', !(await page.$eval('#cloud-modal', (el) => el.hidden)));
-    const hasBind = await page.$eval('#btn-cloud-bind', (el) => !el.hidden);
-    check('游客态显示"升级为正式账号"按钮', hasBind);
+    const bindHidden = await page.$eval('#btn-cloud-bind', (el) => el.hidden);
+    const pass2Hidden = await page.$eval('#cloud-pass2', (el) => el.hidden);
+    check('默认登录视图（升级按钮与确认密码都隐藏）', bindHidden && pass2Hidden);
+    await page.click('#tab-cloud-bind'); // 游客升级：切到"升级"Tab 才出现确认密码与升级按钮
+    await sleep(100);
+    check('升级Tab亮起后显示"升级为正式账号"按钮', await page.$eval('#btn-cloud-bind', (el) => !el.hidden));
     await page.type('#cloud-name', '冒烟' + Date.now().toString(36).slice(-4));
     await page.type('#cloud-pass', 'pass1234');
     await page.type('#cloud-pass2', 'pass1234');
