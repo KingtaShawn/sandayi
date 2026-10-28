@@ -380,7 +380,7 @@ module.exports = {
 });
 __def("engine/combo", function (exports, __require, module) {
 /**
- * engine/combo.js —— 牌型识别（单/对/拖/甩）+ 大小比较 + 拖拉机相邻判定。
+ * engine/combo.js —— 牌型识别（单/对/拖/甩/八张同点甩）+ 大小比较 + 拖拉机相邻判定。
  *
  * 域（domain）概念：
  *   'TRUMP' 主牌域（含王/级牌/主花色）；'S'/'H'/'C'/'D' 各副牌花色域。
@@ -473,6 +473,45 @@ function isPair(cards_, trumpInfo) {
 }
 
 /**
+ * 八张同点甩牌（R26 sanDaYiEightThrow）：双副牌同一非王牌点数恰 8 张（四门×两副），
+ * 凑齐可整甩。压不过任何跟牌；唯有更大的八张同点（级牌八张最高，其余按点数）能压。
+ * @param {Array<object>} cards_
+ * @param {object} trumpInfo
+ * @param {object} cfg
+ * @returns {number|null} 八甩强度（级牌=200，其余=rankValue）；非八甩返回 null
+ */
+function eightStrength(cards_, trumpInfo, cfg) {
+  if (!cfg || cfg.gameMode !== 'san_da_yi' || cfg.sanDaYiEightThrow === false) return null;
+  if (!cards_ || cards_.length !== 8) return null;
+  if (cards_.some((c) => c.isJoker)) return null;
+  const rank = cards_[0].rank;
+  if (cards_.some((c) => c.rank !== rank)) return null;
+  return rank === trumpInfo.levelRank ? 200 : rankValue(rank);
+}
+
+/**
+ * 手牌中的八张同点（领出/跟牌候选枚举用）。
+ * @param {Array<object>} hand
+ * @param {object} trumpInfo
+ * @param {object} cfg
+ * @returns {Array<object>|null} 该点数全部 8 张；无则 null
+ */
+function findEightOfKind(hand, trumpInfo, cfg) {
+  const groups = new Map();
+  (hand || []).forEach((c) => {
+    if (c.isJoker) return;
+    if (!groups.has(c.rank)) groups.set(c.rank, []);
+    groups.get(c.rank).push(c);
+  });
+  for (const list of groups.values()) {
+    if (list.length >= 8 && eightStrength(list.slice(0, 8), trumpInfo, cfg) !== null) {
+      return list.slice(0, 8);
+    }
+  }
+  return null;
+}
+
+/**
  * 将同域牌集合拆解为最大单元组合。
  * 三打一默认不合并拖拉机：连对作为多副对子逐对检查甩牌；其他模式优先合并。
  * @param {Array<object>} cards 同域牌
@@ -544,6 +583,17 @@ function parseCombo(cards_, trumpInfo, cfg) {
   const config = cfg || __require('engine/config').DEFAULT_CONFIG;
   if (!cards_ || cards_.length === 0) return null;
   const n = cards_.length;
+  // 八张同点甩牌：必跨四门（级牌除外全主），先于同域约束识别
+  const es = eightStrength(cards_, trumpInfo, config);
+  if (es !== null) {
+    const unit = makeUnit('eight', cards_, trumpInfo);
+    unit.strength = es; // 覆盖为八甩序（级牌 200 / 其余 rankValue）
+    return {
+      type: 'eight', units: [unit], cards: cards_.slice(),
+      n, suit: 'EIGHT', isTrump: cards_[0].rank === trumpInfo.levelRank,
+      points: pointsOf(cards_, config), strength: es
+    };
+  }
   const domains = new Set(cards_.map((c) => domainOf(c, trumpInfo)));
   if (domains.size > 1) return null; // 跨域（主+副混合 / 两门副牌）非法
   const domain = [...domains][0];
@@ -623,6 +673,10 @@ function compareCombo(a, b) {
  * @returns {boolean}
  */
 function canBeat(leadCombo, followCombo) {
+  if (leadCombo.type === 'eight') {
+    // 八张同点甩：只有更大的八张同点能压（主牌对子/将吃一律不行）
+    return followCombo.type === 'eight' && followCombo.strength > leadCombo.strength;
+  }
   if (leadCombo.type === 'single') {
     const u = followCombo.units.find((x) => x.type === 'single');
     return !!u && u.strength > leadCombo.units[0].strength;
@@ -652,6 +706,8 @@ module.exports = {
   makeUnit,
   pairAdjacent,
   isPair,
+  eightStrength,
+  findEightOfKind,
   decomposeDomain,
   parseCombo,
   compareUnit,
@@ -716,7 +772,8 @@ const DEFAULT_CONFIG = {
     single: 2,
     pair: 4,
     tractor: 8,
-    throw: 8
+    throw: 8,
+    eight: 8
   },
 
   // —— 跟牌 ——
@@ -745,6 +802,7 @@ const DEFAULT_CONFIG = {
   sanDaYiBidCap: 160,                // 叫分上限（报满即成交坐庄）
   sanDaYiNoBidAction: 'redeal',      // 全员不叫（重发，首报者轮到原首报者下家；force_lowest=首位强制打最低分）
   sanDaYiPeekBottomMaxBid: -1,       // 成交分 ≤ 此值时闲家可看底牌（-1=不公开；本玩法不适用看底规则）
+  sanDaYiEightThrow: true,           // 八张同点甩牌：握有同一点数全部 8 张可整甩，唯有更大的八张同点能压（主牌对子也不行）
 
   // —— 体验 ——
   aiPaceSeconds: [0.8, 1.5]          // R23 AI 出牌节奏区间（秒）
@@ -857,6 +915,9 @@ function validateConfig(cfg) {
   if (cfg.gameMode === 'san_da_yi') {
     if (typeof cfg.sanDaYiAllowTractor !== 'boolean') {
       errors.push('R26 sanDaYiAllowTractor 必须为布尔');
+    }
+    if (typeof cfg.sanDaYiEightThrow !== 'boolean') {
+      errors.push('R26 sanDaYiEightThrow 必须为布尔');
     }
     const start = cfg.sanDaYiBidStart;
     const step = cfg.sanDaYiBidStep;
@@ -1080,6 +1141,30 @@ const { parseCombo, domainOf, decomposeDomain, isPair } = __require('engine/comb
 const { result } = __require('engine/errors');
 
 /**
+ * 全手（跨门）对子总数：八张同点甩牌领出时无花色门可跟，
+ * 「有对必逐对跟」按全手合计折算（拖拉机按其所含对数计）。
+ * @param {Array<object>} cards_
+ * @param {object} trumpInfo
+ * @param {object} cfg
+ * @returns {number}
+ */
+function countAllPairs(cards_, trumpInfo, cfg) {
+  const byDomain = new Map();
+  (cards_ || []).forEach((c) => {
+    const d = domainOf(c, trumpInfo);
+    if (!byDomain.has(d)) byDomain.set(d, []);
+    byDomain.get(d).push(c);
+  });
+  let pairs = 0;
+  byDomain.forEach((list) => {
+    decomposeDomain(list, trumpInfo, cfg).forEach((u) => {
+      if (u.type !== 'single') pairs += u.cards.length / 2;
+    });
+  });
+  return pairs;
+}
+
+/**
  * 手牌中某域的牌。
  * @param {Array<object>} hand
  * @param {string} domain
@@ -1185,6 +1270,8 @@ function checkFollowStructure(leadCombo, playedCards, handBefore, trumpInfo, cfg
 function isEffectiveTrumpFollow(leadCombo, playedCards, trumpInfo, cfg) {
   const allTrump = playedCards.every((c) => domainOf(c, trumpInfo) === 'TRUMP');
   if (!allTrump) return false;
+  // 八张同点甩牌：主牌将吃不争胜，唯有更大的八张同点（playContendInfo 判定）
+  if (leadCombo.type === 'eight') return false;
   if (leadCombo.type === 'single') return playedCards.length === 1;
   if (leadCombo.type === 'pair') {
     return isPair(playedCards, trumpInfo);
@@ -1223,6 +1310,21 @@ function validateFollow(state, playerIdx, cards_, cfg) {
   if (cards_.length !== n) {
     return result(false, `跟牌张数须为 ${n} 张`, 'E106');
   }
+  // 八张同点甩牌领出：领出者握有该点全部 8 张，别家无门可跟 →
+  // 任意 8 张合法，但「有对必逐对跟」跨门延伸：领出 4 对、全手 m 对须跟 min(4,m) 对
+  if (leadCombo.type === 'eight') {
+    if (hand.length <= n) {
+      return result(true, null, null, { followKind: 'full' }); // 剩牌整手出（防御）
+    }
+    if (cfg.mustFollowPairAsPair) {
+      const required = Math.min(4, countAllPairs(hand, state.trumpInfo, cfg));
+      const played = countAllPairs(cards_, state.trumpInfo, cfg);
+      if (played < required) {
+        return result(false, `跟八张甩牌有对必逐对跟：手中 ${countAllPairs(hand, state.trumpInfo, cfg)} 对，须至少跟出 ${required} 个对子`, 'E103');
+      }
+    }
+    return result(true, null, null, { followKind: 'discard', isEffectiveTrump: false });
+  }
   const domain = leadCombo.suit;
   const available = domainCards(hand, domain, state.trumpInfo);
   const playedInDomain = cards_.filter((c) => domainOf(c, state.trumpInfo) === domain);
@@ -1250,6 +1352,7 @@ function validateFollow(state, playerIdx, cards_, cfg) {
 module.exports = {
   domainCards,
   handUnits,
+  countAllPairs,
   checkFollowStructure,
   isEffectiveTrumpFollow,
   validateFollow
@@ -1698,6 +1801,14 @@ function playContendInfo(play, leadCombo, trumpInfo, cfg) {
   if (play.playerIdx === leadCombo.leadPlayerIdx) {
     return { contending: true, combo: play.combo, kind: 'lead' };
   }
+  // 八张同点甩牌：跟牌唯有「更大的八张同点」争胜，其余（含主牌对子/将吃）一律垫牌
+  if (leadCombo.type === 'eight') {
+    const combo = parseCombo(play.cards, trumpInfo, cfg);
+    if (combo && combo.type === 'eight' && combo.strength > leadCombo.strength) {
+      return { contending: true, combo, kind: 'follow' };
+    }
+    return { contending: false, combo, kind: 'discard' };
+  }
   const combo = parseCombo(play.cards, trumpInfo, cfg);
   if (!combo) return { contending: false, combo: null, kind: 'discard' };
   // 全主牌且领出非主 → 有效将吃判定重算（不信任序列化标志）
@@ -1729,6 +1840,10 @@ function playContendInfo(play, leadCombo, trumpInfo, cfg) {
  * @returns {boolean}
  */
 function beats(chInc, incInc, leadCombo, trumpInfo, cfg) {
+  // 八张同点甩：比八甩序（级牌八张最高，其余按点数），严格更大才压过
+  if (leadCombo.type === 'eight') {
+    return chInc.combo.strength > incInc.combo.strength;
+  }
   // 副牌 vs 主牌（将吃）：主赢
   if (chInc.kind === 'trump' && incInc.kind !== 'trump') return true;
   if (chInc.kind !== 'trump' && incInc.kind === 'trump') return false;
@@ -1941,7 +2056,7 @@ __def("engine/validate", function (exports, __require, module) {
 
 'use strict';
 
-const { parseCombo, domainOf, decomposeDomain, isPair, pointsOf } = __require('engine/combo');
+const { parseCombo, domainOf, decomposeDomain, isPair, pointsOf, findEightOfKind } = __require('engine/combo');
 const { cardKey } = __require('engine/card');
 const { validateThrow } = __require('engine/throw');
 const { validateFollow } = __require('engine/follow');
@@ -2133,6 +2248,9 @@ function leadCandidates(state, playerIdx) {
       if (singleU.length >= 2) push(singleU[0].cards.concat(singleU[1].cards)); // 双单甩
     }
   });
+  // 八张同点甩（跨门，域循环覆盖不到）：握有同一点数全部 8 张即可整甩
+  const eight = findEightOfKind(hand, ti, cfg);
+  if (eight) push(eight);
   return out;
 }
 
@@ -2151,6 +2269,53 @@ function followCandidates(state, playerIdx) {
   const push = (cards_) => {
     if (cards_.length === n) out.push(cards_);
   };
+
+  // 八张同点甩牌领出：无门可跟，任意 8 张合法但有对必逐对跟——
+  // 候选：自家更大的八甩（若握有）/ 最小对+最小单（垫）/ 对+分牌单（队友领出喂分）
+  if (lead.type === 'eight') {
+    if (hand.length <= n) {
+      push(hand.slice());
+      return out;
+    }
+    const mine = findEightOfKind(hand, ti, cfg);
+    if (mine) push(mine); // 更大的八张同点 → 反压夺墩
+    const pairs = [];
+    const byKey = new Map();
+    hand.forEach((c) => {
+      const k = cardKey(c);
+      if (!byKey.has(k)) byKey.set(k, []);
+      byKey.get(k).push(c);
+    });
+    byKey.forEach((list) => {
+      for (let i = 0; i + 1 < list.length; i += 2) pairs.push([list[i], list[i + 1]]);
+    });
+    const build = (pairPtsFirst) => {
+      const chosen = [];
+      const usedIds = new Set();
+      const ps = pairs.slice().sort((a, b) => {
+        const d = pairPtsFirst
+          ? pointsOf(b, cfg) - pointsOf(a, cfg) || strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti)
+          : pointsOf(a, cfg) - pointsOf(b, cfg) || strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti);
+        return d;
+      });
+      for (const pr of ps) {
+        if (chosen.length >= n) break;
+        chosen.push(...pr);
+        pr.forEach((c) => usedIds.add(c.id));
+      }
+      const pool = hand.slice().sort((a, b) => (pairPtsFirst
+        ? pointsOf([b], cfg) - pointsOf([a], cfg) || strengthSortKey(b, ti) - strengthSortKey(a, ti)
+        : pointsOf([a], cfg) - pointsOf([b], cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)));
+      for (const c of pool) {
+        if (chosen.length >= n) break;
+        if (!usedIds.has(c.id)) { chosen.push(c); usedIds.add(c.id); }
+      }
+      if (chosen.length === n) push(chosen);
+    };
+    build(false); // 最小垫：小对小单、尽量不带分
+    build(true);  // 喂分：分对分单优先（领出者是队友时由 scorer 选用）
+    return out;
+  }
 
   if (avail.length > 0) {
     // 该门不足 n 张：全部给出 + 最小垫牌补齐（防御条款）
@@ -4148,6 +4313,8 @@ class GreedyStrategy {
     const cfg = state.config;
     const ti = state.trumpInfo;
     const combo = parseCombo(cards_, ti, cfg);
+    // 八张同点甩：整墩必赢（无人能压），自带分一锅端（8 个 10 = 80 分）——压倒性优先
+    if (combo && combo.type === 'eight') return 80 + combo.points * 2;
     const myTeam = this._camp(state, playerIdx);
     const isDealerTeam = myTeam === 0;
     const hand = state.players[playerIdx].hand;
@@ -4394,6 +4561,8 @@ class GreedyStrategy {
     const { di } = ctx;
     const combo = parseCombo(cards_, ti, cfg);
     if (!combo) return 0;
+    // 八张同点甩：整墩必赢 + 自带分收走 + 逼三家跟对（跟牌对子分也进囊中）
+    if (combo.type === 'eight') return 80 + combo.points * 2;
     const hand = state.players[playerIdx].hand;
     const trumps = hand.filter((c) => domainOf(c, ti) === 'TRUMP');
     const sure = this._isSureCombo(combo, di);
@@ -5635,7 +5804,7 @@ function applyData(data) {
 
 function localAt() { return Number(lsGet(LS_LOCAL_AT)) || 0; }
 
-/** 战绩汇总（排行榜数据源：报满坐庄次数为主，局数为辅）。 */
+/** 战绩汇总（排行榜数据源：满分坐庄次数为主，局数为辅）。 */
 function summarize() {
   try {
     var stats = __require('services/stats');
@@ -5749,6 +5918,7 @@ module.exports = {
     token = lsGet(LS_TOKEN) || null;
     try { user = JSON.parse(lsGet(LS_USER) || 'null'); } catch (e) { user = null; }
     if (token && user) {
+      emit('state'); // 恢复登录态要立刻通知 UI：首次渲染先于 init 跑时，状态行还停在"未连接"
       pull();
     } else {
       setState(null, null);
@@ -5791,7 +5961,7 @@ module.exports = {
       });
   },
 
-  /** 拉排行榜（报满坐庄榜，公开接口）。 */
+  /** 拉排行榜（满分庄家榜，公开接口）。 */
   leaderboard: function () {
     return request('GET', 'leaderboard', undefined, false).then(function (r) { return (r && r.list) || []; });
   },
@@ -6215,6 +6385,9 @@ module.exports = {
 
   // 成交分 ≤ 此值时闲家可看底牌（-1=不公开看底）
   sanDaYiPeekBottomMaxBid: -1,
+
+  // 八张同点甩牌：握有同一点数全部 8 张（如 8 个 6）可整甩，只有更大的八张同点能压
+  sanDaYiEightThrow: true,
 
   /* ══════════ 牌与发牌 ══════════ */
 

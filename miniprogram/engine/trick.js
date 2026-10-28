@@ -26,6 +26,14 @@ function playContendInfo(play, leadCombo, trumpInfo, cfg) {
   if (play.playerIdx === leadCombo.leadPlayerIdx) {
     return { contending: true, combo: play.combo, kind: 'lead' };
   }
+  // 八张同点甩牌：跟牌唯有「更大的八张同点」争胜，其余（含主牌对子/将吃）一律垫牌
+  if (leadCombo.type === 'eight') {
+    const combo = parseCombo(play.cards, trumpInfo, cfg);
+    if (combo && combo.type === 'eight' && combo.strength > leadCombo.strength) {
+      return { contending: true, combo, kind: 'follow' };
+    }
+    return { contending: false, combo, kind: 'discard' };
+  }
   const combo = parseCombo(play.cards, trumpInfo, cfg);
   if (!combo) return { contending: false, combo: null, kind: 'discard' };
   // 全主牌且领出非主 → 有效将吃判定重算（不信任序列化标志）
@@ -57,6 +65,10 @@ function playContendInfo(play, leadCombo, trumpInfo, cfg) {
  * @returns {boolean}
  */
 function beats(chInc, incInc, leadCombo, trumpInfo, cfg) {
+  // 八张同点甩：比八甩序（级牌八张最高，其余按点数），严格更大才压过
+  if (leadCombo.type === 'eight') {
+    return chInc.combo.strength > incInc.combo.strength;
+  }
   // 副牌 vs 主牌（将吃）：主赢
   if (chInc.kind === 'trump' && incInc.kind !== 'trump') return true;
   if (chInc.kind !== 'trump' && incInc.kind === 'trump') return false;

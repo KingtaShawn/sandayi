@@ -501,6 +501,8 @@ class GreedyStrategy {
     const cfg = state.config;
     const ti = state.trumpInfo;
     const combo = parseCombo(cards_, ti, cfg);
+    // 八张同点甩：整墩必赢（无人能压），自带分一锅端（8 个 10 = 80 分）——压倒性优先
+    if (combo && combo.type === 'eight') return 80 + combo.points * 2;
     const myTeam = this._camp(state, playerIdx);
     const isDealerTeam = myTeam === 0;
     const hand = state.players[playerIdx].hand;
@@ -747,6 +749,8 @@ class GreedyStrategy {
     const { di } = ctx;
     const combo = parseCombo(cards_, ti, cfg);
     if (!combo) return 0;
+    // 八张同点甩：整墩必赢 + 自带分收走 + 逼三家跟对（跟牌对子分也进囊中）
+    if (combo.type === 'eight') return 80 + combo.points * 2;
     const hand = state.players[playerIdx].hand;
     const trumps = hand.filter((c) => domainOf(c, ti) === 'TRUMP');
     const sure = this._isSureCombo(combo, di);

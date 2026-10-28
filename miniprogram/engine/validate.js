@@ -8,7 +8,7 @@
 
 'use strict';
 
-const { parseCombo, domainOf, decomposeDomain, isPair, pointsOf } = require('./combo');
+const { parseCombo, domainOf, decomposeDomain, isPair, pointsOf, findEightOfKind } = require('./combo');
 const { cardKey } = require('./card');
 const { validateThrow } = require('./throw');
 const { validateFollow } = require('./follow');
@@ -200,6 +200,9 @@ function leadCandidates(state, playerIdx) {
       if (singleU.length >= 2) push(singleU[0].cards.concat(singleU[1].cards)); // 双单甩
     }
   });
+  // 八张同点甩（跨门，域循环覆盖不到）：握有同一点数全部 8 张即可整甩
+  const eight = findEightOfKind(hand, ti, cfg);
+  if (eight) push(eight);
   return out;
 }
 
@@ -218,6 +221,53 @@ function followCandidates(state, playerIdx) {
   const push = (cards_) => {
     if (cards_.length === n) out.push(cards_);
   };
+
+  // 八张同点甩牌领出：无门可跟，任意 8 张合法但有对必逐对跟——
+  // 候选：自家更大的八甩（若握有）/ 最小对+最小单（垫）/ 对+分牌单（队友领出喂分）
+  if (lead.type === 'eight') {
+    if (hand.length <= n) {
+      push(hand.slice());
+      return out;
+    }
+    const mine = findEightOfKind(hand, ti, cfg);
+    if (mine) push(mine); // 更大的八张同点 → 反压夺墩
+    const pairs = [];
+    const byKey = new Map();
+    hand.forEach((c) => {
+      const k = cardKey(c);
+      if (!byKey.has(k)) byKey.set(k, []);
+      byKey.get(k).push(c);
+    });
+    byKey.forEach((list) => {
+      for (let i = 0; i + 1 < list.length; i += 2) pairs.push([list[i], list[i + 1]]);
+    });
+    const build = (pairPtsFirst) => {
+      const chosen = [];
+      const usedIds = new Set();
+      const ps = pairs.slice().sort((a, b) => {
+        const d = pairPtsFirst
+          ? pointsOf(b, cfg) - pointsOf(a, cfg) || strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti)
+          : pointsOf(a, cfg) - pointsOf(b, cfg) || strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti);
+        return d;
+      });
+      for (const pr of ps) {
+        if (chosen.length >= n) break;
+        chosen.push(...pr);
+        pr.forEach((c) => usedIds.add(c.id));
+      }
+      const pool = hand.slice().sort((a, b) => (pairPtsFirst
+        ? pointsOf([b], cfg) - pointsOf([a], cfg) || strengthSortKey(b, ti) - strengthSortKey(a, ti)
+        : pointsOf([a], cfg) - pointsOf([b], cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)));
+      for (const c of pool) {
+        if (chosen.length >= n) break;
+        if (!usedIds.has(c.id)) { chosen.push(c); usedIds.add(c.id); }
+      }
+      if (chosen.length === n) push(chosen);
+    };
+    build(false); // 最小垫：小对小单、尽量不带分
+    build(true);  // 喂分：分对分单优先（领出者是队友时由 scorer 选用）
+    return out;
+  }
 
   if (avail.length > 0) {
     // 该门不足 n 张：全部给出 + 最小垫牌补齐（防御条款）

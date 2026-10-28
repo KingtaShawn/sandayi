@@ -21,6 +21,30 @@ const { parseCombo, domainOf, decomposeDomain, isPair } = require('./combo');
 const { result } = require('./errors');
 
 /**
+ * 全手（跨门）对子总数：八张同点甩牌领出时无花色门可跟，
+ * 「有对必逐对跟」按全手合计折算（拖拉机按其所含对数计）。
+ * @param {Array<object>} cards_
+ * @param {object} trumpInfo
+ * @param {object} cfg
+ * @returns {number}
+ */
+function countAllPairs(cards_, trumpInfo, cfg) {
+  const byDomain = new Map();
+  (cards_ || []).forEach((c) => {
+    const d = domainOf(c, trumpInfo);
+    if (!byDomain.has(d)) byDomain.set(d, []);
+    byDomain.get(d).push(c);
+  });
+  let pairs = 0;
+  byDomain.forEach((list) => {
+    decomposeDomain(list, trumpInfo, cfg).forEach((u) => {
+      if (u.type !== 'single') pairs += u.cards.length / 2;
+    });
+  });
+  return pairs;
+}
+
+/**
  * 手牌中某域的牌。
  * @param {Array<object>} hand
  * @param {string} domain
@@ -126,6 +150,8 @@ function checkFollowStructure(leadCombo, playedCards, handBefore, trumpInfo, cfg
 function isEffectiveTrumpFollow(leadCombo, playedCards, trumpInfo, cfg) {
   const allTrump = playedCards.every((c) => domainOf(c, trumpInfo) === 'TRUMP');
   if (!allTrump) return false;
+  // 八张同点甩牌：主牌将吃不争胜，唯有更大的八张同点（playContendInfo 判定）
+  if (leadCombo.type === 'eight') return false;
   if (leadCombo.type === 'single') return playedCards.length === 1;
   if (leadCombo.type === 'pair') {
     return isPair(playedCards, trumpInfo);
@@ -164,6 +190,21 @@ function validateFollow(state, playerIdx, cards_, cfg) {
   if (cards_.length !== n) {
     return result(false, `跟牌张数须为 ${n} 张`, 'E106');
   }
+  // 八张同点甩牌领出：领出者握有该点全部 8 张，别家无门可跟 →
+  // 任意 8 张合法，但「有对必逐对跟」跨门延伸：领出 4 对、全手 m 对须跟 min(4,m) 对
+  if (leadCombo.type === 'eight') {
+    if (hand.length <= n) {
+      return result(true, null, null, { followKind: 'full' }); // 剩牌整手出（防御）
+    }
+    if (cfg.mustFollowPairAsPair) {
+      const required = Math.min(4, countAllPairs(hand, state.trumpInfo, cfg));
+      const played = countAllPairs(cards_, state.trumpInfo, cfg);
+      if (played < required) {
+        return result(false, `跟八张甩牌有对必逐对跟：手中 ${countAllPairs(hand, state.trumpInfo, cfg)} 对，须至少跟出 ${required} 个对子`, 'E103');
+      }
+    }
+    return result(true, null, null, { followKind: 'discard', isEffectiveTrump: false });
+  }
   const domain = leadCombo.suit;
   const available = domainCards(hand, domain, state.trumpInfo);
   const playedInDomain = cards_.filter((c) => domainOf(c, state.trumpInfo) === domain);
@@ -191,6 +232,7 @@ function validateFollow(state, playerIdx, cards_, cfg) {
 module.exports = {
   domainCards,
   handUnits,
+  countAllPairs,
   checkFollowStructure,
   isEffectiveTrumpFollow,
   validateFollow

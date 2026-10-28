@@ -52,7 +52,8 @@ const DEFAULT_CONFIG = {
     single: 2,
     pair: 4,
     tractor: 8,
-    throw: 8
+    throw: 8,
+    eight: 8
   },
 
   // —— 跟牌 ——
@@ -81,6 +82,7 @@ const DEFAULT_CONFIG = {
   sanDaYiBidCap: 160,                // 叫分上限（报满即成交坐庄）
   sanDaYiNoBidAction: 'redeal',      // 全员不叫（重发，首报者轮到原首报者下家；force_lowest=首位强制打最低分）
   sanDaYiPeekBottomMaxBid: -1,       // 成交分 ≤ 此值时闲家可看底牌（-1=不公开；本玩法不适用看底规则）
+  sanDaYiEightThrow: true,           // 八张同点甩牌：握有同一点数全部 8 张可整甩，唯有更大的八张同点能压（主牌对子也不行）
 
   // —— 体验 ——
   aiPaceSeconds: [0.8, 1.5]          // R23 AI 出牌节奏区间（秒）
@@ -193,6 +195,9 @@ function validateConfig(cfg) {
   if (cfg.gameMode === 'san_da_yi') {
     if (typeof cfg.sanDaYiAllowTractor !== 'boolean') {
       errors.push('R26 sanDaYiAllowTractor 必须为布尔');
+    }
+    if (typeof cfg.sanDaYiEightThrow !== 'boolean') {
+      errors.push('R26 sanDaYiEightThrow 必须为布尔');
     }
     const start = cfg.sanDaYiBidStart;
     const step = cfg.sanDaYiBidStep;

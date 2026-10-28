@@ -51,6 +51,7 @@ Page({
       throwText: (cfg.gameMode === 'san_da_yi' && !cfg.sanDaYiAllowTractor ? '默认不含拖拉机，连对按多副对子逐对检查；' : '')
         + (cfg.throwPenalty === 'reject' ? '不成立时直接禁止；同样大不算压住' : '失败只出本次甩牌中被压住的最小单元，其余收回')
         + (cfg.throwPenalty === 'penalty_smallest' ? '，按原甩牌张数每张罚10分' : '')
+        + (cfg.gameMode === 'san_da_yi' && cfg.sanDaYiEightThrow !== false ? '；八张同点可整甩，只有更大的八张同点能压' : '')
     });
   }
 });

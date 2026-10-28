@@ -1,5 +1,5 @@
 /**
- * engine/combo.js —— 牌型识别（单/对/拖/甩）+ 大小比较 + 拖拉机相邻判定。
+ * engine/combo.js —— 牌型识别（单/对/拖/甩/八张同点甩）+ 大小比较 + 拖拉机相邻判定。
  *
  * 域（domain）概念：
  *   'TRUMP' 主牌域（含王/级牌/主花色）；'S'/'H'/'C'/'D' 各副牌花色域。
@@ -92,6 +92,45 @@ function isPair(cards_, trumpInfo) {
 }
 
 /**
+ * 八张同点甩牌（R26 sanDaYiEightThrow）：双副牌同一非王牌点数恰 8 张（四门×两副），
+ * 凑齐可整甩。压不过任何跟牌；唯有更大的八张同点（级牌八张最高，其余按点数）能压。
+ * @param {Array<object>} cards_
+ * @param {object} trumpInfo
+ * @param {object} cfg
+ * @returns {number|null} 八甩强度（级牌=200，其余=rankValue）；非八甩返回 null
+ */
+function eightStrength(cards_, trumpInfo, cfg) {
+  if (!cfg || cfg.gameMode !== 'san_da_yi' || cfg.sanDaYiEightThrow === false) return null;
+  if (!cards_ || cards_.length !== 8) return null;
+  if (cards_.some((c) => c.isJoker)) return null;
+  const rank = cards_[0].rank;
+  if (cards_.some((c) => c.rank !== rank)) return null;
+  return rank === trumpInfo.levelRank ? 200 : rankValue(rank);
+}
+
+/**
+ * 手牌中的八张同点（领出/跟牌候选枚举用）。
+ * @param {Array<object>} hand
+ * @param {object} trumpInfo
+ * @param {object} cfg
+ * @returns {Array<object>|null} 该点数全部 8 张；无则 null
+ */
+function findEightOfKind(hand, trumpInfo, cfg) {
+  const groups = new Map();
+  (hand || []).forEach((c) => {
+    if (c.isJoker) return;
+    if (!groups.has(c.rank)) groups.set(c.rank, []);
+    groups.get(c.rank).push(c);
+  });
+  for (const list of groups.values()) {
+    if (list.length >= 8 && eightStrength(list.slice(0, 8), trumpInfo, cfg) !== null) {
+      return list.slice(0, 8);
+    }
+  }
+  return null;
+}
+
+/**
  * 将同域牌集合拆解为最大单元组合。
  * 三打一默认不合并拖拉机：连对作为多副对子逐对检查甩牌；其他模式优先合并。
  * @param {Array<object>} cards 同域牌
@@ -163,6 +202,17 @@ function parseCombo(cards_, trumpInfo, cfg) {
   const config = cfg || require('./config').DEFAULT_CONFIG;
   if (!cards_ || cards_.length === 0) return null;
   const n = cards_.length;
+  // 八张同点甩牌：必跨四门（级牌除外全主），先于同域约束识别
+  const es = eightStrength(cards_, trumpInfo, config);
+  if (es !== null) {
+    const unit = makeUnit('eight', cards_, trumpInfo);
+    unit.strength = es; // 覆盖为八甩序（级牌 200 / 其余 rankValue）
+    return {
+      type: 'eight', units: [unit], cards: cards_.slice(),
+      n, suit: 'EIGHT', isTrump: cards_[0].rank === trumpInfo.levelRank,
+      points: pointsOf(cards_, config), strength: es
+    };
+  }
   const domains = new Set(cards_.map((c) => domainOf(c, trumpInfo)));
   if (domains.size > 1) return null; // 跨域（主+副混合 / 两门副牌）非法
   const domain = [...domains][0];
@@ -242,6 +292,10 @@ function compareCombo(a, b) {
  * @returns {boolean}
  */
 function canBeat(leadCombo, followCombo) {
+  if (leadCombo.type === 'eight') {
+    // 八张同点甩：只有更大的八张同点能压（主牌对子/将吃一律不行）
+    return followCombo.type === 'eight' && followCombo.strength > leadCombo.strength;
+  }
   if (leadCombo.type === 'single') {
     const u = followCombo.units.find((x) => x.type === 'single');
     return !!u && u.strength > leadCombo.units[0].strength;
@@ -271,6 +325,8 @@ module.exports = {
   makeUnit,
   pairAdjacent,
   isPair,
+  eightStrength,
+  findEightOfKind,
   decomposeDomain,
   parseCombo,
   compareUnit,
