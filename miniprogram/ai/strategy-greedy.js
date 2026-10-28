@@ -47,7 +47,7 @@ const R5_RNG_SEED = 20261024;
  * 每局触发 ~2.7 次，真机预算藏在 AI 思考延时内。 */
 const R3_SAMPLES = { 4: 24, 6: 16, 8: 12, 10: 10 }; // h 上限 → 采样数
 const R3_K_ROOT = 4;
-const R3_TAU = Number(envFlag('AI_R3_TAU') !== undefined ? envFlag('AI_R3_TAU') : 10); // 覆盖阈值：最优候选期望 V 须优于贪心选择这么多分（消融扫描 τ∈{0,3,5,8,10,12} 定在 10）
+const R3_TAU = Number(envFlag('AI_R3_TAU') !== undefined ? envFlag('AI_R3_TAU') : 8); // 覆盖阈值：最优候选期望 V 须优于贪心选择这么多分（v1 跟牌扫 τ∈{0,3,5,8,10,12} 定 10；v2 加领出覆盖后重标定 8：τ=8 攻方 −0.3pp 且庄家不动，τ=5 跟牌噪声覆盖伤庄家 −0.5pp）
 const R3_ROLLOUT_K = 8;
 const R3_EVENT_CAP = 2400;
 const R3_RNG_SEED = 20261025;
@@ -87,6 +87,8 @@ const FEAT_R5 = envFlag('AI_R5') !== '0';
 const FEAT_R3 = envFlag('AI_R3') !== '0';
 const FEAT_R4 = envFlag('AI_R4') !== '0';
 const FEAT_R6B = envFlag('AI_R6B') !== '0';
+/** R3 v2：攻方领出推演（AI_R3_LEAD，默认开） */
+const FEAT_R3_LEAD = envFlag('AI_R3_LEAD') !== '0';
 const FEAT_R7 = envFlag('AI_R7') !== '0';
 /** v6 结构防守（消融开关，默认开）：PAIR=庄家拆对/大单保护，SWEEP=满分破光 */
 const FEAT_PAIR = envFlag('AI_PAIR') !== '0';
@@ -1186,8 +1188,11 @@ class GreedyStrategy {
       if (!t.leadCombo || t.leadCombo.isTrump) return;
       const dom = t.leadCombo.suit;
       t.plays.forEach((p) => {
-        const followed = p.cards.every((c) => domainOf(c, ti) === dom);
-        if (!followed) res[p.playerIdx].add(dom);
+        // 零张该门才算缺门：跟甩牌半跟（给出部分该门牌+垫牌）说明手里
+        // 还有该门——按「整墩同门才算跟」会把半跟者误标缺门（2026-10-28
+        // 修复，此前误判令逼烧主打空门、R3/R5 采样排除真持牌分配）。
+        const hasDom = p.cards.some((c) => domainOf(c, ti) === dom);
+        if (!hasDom) res[p.playerIdx].add(dom);
       });
     });
     return res;
@@ -1437,14 +1442,17 @@ class GreedyStrategy {
       const trick = state.currentTrick;
       const h = state.players[playerIdx].hand.length;
       if (h < 3 || h > 10) return null; // R5 管 h=2；>10 rollout 超预算
-      if (!trick || trick.plays.length === 0) return null; // v1 仅跟牌
-      const n = trick.leadCombo.n;
+      const isLeadDec = !trick || trick.plays.length === 0;
+      // v2 攻方领出推演（AI_R3_LEAD）：逼烧主打哪门/何时清哪门是攻方最重
+      // 的决策（v1 只覆盖跟牌）；庄家领出已有 _scoreLeadSdy+R7 增强不启用
+      if (isLeadDec && !FEAT_R3_LEAD) return null;
+      const n = isLeadDec ? 1 : trick.leadCombo.n;
       const need = ctx.sdy.need;
       const mem = ctx.mem;
       const unseenPts = mem.totalPoints - mem.pointsPlayed - mem.pointsInHand;
       if (need <= 0 || need > unseenPts) return null; // 胜负已定
-      const trickPts = trick.plays.reduce((s, p) => s + pointsOf(p.cards, cfg), 0);
-      if (trickPts < 10 && trickPts < need) return null; // 只推演关键墩
+      const trickPts = isLeadDec ? 0 : trick.plays.reduce((s, p) => s + pointsOf(p.cards, cfg), 0);
+      if (!isLeadDec && trickPts < 10 && trickPts < need) return null; // 跟牌只推演关键墩
       const rootCands = legalMoves(state, playerIdx);
       if (rootCands.length <= 1) return null;
       const isDealerView = playerIdx === ctx.sdy.dealerIdx;
@@ -1452,12 +1460,13 @@ class GreedyStrategy {
       const camp = envFlag('AI_R3_CAMP') || 'both';
       if (camp === 'att' && isDealerView) return null;
       if (camp === 'dealer' && !isDealerView) return null;
+      if (isLeadDec && isDealerView) return null; // 领出推演：攻方试点
 
       // 对手分组（墩内已出者少 n 张）+ 未见牌账目校验（同 R5）
       const groups = [];
       for (let s = 0; s < 4; s++) {
         if (s === playerIdx) continue;
-        const playedIn = trick.plays.some((p) => p.playerIdx === s);
+        const playedIn = !isLeadDec && trick.plays.some((p) => p.playerIdx === s);
         groups.push({ seat: s, size: h - (playedIn ? n : 0), voids: null });
       }
       const seatVoids = this._r5SeatVoids(state);
@@ -1483,7 +1492,7 @@ class GreedyStrategy {
 
       const bottomPtsReal = (state.bottomCards || []).reduce((s, c) => s + pointValue(c, cfg), 0);
       const seats = groups.map((g) => g.seat);
-      const rootPruned = this._r5Prune(state, playerIdx, rootCands, trick, R3_K_ROOT);
+      const rootPruned = this._r5Prune(state, playerIdx, rootCands, isLeadDec ? null : trick, R3_K_ROOT);
       // 贪心选择必须在评估集内（对照先验；剪枝可能把它挤掉）
       const evalSet = rootPruned.some((c) => c === greedyPick)
         ? rootPruned : rootPruned.concat([greedyPick]);
@@ -1543,7 +1552,9 @@ class GreedyStrategy {
     throw { r3Abort: true }; // 异常长局，防御性放弃
   }
 
-  /** rollout 单步：基线贪心打分（无上下文，快）；候选超宽按引擎序截断保确定性 */
+  /** rollout 单步：基线贪心打分（无上下文，快）；候选超宽按引擎序截断保确定性
+   *  （rollout 增强策略已试删 2026-10-28：全员增强高估对手 a-new +0.8pp、
+   *  阵营感知增强 τ∈{5,8,10} 无差异——R3 覆盖 45 次/1600 局太稀，保真度无边际） */
   _r3RolloutMove(ss, seat, budget) {
     if (++budget.n > R3_EVENT_CAP) throw { r3Abort: true };
     const cands = legalMoves(ss, seat);
