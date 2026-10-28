@@ -66,6 +66,16 @@ function check(name, cond, detail) {
     const bindHidden = await page.$eval('#btn-cloud-bind', (el) => el.hidden);
     const pass2Hidden = await page.$eval('#cloud-pass2', (el) => el.hidden);
     check('默认登录视图（升级按钮与确认密码都隐藏）', bindHidden && pass2Hidden);
+    await page.type('#cloud-name', '华'); // 1 位用户名：必须弹层内红字提示，不能"没反应"
+    await page.type('#cloud-pass', 'pass1234');
+    await page.click('#btn-cloud-login');
+    await sleep(150);
+    const errText = await page.$eval('#cloud-err', (el) => (el.hidden ? '' : el.textContent));
+    check('1位用户名点登录→弹层内红字提示', errText.includes('2~16'), errText);
+    await page.click('#btn-cloud-close'); // 关掉重开：输入与红字都应清空
+    await page.click('#btn-cloud');
+    await sleep(100);
+    check('重开弹层后红字已清', await page.$eval('#cloud-err', (el) => el.hidden));
     await page.click('#tab-cloud-bind'); // 游客升级：切到"升级"Tab 才出现确认密码与升级按钮
     await sleep(100);
     check('升级Tab亮起后显示"升级为正式账号"按钮', await page.$eval('#btn-cloud-bind', (el) => !el.hidden));

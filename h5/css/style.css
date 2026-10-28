@@ -734,6 +734,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   font-size: 3.47rem; z-index: 200;
   max-width: 80rem; text-align: center;
   transition: opacity 0.25s;
+  pointer-events: none; /* 提示只给看不给点：别挡住弹层里的按钮吃掉用户手势 */
 }
 .toast--hidden { opacity: 0; pointer-events: none; }
 
@@ -798,6 +799,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 }
 .cloud-modal__input:focus { outline: none; border-color: #caa235; }
 .cloud-modal__input::placeholder { color: #b3a377; }
+.cloud-modal__err { font-size: 2.67rem; color: #c0392b; text-align: center; margin: -0.5rem 0 1.6rem; line-height: 1.5; }
 .cloud-modal__actions { display: flex; gap: 2.67rem; margin-top: 1.07rem; }
 .cloud-modal__actions .btn { flex: 1; font-size: 3.2rem; padding: 2.4rem 0; }
 .cloud-modal__foot { font-size: 2.4rem; color: #8a6d3a; text-align: center; margin-top: 2.67rem; line-height: 1.6; }

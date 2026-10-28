@@ -1195,6 +1195,7 @@
   /* 弹层模式：'login' 登录（默认）/ 'bind' 游客升级。要确认密码的是升级不是登录——
      换新手机的首个意图是登录，别默认摆出注册式双密码表单 */
   let cloudMode = 'login';
+  let cloudSubmitting = false; // 请求在途：refreshCloudModal 不得改按钮文案/显隐（否则"连接中…"被改回、禁用还在，点了像死按钮）
 
   function setCloudMode(mode) {
     cloudMode = mode;
@@ -1214,8 +1215,10 @@
     // 游客态才有"升级"Tab；正式账号/未连接都是单登录表单
     $('cloud-tabs').hidden = (s !== 'guest');
     if (s !== 'guest') cloudMode = 'login';
-    setCloudMode(cloudMode);
-    $('btn-cloud-login').textContent = (s === 'user') ? '切换到此账号' : '登录已有账号';
+    if (!cloudSubmitting) { // 提交在途时按钮归 submitCloud 管（竞态：游客建档晚到会瞬间改回文案）
+      setCloudMode(cloudMode);
+      $('btn-cloud-login').textContent = (s === 'user') ? '切换到此账号' : '登录已有账号';
+    }
     // 诊断行：入口域名/本机登录态/最近一次后端请求——定位"登录了却未连接"这类现场问题
     const d = window.Cloud ? Cloud.diag() : null;
     if (d) {
@@ -1224,6 +1227,13 @@
         : '后端未请求';
       $('cloud-diag').textContent = `入口 ${d.host} · 本机登录态${d.saved ? '有' : '无'} · ${last}`;
     }
+  }
+
+  /** 弹层内联错误（红字贴在密码框下）：toast 在竖屏旋转层里位置偏+一闪而过，用户会当成"没反应" */
+  function cloudErr(msg) {
+    const e = $('cloud-err');
+    e.textContent = msg || '';
+    e.hidden = !msg;
   }
 
   function closeCloudModal() { $('cloud-modal').hidden = true; }
@@ -1261,20 +1271,24 @@
   }
 
   function submitCloud(mode) {
+    // 校验/失败信息一律双通道：弹层内红字 + toast——只靠 toast 会被当成"没反应"
+    const fail = (msg) => { cloudErr(msg); toast(msg, 3200); };
     // cloud.js 没加载上时点按钮＝静默 ReferenceError，两个键看起来都"没反应"——先挡下给人话
-    if (!window.Cloud) { toast('云端组件未加载，刷新页面或换个浏览器再试', 3200); return; }
+    if (!window.Cloud) return fail('云端组件未加载，刷新页面或换个浏览器再试');
+    cloudErr(''); // 清掉上次的红字
     const name = $('cloud-name').value.trim();
     const pass = $('cloud-pass').value;
-    if (!/^[a-zA-Z0-9_一-龥]{2,16}$/.test(name)) { toast('用户名需 2~16 位中文/字母/数字/下划线'); return; }
-    if (!/^[\x21-\x7e]{4,32}$/.test(pass)) { toast('密码需 4~32 位字母/数字/符号'); return; }
-    if (mode === 'bind' && pass !== $('cloud-pass2').value) { toast('两次密码不一致'); return; }
+    if (!/^[a-zA-Z0-9_一-龥]{2,16}$/.test(name)) return fail('用户名需 2~16 位中文/字母/数字/下划线');
+    if (!/^[\x21-\x7e]{4,32}$/.test(pass)) return fail('密码需 4~32 位字母/数字/符号');
+    if (mode === 'bind' && pass !== $('cloud-pass2').value) return fail('两次密码不一致');
     // 未连接态点击：立即给反馈，别让用户干等 10 秒超时才见动静
     if (Cloud.state() === 'off') toast('云端未连接，正在尝试（最多等10秒）…', 3200);
     const btn = mode === 'bind' ? $('btn-cloud-bind') : $('btn-cloud-login');
     const label = btn.textContent;
+    cloudSubmitting = true;
     btn.classList.add('btn--disabled');
     btn.textContent = '连接中…'; // 点击要有可见反馈；网络黑洞时 10s 超时由 cloud.js 兜底恢复
-    const done = () => { btn.classList.remove('btn--disabled'); btn.textContent = label; };
+    const done = () => { cloudSubmitting = false; btn.classList.remove('btn--disabled'); btn.textContent = label; };
     const p = (mode === 'bind')
       ? Cloud.bind(name, pass)
         .then(() => { toast('已升级为正式账号，战绩保留'); closeCloudModal(); })
@@ -1283,12 +1297,12 @@
     p.catch((e) => {
       // 服务端文案不可见（api 层只抛 status），这里按状态码给出人话
       const st = e && e.status;
-      if (mode === 'bind' && st === 409) toast('这个名字已被占用，换一个吧', 3200);
-      else if (mode === 'bind' && st === 401) toast('登录态失效，刷新页面后重试', 3200);
-      else if (st === 401) toast('用户名或密码错误', 3200);
-      else if (st === 400) toast('用户名或密码格式不对', 3200);
-      else if (e && e.message === 'timeout') toast('连不上云端（10秒超时），换个网络或稍后再试', 3200);
-      else toast('网络异常，请稍后再试', 3200);
+      if (mode === 'bind' && st === 409) fail('这个名字已被占用，换一个吧');
+      else if (mode === 'bind' && st === 401) fail('登录态失效，刷新页面后重试');
+      else if (st === 401) fail('用户名或密码错误');
+      else if (st === 400) fail('用户名或密码格式不对');
+      else if (e && e.message === 'timeout') fail('连不上云端（10秒超时），换个网络或稍后再试');
+      else fail('网络异常，请稍后再试');
       refreshCloudModal(); // 失败后原地刷新诊断行：当场看到这次后端请求的结果
     }).then(done);
   }
@@ -1376,6 +1390,7 @@
     $('cloud-name').value = '';
     $('cloud-pass').value = '';
     $('cloud-pass2').value = '';
+    cloudErr('');
     $('cloud-modal').hidden = false;
   });
   $('btn-cloud-close').addEventListener('click', closeCloudModal);
