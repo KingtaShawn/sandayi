@@ -3829,7 +3829,8 @@ __def("ai/strategy-greedy", function (exports, __require, module) {
  *       + 配合领出（往庄家示缺门领空牌逼烧主——三家主牌碾压一家）；
  *     · 跟牌：末家必赢 → 甩分牌收分；能小赢 → 最小能赢牌；赢不了 → 垫最小/喂分给稳赢队友；
  *       结构防守（v6）：庄家垫牌/领出拆对罚 + JQKA 大单保护（AI_PAIR）、
- *       庄家冲满分时攻方破光抢分豁免省牌罚（AI_SWEEP）；
+ *       主牌战已输（三家主牌耗尽/庄家仍持主）即刻满分防守——垫牌保
+ *       副牌无敌大牌、抢分豁免省牌罚（AI_SWEEP）；
  *     · 缺门：墩内分 ≥ threshold → 主牌将吃（结构对应优先），否则垫分/垫小。
  */
 
@@ -4345,6 +4346,10 @@ class GreedyStrategy {
       if (!combo.isTrump && ctx.sdy.voids && ctx.sdy.voids.dealer.has(combo.suit)) {
         score += 6 - pointsOf(cards_, cfg) * 1.5;
       }
+      // （v6.3 负结果存档：主牌战已输时「大牌走墩」领出加成 +8 实测
+      // a-new 40.0→41.8——大牌对子自带 10~20 分进隐性缺门将吃白送庄家，
+      // 且挤掉实证 +8.8pp 的逼烧主节奏（烧庄主的将吃额度优于自己走墩）。
+      // 大牌的正确用法是留着跟牌反压庄家的控牌领出，不是领出去送检。）
       // R2 甩牌风险管理：legalMoves 经 validateThrow 引擎真值校验，AI 甩牌
       // 永不罚分，唯一败法=缺门家结构将吃整墩夺走（实测 400 局攻方副牌甩牌
       // 36% 被庄家将吃夺墩、全是缺门将吃；但总暴露仅 ~0.25 分/局，整体期望
@@ -4476,7 +4481,34 @@ class GreedyStrategy {
     const sdy = this._sdyCtx(state, playerIdx);
     // 缺门情报一次扫描出按席位集合，庄家/任意攻方视图由它派生（免二次扫描）
     sdy.voids = this._voidsFromSeats(this._r5SeatVoids(state), sdy.dealerIdx);
+    // 主牌战已输侦查（v6.3 满分防守触发器）：我无主 + 两队友都已示主牌
+    // 缺门 + 未见主牌 >0（只可能在庄家/底牌处）→ 剩余主牌权全归庄家。
+    // 触发即防守（不等 180 分）：抢回每一分，1 分破满分、need 分否决合同。
+    const tv = this._trumpVoidSeats(state);
+    const myTr = state.players[playerIdx].hand
+      .filter((c) => domainOf(c, ti) === 'TRUMP').length;
+    const mates = [0, 1, 2, 3].filter((s) => s !== playerIdx && s !== sdy.dealerIdx);
+    const unseenTr = (di.byDomain.get('TRUMP') || []).reduce((s, e) => s + e.unseen, 0);
+    sdy.trumpWatch = FEAT_SWEEP && !sdy.isDealer && myTr === 0 && unseenTr > 0
+      && mates.every((s) => tv[s]);
     return { mem, di, sdy };
+  }
+
+  /**
+   * 已示主牌缺门（终身有效）：主牌领出墩上一张主都没跟 = 主牌缺门。
+   * 与 _r5SeatVoids 的「整墩同门才算跟」判定不同：主牌墩只要含任意主牌
+   * 即非缺门（半跟=手里有主），避开部分跟误判；独立成集不进 R3/R5 采样。
+   */
+  _trumpVoidSeats(state) {
+    const ti = state.trumpInfo;
+    const res = [false, false, false, false];
+    (state.completedTricks || []).forEach((t) => {
+      if (!t.leadCombo || !t.leadCombo.isTrump) return;
+      t.plays.forEach((p) => {
+        if (!p.cards.some((c) => domainOf(c, ti) === 'TRUMP')) res[p.playerIdx] = true;
+      });
+    });
+    return res;
   }
 
   /**
@@ -4659,10 +4691,14 @@ class GreedyStrategy {
     const curWinnerTeam = this._currentWinnerTeam(state, trick, ti, cfg);
     const teamWinning = curWinnerTeam === this._camp(state, playerIdx);
     const allTrump = cards_.every((c) => domainOf(c, ti) === 'TRUMP');
-    // 满分破光（AI_SWEEP，v6）：庄家已成庄且 ≥180 分（攻方 ≤20）——
-    // 每一分都关系庄家「满分坐庄」上全网榜（app.js 满分计数），攻方
-    // 拿一分即破光。抢分优先于省牌：豁免主牌经济/末墩储备罚，垫分加倍罚。
-    const sweep = FEAT_SWEEP && sdy.need <= 0 && sdy.dealerPts >= 180;
+    // 满分破光（AI_SWEEP，v6.3 触发重设计）：
+    //   ① 主牌战已输（trumpWatch）：三家主牌耗尽、庄家仍持主——满分在望，
+    //      此刻即防守，不等 180 分：抢回每一分（1 分破满分、need 分否决合同）。
+    //   ② 庄家已成庄且 ≥180 分（攻方 ≤20）：终局抢分模式，拿一分即破光
+    //      （app.js 满分坐庄全网榜计数）。
+    // 两种触发下抢分都优先于省牌：豁免主牌经济/末墩储备罚，垫分加倍罚。
+    const sweep = FEAT_SWEEP
+      && ((sdy.need <= 0 && sdy.dealerPts >= 180) || sdy.trumpWatch);
     let score = 0;
 
     if (sdy.isDealer) {
@@ -4786,26 +4822,46 @@ class GreedyStrategy {
   }
 
   /**
-   * 垫牌结构保护（v6.1，AI_PAIR，仅庄家侧）：
-   *   - 庄家：拆对罚 4（清场甩牌收割靠对子结构，足以让「拆小对」
+   * 垫牌结构保护（v6.1 AI_PAIR 庄家侧 + v6.3 SWEEP 攻方主牌战已输）：
+   *   - 庄家（PAIR）：拆对罚 4（清场甩牌收割靠对子结构，足以让「拆小对」
    *     劣于「垫 JQKA 大单」）+ JQKA 大单保护 1.2（控制牌）。
-   * 攻方侧已试尽删（2026-10-28 负结果存档）：普遍保对 −2pp、缺门大户
-   * 养甩结构 −1.5pp——1v3 清场威胁下攻方对子结构难兑现，而保结构的
-   * 机会成本（垫牌扭曲）立即支付；缺门逼烧主逐张小单已是最优形态
-   * （整甩 100 局仅 5 次被选，张数加成无效果）。
+   *   - 攻方（SWEEP，仅 trumpWatch 触发时）：副牌「剩余牌无敌」大牌
+   *     垫牌罚 8——主牌战已输后这是唯一能走墩抢分的资产（庄家领非
+   *     最大牌时反压赢墩、队友喂分），庄家已示缺门的死牌除外。
+   * 攻方普遍保结构已试尽删（2026-10-28 负结果存档）：普遍保对 −2pp、
+   * 缺门大户养甩结构 −1.5pp、缺门空甩张数加成无效——保对的机会成本
+   * 立即支付而兑现时刻近乎不存在；v6.3 的差别=只在主牌战已输（可观测
+   * 局势事实）且只保可证走墩的单张大牌，非终局不启用。
    * 只动垫牌选项间的相对序，不动绝对量级（2026-10-28 教训：跨分支绝对
    * 值是「能赢就赢」强行为的隐形实现，实测勿碰）。
    */
   _discardKeep(cards_, hand, ti, ctx) {
-    if (!FEAT_PAIR) return 0;
     const isDealer = ctx && ctx.sdy.isDealer;
-    if (!isDealer) return 0;
+    // 攻方主牌战已输（trumpWatch）：垫牌别垫「剩余牌无敌」的副牌大牌
+    // （庄家已示缺门=死门除外，被将吃救不回）——那是唯一还能走墩抢分
+    // 的资产（seed 374 墩16 把 D/C 两门 A 当垃圾垫掉即典型失误）：庄家
+    // 领非最大牌时反压赢墩、队友喂分入袋；垫掉=亲手拆自己的桥。
+    const sweepKeep = FEAT_SWEEP && ctx && !isDealer && ctx.sdy.trumpWatch;
+    if (!FEAT_PAIR && !sweepKeep) return 0;
+    if (isDealer) {
+      if (!FEAT_PAIR) return 0;
+      let s = 0;
+      cards_.forEach((c) => {
+        const mate = hand.some((h) => h !== c && h.suit === c.suit && h.rank === c.rank);
+        const bigSingle = !c.isJoker && c.rank !== ti.levelRank && !mate && rankNum(c) >= 11;
+        if (mate) s -= 4;
+        else if (bigSingle) s -= 1.2;
+      });
+      return s;
+    }
     let s = 0;
     cards_.forEach((c) => {
-      const mate = hand.some((h) => h !== c && h.suit === c.suit && h.rank === c.rank);
-      const bigSingle = !c.isJoker && c.rank !== ti.levelRank && !mate && rankNum(c) >= 11;
-      if (mate) s -= 4;
-      else if (bigSingle) s -= 1.2;
+      const dom = domainOf(c, ti);
+      if (dom !== 'TRUMP'
+          && !(ctx.sdy.voids && ctx.sdy.voids.dealer.has(dom))
+          && this._unseenHigher(ctx.di, dom, strengthInDomain(c, ti)) === 0) {
+        s -= 8;
+      }
     });
     return s;
   }
