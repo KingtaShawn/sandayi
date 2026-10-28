@@ -233,6 +233,41 @@
     return st.players[0].hand.map((c) => decorateCard(st, c));
   }
 
+  /**
+   * 手牌行宽自愈：行宽取不到时兜底排了一版，等真实布局就位再按实测宽重排铺开。
+   * 不依赖 visibilitychange/resize——老内核（华为/X5 等）后台恢复经常一个事件都不发，
+   * 故轮询 + 首次触摸双保险：人在看页面时布局必有宽，最多半秒内自愈。
+   */
+  function armHandRelayout() {
+    if (G._handRelayoutArmed) return;
+    G._handRelayoutArmed = true;
+    let tries = 0;
+    const tick = () => {
+      const row = $('hand-row');
+      if (row && row.clientWidth) {
+        G._handRelayoutArmed = false;
+        G.lastHandKey = '';
+        if (G.service) render();
+        return;
+      }
+      if (++tries < 20) setTimeout(tick, 500);
+      else G._handRelayoutArmed = false; // 解除占用：下次行宽仍取不到的渲染重新挂
+    };
+    setTimeout(tick, 500);
+  }
+  // 触摸兜底（常驻一次性注册）：轮询窗口错过也能在用户第一触时铺开
+  const handTouchFix = () => {
+    if (!G._handRelayoutArmed) return;
+    const row = $('hand-row');
+    if (row && row.clientWidth) {
+      G._handRelayoutArmed = false;
+      G.lastHandKey = '';
+      if (G.service) render();
+    }
+  };
+  document.addEventListener('touchstart', handTouchFix, true);
+  document.addEventListener('pointerdown', handTouchFix, true);
+
   function renderHand(st, newIds) {
     const row = $('hand-row');
     const all = buildHandView(st);
@@ -242,10 +277,12 @@
     const dense = n > 30; // 埋底 33 张才降密度；横屏手牌区宽，25 张常规牌放得下
     const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 1;
     const rowCs = getComputedStyle(row);
-    // 行宽取不到时退视口宽：jsdom（e2e）无布局 clientWidth 恒 0；真机上切后台/被挂起的
-    // webview 也测不到行宽。按 0 算会把 margin 夹到 -8.8rem 下限、整把牌挤作一团还被
-    // keyed diff 冻结（手机端手牌堆左边的病根）；按视口宽只是略宽，行居中后两侧对称
-    const rowW = row.clientWidth || window.innerWidth || 0;
+    // 行宽取不到时退视口宽：jsdom（e2e）无布局 clientWidth 恒 0；真机上 0 尺寸预载/挂起的
+    // webview 里 clientWidth、innerWidth 可能都是 0，按 0 算会把 margin 夹到 -8.8rem 下限、
+    // 整把牌挤作一团（华为手机实测）。此时挂自愈：布局一就位就按真实宽重排
+    const liveW = row.clientWidth;
+    const rowW = liveW || window.innerWidth || 0;
+    if (!liveW) armHandRelayout();
     const usable = Math.max(30, (rowW - parseFloat(rowCs.paddingLeft) - parseFloat(rowCs.paddingRight)) / remPx);
     const cardW = dense ? 8.53 : 11.73;
     let margin = n > 1 ? Math.floor(((usable - cardW) / (n - 1)) * 100) / 100 - cardW : 0;
