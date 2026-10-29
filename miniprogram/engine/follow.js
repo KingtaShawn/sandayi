@@ -162,9 +162,11 @@ function isEffectiveTrumpFollow(leadCombo, playedCards, trumpInfo, cfg) {
     const t = combo && combo.units.find((u) => u.type === 'tractor' && u.cards.length === k * 2);
     return !!t;
   }
-  // 甩牌将吃（领出为副牌甩，主牌恒大于副牌免比强度）：领出对/拖单元须被同结构
-  // 主牌单元逐一覆盖（对→主对 / k对拖→≥k对拖）；领出单张由剩余任意主牌覆盖，
-  // 主对可拆计两张——用主对毙「对+单」「多单」甩牌都是有效将吃（甩→全压）。
+  // 甩牌将吃（领出为副牌甩，主牌恒大于副牌免比强度，免比大小）：领出对子须逐一
+  // 被主对覆盖，单张由剩余任意主牌覆盖（主对可拆计两张）——主对毙「对+单」「多单」
+  // 甩牌均有效将吃（甩→全压）。三打一无拖拉机（sanDaYiAllowTractor=false）：
+  // 连对甩即多副对子，按对数计，主牌不要求连对；下方拖拉机结构对应仅为升级模式
+  // （或三打一开启拖拉机）兜底，三打一默认不触发。
   const combo = parseCombo(playedCards, trumpInfo, cfg);
   if (!combo) return false;
   const fu = combo.units

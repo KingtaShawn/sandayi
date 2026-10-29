@@ -271,3 +271,60 @@ test('SDY-压测2：升级模式回归不受影响（同 config 工厂默认 she
   const cfg = createConfig({}); // 默认升级
   assert.equal(cfg.gameMode, 'shengji');
 });
+
+/* ========== 11. 甩牌将吃（无拖拉机规则：连对=多副对子，主牌按对数覆盖） ========== */
+
+const { parseCombo } = require('../miniprogram/engine/combo');
+const { buildTrumpInfo } = require('../miniprogram/engine/trump');
+const { resolveTrick } = require('../miniprogram/engine/trick');
+const { cards, cardsD } = require('./fixtures');
+
+/** 构造一墩并结算：lead=领出牌，kill=缺门者(玩家1)的全主牌，其余两家垫副牌 */
+function resolveKill(cfg, lead, kill) {
+  const TI = buildTrumpInfo('H', '2', cfg); // 主牌=王+全部2+红桃
+  const t = {
+    leadPlayerIdx: 0,
+    leadCombo: parseCombo(lead, TI, cfg),
+    plays: [
+      { playerIdx: 0, cards: lead, combo: parseCombo(lead, TI, cfg) },
+      { playerIdx: 1, cards: kill, combo: parseCombo(kill, TI, cfg) },
+      { playerIdx: 2, cards: cards('C3', 'C4', 'C5', 'C6').slice(0, lead.length), combo: null },
+      { playerIdx: 3, cards: cards('D3', 'D4', 'D5', 'D6').slice(0, lead.length), combo: null }
+    ],
+    winnerIdx: null, points: 0
+  };
+  return resolveTrick(t, TI, cfg);
+}
+
+test('SDY-将吃1：连对甩（无拖拉机=两对甩）缺门——非连两主对即可毙，不要求主牌连对', () => {
+  const cfg = sdyCfg();
+  assert.equal(cfg.sanDaYiAllowTractor, false);
+  const lead = [...cardsD('S7'), ...cardsD('S8')]; // 连对
+  const r = resolveKill(cfg, lead, [...cardsD('H9'), ...cardsD('H5')]); // ♥99+♥55 非连
+  assert.equal(r.detail[1].kind, 'trump');
+  assert.equal(r.winnerIdx, 1);
+});
+
+test('SDY-将吃2：四单甩缺门——主对+两主单（全主牌）全压毙，庄家赢', () => {
+  const cfg = sdyCfg();
+  const lead = cards('SA', 'SK', 'SQ', 'SJ');
+  const r = resolveKill(cfg, lead, [...cardsD('H9'), ...cards('H8', 'H7')]);
+  assert.equal(r.detail[1].kind, 'trump');
+  assert.equal(r.winnerIdx, 1);
+});
+
+test('SDY-将吃3：连对甩缺门——一主对+两主单对子数不足=垫牌，甩牌者赢（对须主对毙）', () => {
+  const cfg = sdyCfg();
+  const lead = [...cardsD('S7'), ...cardsD('S8')];
+  const r = resolveKill(cfg, lead, [...cardsD('H9'), ...cards('H8', 'H7')]);
+  assert.equal(r.detail[1].kind, 'discard');
+  assert.equal(r.winnerIdx, 0);
+});
+
+test('SDY-将吃4：连对甩缺门——两副不同门级牌对（♠22+♣22）也可毙', () => {
+  const cfg = sdyCfg();
+  const lead = [...cardsD('S7'), ...cardsD('S8')];
+  const r = resolveKill(cfg, lead, [...cardsD('S2'), ...cardsD('C2')]);
+  assert.equal(r.detail[1].kind, 'trump');
+  assert.equal(r.winnerIdx, 1);
+});
