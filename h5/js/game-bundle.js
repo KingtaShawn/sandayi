@@ -1282,16 +1282,24 @@ function isEffectiveTrumpFollow(leadCombo, playedCards, trumpInfo, cfg) {
     const t = combo && combo.units.find((u) => u.type === 'tractor' && u.cards.length === k * 2);
     return !!t;
   }
-  // 甩牌将吃：每个领出单元被主牌同结构压过
+  // 甩牌将吃（领出为副牌甩，主牌恒大于副牌免比强度）：领出对/拖单元须被同结构
+  // 主牌单元逐一覆盖（对→主对 / k对拖→≥k对拖）；领出单张由剩余任意主牌覆盖，
+  // 主对可拆计两张——用主对毙「对+单」「多单」甩牌都是有效将吃（甩→全压）。
   const combo = parseCombo(playedCards, trumpInfo, cfg);
   if (!combo) return false;
-  const lu = leadCombo.units.slice().sort((a, b) => (b.size - a.size) || (b.strength - a.strength));
-  const fu = combo.units.slice().sort((a, b) => (b.size - a.size) || (b.strength - a.strength));
-  if (fu.length < lu.length) return false;
-  for (let i = 0; i < lu.length; i++) {
-    if (fu[i].size !== lu[i].size || fu[i].strength <= lu[i].strength) return false;
+  const fu = combo.units
+    .filter((u) => u.type !== 'single')
+    .sort((a, b) => b.cards.length - a.cards.length);
+  for (const u of leadCombo.units) {
+    if (u.type === 'tractor') {
+      const i = fu.findIndex((x) => x.type === 'tractor' && x.cards.length >= u.cards.length);
+      if (i < 0) return false;
+      fu.splice(i, 1);
+    }
   }
-  return true;
+  const leadPairs = leadCombo.units.filter((u) => u.type === 'pair').length;
+  const followPairs = fu.reduce((s, u) => s + u.cards.length / 2, 0);
+  return followPairs >= leadPairs;
 }
 
 /**

@@ -171,3 +171,65 @@ test('QA-跟10：跟门 1 张+主单垫牌合法（partial，主牌不做将吃�
   assert.equal(r.ok, true);
   assert.equal(r.meta.followKind, 'partial');
 });
+
+test('QA-跟11：两单甩缺门——主对可拆计两张毙（甩→全压），庄家赢', () => {
+  const lead = cards('SA', 'SK');
+  const t = {
+    leadPlayerIdx: 0,
+    leadCombo: parseCombo(lead, TI, DEFAULT_CONFIG),
+    plays: [play(0, lead), play(1, cardsD('H9')), play(2, cards('C3', 'C4')), play(3, cards('D3', 'D4'))],
+    winnerIdx: null, points: 0
+  };
+  const r = resolveTrick(t, TI, DEFAULT_CONFIG);
+  assert.equal(r.detail[1].kind, 'trump');
+  assert.equal(r.winnerIdx, 1);
+});
+
+test('QA-跟12：四单甩缺门——主对+两主单全压，庄家赢', () => {
+  const lead = cards('SA', 'SK', 'SQ', 'SJ');
+  const t = {
+    leadPlayerIdx: 0,
+    leadCombo: parseCombo(lead, TI, DEFAULT_CONFIG),
+    plays: [play(0, lead), play(1, [...cardsD('H9'), ...cards('H8', 'H7')]), play(2, cards('C3', 'C4', 'C5', 'C6')), play(3, cards('D3', 'D4', 'D5', 'D6'))],
+    winnerIdx: null, points: 0
+  };
+  const r = resolveTrick(t, TI, DEFAULT_CONFIG);
+  assert.equal(r.detail[1].kind, 'trump');
+  assert.equal(r.winnerIdx, 1);
+});
+
+test('QA-跟13：对+单甩缺门——三张主单无主对，对子单元无法覆盖=垫牌，领出者赢', () => {
+  const lead = [...cardsD('S7'), ...cards('S5')];
+  const t = {
+    leadPlayerIdx: 0,
+    leadCombo: parseCombo(lead, TI, DEFAULT_CONFIG),
+    plays: [play(0, lead), play(1, cards('H9', 'H8', 'H7')), play(2, cards('C3', 'C4', 'C5')), play(3, cards('D3', 'D4', 'D5'))],
+    winnerIdx: null, points: 0
+  };
+  const r = resolveTrick(t, TI, DEFAULT_CONFIG);
+  assert.equal(r.detail[1].kind, 'discard');
+  assert.equal(r.winnerIdx, 0);
+});
+
+test('QA-跟14：两对甩缺门——两主对将吃赢；一主对+两主单不争胜', () => {
+  const lead = [...cardsD('S7'), ...cardsD('S5')];
+  const t = {
+    leadPlayerIdx: 0,
+    leadCombo: parseCombo(lead, TI, DEFAULT_CONFIG),
+    plays: [play(0, lead), play(1, [...cardsD('H9'), ...cardsD('H8')]), play(2, cards('C3', 'C4', 'C5', 'C6')), play(3, cards('D3', 'D4', 'D5', 'D6'))],
+    winnerIdx: null, points: 0
+  };
+  const r = resolveTrick(t, TI, DEFAULT_CONFIG);
+  assert.equal(r.detail[1].kind, 'trump');
+  assert.equal(r.winnerIdx, 1);
+
+  const t2 = {
+    leadPlayerIdx: 0,
+    leadCombo: parseCombo(lead, TI, DEFAULT_CONFIG),
+    plays: [play(0, lead), play(1, [...cardsD('H9'), ...cards('H8', 'H7')]), play(2, cards('C3', 'C4', 'C5', 'C6')), play(3, cards('D3', 'D4', 'D5', 'D6'))],
+    winnerIdx: null, points: 0
+  };
+  const r2 = resolveTrick(t2, TI, DEFAULT_CONFIG);
+  assert.equal(r2.detail[1].kind, 'discard');
+  assert.equal(r2.winnerIdx, 0);
+});
