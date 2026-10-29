@@ -3911,6 +3911,11 @@ const FEAT_FEEDRISK = envFlag('AI_FEEDRISK') !== '0';
 // 攻方关键墩接力与甩牌候选保留，分别消融。
 const FEAT_RELAY = envFlag('AI_RELAY') !== '0';
 const FEAT_THROW_CHOICE = envFlag('AI_THROW_CHOICE') !== '0';
+// 前期单墩接力判断：11~25张也评估；3~10张继续由R3整局推演接管。
+const FEAT_TEAM_FOLLOW = envFlag('AI_TEAM_FOLLOW') !== '0';
+const FEAT_TEAM_PROTECT = envFlag('AI_TEAM_PROTECT') !== '0';
+const FEAT_TEAM_HANDOFF = envFlag('AI_TEAM_HANDOFF') !== '0';
+const TEAM_FOLLOW_SAMPLES = 24;
 
 class GreedyStrategy {
   /**
@@ -4306,12 +4311,160 @@ class GreedyStrategy {
       const r3 = this._solvePIMC(state, playerIdx, ctx, pick);
       if (r3) pick = r3;
     }
+    if (ctx && FEAT_TEAM_FOLLOW && !ctx.sdy.isDealer && !isLead
+        && this.difficulty !== 'easy') {
+      const teamPick = this._chooseTeamFollow(state, playerIdx, ctx, candidates, pick);
+      if (teamPick) pick = teamPick;
+    }
     // 铁律：二次校验；失败回退首个候选
     const check = validatePlay(state, playerIdx, pick);
     if (!check.ok) {
       pick = candidates[0];
     }
     return pick;
+  }
+
+  /**
+   * 前期轻量接力：只模拟本墩后续席位，不模拟整局，不读取真实队友手牌。
+   * 同一组公开信息约束的假设分布比较跑分、小垫、最小压庄/最大压庄。
+   * 庄家未出时，未接稳的分牌另按失手概率计价，避免 10/K 一味吃喂分加成。
+   */
+  _chooseTeamFollow(state, playerIdx, ctx, candidates, pick) {
+    const trick = state.currentTrick;
+    if (!trick || trick.plays.length === 0 || trick.plays.length === 3
+        || state.players[playerIdx].hand.length <= 10 || candidates.length < 2
+        || !['single', 'pair'].includes(trick.leadCombo.type)) return null;
+    if (this._currentWinnerTeam(state, trick, state.trumpInfo, state.config) === 1
+        && this._teamLocked(state, playerIdx, ctx, trick)) return null;
+    const estimates = this._teamFollowEstimates(state, playerIdx, ctx, candidates, pick);
+    if (!estimates || estimates.length < 2) return null;
+    const key = (cards) => cards.map((c) => c.id).sort().join('|');
+    const current = estimates.find((e) => key(e.cards) === key(pick));
+    if (!current) return null;
+    const dealerPending = !trick.plays.some((p) => p.playerIdx === ctx.sdy.dealerIdx);
+    const winner = this._currentWinnerPlay(state, trick, state.trumpInfo, state.config);
+    const winnerDomain = winner && domainOf(winner.cards[0], state.trumpInfo);
+    const higher = winner ? this._unseenHigher(ctx.di, winnerDomain,
+      this._maxStrength(winner.cards, state.trumpInfo)) : 0;
+    const exposedRuff = winnerDomain !== 'TRUMP' && ctx.sdy.voids.dealer.has(trick.leadCombo.suit);
+    const utility = (e) => {
+      // 顶主/副牌控制牌消耗需计价，不能只为本墩多收一分就拆光后手。
+      let cost = 0;
+      for (const c of e.cards) {
+        const dom = domainOf(c, state.trumpInfo);
+        const strength = strengthInDomain(c, state.trumpInfo);
+        cost += dom === 'TRUMP' ? 2 + Math.max(0, strength - 914) / 15
+          : Math.max(0, strength - 10) * 0.75;
+      }
+      const exposure = dealerPending ? pointsOf(e.cards, state.config) * (1 - e.teamWin) * 2 : 0;
+      return e.signedPoints - cost - exposure;
+    };
+    let best = current;
+    for (const e of estimates) {
+      // 单墩评估只覆盖有证据的配合调整，不推翻所有全局控牌先验：
+      // ① 庄家未出，当前正准备暴露10/K；② 庄家已出，后位队友高概率接手。
+      const protectPoints = FEAT_TEAM_PROTECT && dealerPending && pointsOf(current.cards, state.config) >= 10
+        && (higher >= 4 || exposedRuff) && e.teamWin >= current.teamWin - 0.25
+        && pointsOf(e.cards, state.config) <= pointsOf(current.cards, state.config);
+      const handOff = FEAT_TEAM_HANDOFF && !dealerPending && e.mateWin === 1 && e.teamWin >= current.teamWin;
+      if ((protectPoints || handOff) && utility(e) > utility(best) + 1e-9) best = e;
+    }
+    return best !== current && utility(best) >= utility(current) + (dealerPending ? 4 : 2) ? best.cards : null;
+  }
+
+  /** 单墩接力概率（含后位队友接手率），只使用自己手牌、已出牌和各席位缺门。 */
+  _teamFollowEstimates(state, playerIdx, ctx, candidates, pick) {
+    const ti = state.trumpInfo;
+    const cfg = state.config;
+    const trick = state.currentTrick;
+    const n = trick.leadCombo.n;
+    const h = state.players[playerIdx].hand.length;
+    const seatVoids = this._r5SeatVoids(state);
+    const trumpVoids = this._trumpVoidSeats(state);
+    const groups = [];
+    for (let seat = 0; seat < 4; seat++) {
+      if (seat === playerIdx) continue;
+      const voids = new Set(seatVoids[seat]);
+      if (trumpVoids[seat]) voids.add('TRUMP');
+      groups.push({ seat, size: h - (trick.plays.some((p) => p.playerIdx === seat) ? n : 0), voids });
+    }
+    // 半跟已出尽该门；跟对子出散牌说明当时没有可跟对子。
+    // 按时间倒推补回该家此后公开打出的牌，交给引擎校验每个假设是否可能。
+    const later = [[], [], [], []];
+    const observations = [];
+    for (const t of (state.completedTricks || []).concat([trick]).slice().reverse()) {
+      if (!t.leadCombo) continue;
+      for (const p of t.plays.slice().reverse()) {
+        const groupIdx = groups.findIndex((g) => g.seat === p.playerIdx);
+        const followed = p.cards.filter((c) => domainOf(c, ti) === t.leadCombo.suit);
+        if (groupIdx >= 0 && p.playerIdx !== t.leadPlayerIdx) {
+          if (t.leadCombo.type !== 'eight' && followed.length < t.leadCombo.n) {
+            groups[groupIdx].voids.add(t.leadCombo.suit);
+          }
+          const combo = parseCombo(p.cards, ti, cfg);
+          if (t.leadCombo.n > 1 && !(t.leadCombo.type === 'pair'
+              && followed.length === 2 && combo && combo.type === 'pair')) {
+            observations.push({ groupIdx, seat: p.playerIdx, cards: p.cards,
+              leadCombo: t.leadCombo, suffix: p.cards.concat(later[p.playerIdx]) });
+          }
+        }
+        later[p.playerIdx].push(...p.cards);
+      }
+    }
+    const unseen = this._r5UnseenCards(state, playerIdx);
+    if (unseen.length !== groups.reduce((sum, g) => sum + g.size, 0) + cfg.bottomCards) return null;
+    const { validateFollow } = __require('engine/follow');
+    const assignments = this._r5Assignments(unseen, groups, ti,
+      TEAM_FOLLOW_SAMPLES * (observations.length ? 4 : 1)).filter((asg) => observations.every((o) => {
+      const players = [0, 1, 2, 3].map(() => ({ hand: [] }));
+      players[o.seat].hand = asg.hands[o.groupIdx].concat(o.suffix);
+      return validateFollow({ players, trumpInfo: ti, currentTrick: { leadCombo: o.leadCombo } },
+        o.seat, o.cards, cfg).ok;
+    })).slice(0, TEAM_FOLLOW_SAMPLES);
+    if (assignments.length === 0) return null;
+    const key = (cards) => cards.map((c) => c.id).sort().join('|');
+    const evalSet = [];
+    const add = (cards) => {
+      if (cards && !evalSet.some((e) => key(e) === key(cards))) evalSet.push(cards);
+    };
+    add(pick);
+    const cheap = candidates.slice().sort((a, b) => pointsOf(a, cfg) - pointsOf(b, cfg)
+      || this._maxStrength(a, ti) - this._maxStrength(b, ti));
+    add(cheap[0]);
+    const winning = cheap.filter((cards) => this._wouldWin(state, trick, playerIdx, cards, parseCombo(cards, ti, cfg)))
+      .sort((a, b) => this._maxStrength(a, ti) - this._maxStrength(b, ti)
+        || pointsOf(a, cfg) - pointsOf(b, cfg));
+    // 单/对的合法压牌均保留，尤其是够压庄、但不必烧大王的中间主牌。
+    winning.forEach(add);
+    add(cheap.slice().sort((a, b) => pointsOf(b, cfg) - pointsOf(a, cfg))[0]);
+    const seats = groups.map((g) => g.seat);
+    return evalSet.map((cards) => {
+      let wins = 0, mateWins = 0, signedPoints = 0;
+      for (const asg of assignments) {
+        const ss = this._r5SimState(state, ctx, playerIdx, seats, asg, 0);
+        this._r5Apply(ss, playerIdx, cards, parseCombo(cards, ti, cfg));
+        let seat = this._nextSeat(state, playerIdx);
+        while (ss.currentTrick) {
+          const legal = legalMoves(ss, seat);
+          if (!legal.length) return null;
+          // 后续玩家只按其假设手牌及当前公开墩面选牌；不递归调用接力推演。
+          let next = legal[0], bestScore = -Infinity;
+          for (const c of legal) {
+            const score = this._scoreFollow(ss, seat, c, null);
+            if (score > bestScore) { bestScore = score; next = c; }
+          }
+          this._r5Apply(ss, seat, next, parseCombo(next, ti, cfg));
+          seat = this._nextSeat(state, seat);
+        }
+        const result = ss.tricks[0];
+        const attackWon = result.winnerIdx !== ctx.sdy.dealerIdx;
+        if (attackWon) wins++;
+        if (attackWon && result.winnerIdx !== playerIdx) mateWins++;
+        signedPoints += result.points * (attackWon ? 1 : -1);
+      }
+      return { cards, teamWin: wins / assignments.length, mateWin: mateWins / assignments.length,
+        signedPoints: signedPoints / assignments.length };
+    }).filter(Boolean);
   }
 
   /**
@@ -4966,7 +5119,7 @@ class GreedyStrategy {
               : asg.bottom.reduce((s, c) => s + pointValue(c, cfg), 0));
           this._r5Apply(ss, playerIdx, cards, combo);
           let next;
-          if (ss.currentTrick) next = (playerIdx + 1) % 4;
+          if (ss.currentTrick) next = this._nextSeat(ss, playerIdx);
           else next = ss.tricks[ss.tricks.length - 1].winnerIdx;
           sum += this._r5Search(ss, next, budget, -Infinity, Infinity);
         }
@@ -5129,6 +5282,8 @@ class GreedyStrategy {
     return {
       config: state.config,
       trumpInfo: state.trumpInfo,
+      playOrder: state.playOrder ? state.playOrder.slice()
+        : (state.config.playDirection === 'clockwise' ? [0, 3, 2, 1] : [0, 1, 2, 3]),
       players,
       currentTrick: cur ? {
         leadPlayerIdx: cur.leadPlayerIdx,
@@ -5200,7 +5355,7 @@ class GreedyStrategy {
       const combo = parseCombo(cards, ss.trumpInfo, ss.config);
       const undo = this._r5Apply(ss, toAct, cards, combo);
       let next;
-      if (ss.currentTrick) next = (toAct + 1) % 4;
+      if (ss.currentTrick) next = this._nextSeat(ss, toAct);
       else next = ss.tricks[ss.tricks.length - 1].winnerIdx;
       const v = this._r5Search(ss, next, budget, alpha, beta);
       undo();
@@ -5365,7 +5520,7 @@ class GreedyStrategy {
               : asg.bottom.reduce((s, c) => s + pointValue(c, cfg), 0));
           this._r5Apply(ss, playerIdx, cards, combo);
           let next;
-          if (ss.currentTrick) next = (playerIdx + 1) % 4;
+          if (ss.currentTrick) next = this._nextSeat(ss, playerIdx);
           else next = ss.tricks[ss.tricks.length - 1].winnerIdx;
           sum += this._r3Rollout(ss, next, budget);
         }
@@ -5405,7 +5560,7 @@ class GreedyStrategy {
       const mv = this._r3RolloutMove(ss, toAct, budget);
       const combo = parseCombo(mv, ss.trumpInfo, ss.config);
       this._r5Apply(ss, toAct, mv, combo);
-      toAct = ss.currentTrick ? (toAct + 1) % 4 : ss.tricks[ss.tricks.length - 1].winnerIdx;
+      toAct = ss.currentTrick ? this._nextSeat(ss, toAct) : ss.tricks[ss.tricks.length - 1].winnerIdx;
     }
     throw { r3Abort: true }; // 异常长局，防御性放弃
   }
@@ -5430,6 +5585,13 @@ class GreedyStrategy {
   }
 
   /* ------------------------- 辅助 ------------------------- */
+
+  /** 所有模拟共用真实出牌方向；避免顺时针局面重复已出者、漏掉庄家。 */
+  _nextSeat(state, seat) {
+    const order = state.playOrder
+      || (state.config.playDirection === 'clockwise' ? [0, 3, 2, 1] : [0, 1, 2, 3]);
+    return order[(order.indexOf(seat) + 1) % order.length];
+  }
 
   /**
    * 阵营归属（双模式统一）：
