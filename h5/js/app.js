@@ -268,6 +268,19 @@
   document.addEventListener('touchstart', handTouchFix, true);
   document.addEventListener('pointerdown', handTouchFix, true);
 
+  /** 手牌挤压诊断条：margin 夹底时亮出实测值（疑难机型定位用；?diag=1 常显） */
+  function handDiag(clamped, v) {
+    let bar = $('hand-diag');
+    if (!clamped && !/[?&]diag=1\b/.test(location.search)) { if (bar) bar.hidden = true; return; }
+    if (!bar) {
+      bar = el('div', '');
+      bar.id = 'hand-diag';
+      document.body.appendChild(bar);
+    }
+    bar.hidden = false;
+    bar.textContent = `手牌诊断 row:${Math.round(v.rowW)} vw:${Math.round(window.innerWidth)} card:${Math.round(v.cardPx)} m:${v.marginPx.toFixed(1)} n:${v.n}`;
+  }
+
   function renderHand(st, newIds) {
     const row = $('hand-row');
     const all = buildHandView(st);
@@ -275,19 +288,13 @@
     const n = visible.length;
     // 横屏版心随视口宽伸缩（手机≈150rem、超宽屏到 240rem），可用宽度实测算，不再用固定 750rpx 换算值
     const dense = n > 30; // 埋底 33 张才降密度；横屏手牌区宽，25 张常规牌放得下
-    const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 1;
     const rowCs = getComputedStyle(row);
     // 行宽取不到时退视口宽：jsdom（e2e）无布局 clientWidth 恒 0；真机上 0 尺寸预载/挂起的
-    // webview 里 clientWidth、innerWidth 可能都是 0，按 0 算会把 margin 夹到 -8.8rem 下限、
-    // 整把牌挤作一团（华为手机实测）。此时挂自愈：布局一就位就按真实宽重排
+    // webview 里 clientWidth、innerWidth 可能都是 0。此时挂自愈：布局一就位就按真实宽重排
     const liveW = row.clientWidth;
     const rowW = liveW || window.innerWidth || 0;
     if (!liveW) armHandRelayout();
-    const usable = Math.max(30, (rowW - parseFloat(rowCs.paddingLeft) - parseFloat(rowCs.paddingRight)) / remPx);
-    const cardW = dense ? 8.53 : 11.73;
-    let margin = n > 1 ? Math.floor(((usable - cardW) / (n - 1)) * 100) / 100 - cardW : 0;
-    if (margin > -0.8) margin = -0.8;
-    if (margin < -8.8) margin = -8.8;
+    const usablePx = Math.max(120, rowW - parseFloat(rowCs.paddingLeft) - parseFloat(rowCs.paddingRight));
     // 排序：副牌左（花色/牌面升序），主牌右——主牌区再分「王+级牌（常主）」与主花色
     // 两段：2 不散落各花色（三打一级牌恒为 2），主级牌排同级牌最前
     const suitOrder = { S: 1, H: 2, C: 3, D: 4 };
@@ -318,25 +325,46 @@
       G.lastHandKey = handKey;
       row.innerHTML = '';
       let firstTrumpSeen = false;
+      const built = []; // 先建卡不带间距，量出首张实际像素宽后统一回填
       sorted.forEach((c, i) => {
         const isTrumpHead = c.isTrump && !firstTrumpSeen;
         if (isTrumpHead) firstTrumpSeen = true;
         if (isTrumpHead && i > 0) row.appendChild(el('div', 'hand-area__divider'));
-        const styleText = i === 0 ? '' : `margin-left:${isTrumpHead ? Math.max(margin, -5.33) : margin}rem`;
         const playIn = isDealing || newIdSet.has(c.id);
         const d = cardEl(c, {
           selected: G.selectedIds.includes(c.id),
           dense, playIn,
           playInDelay: isDealing ? (i % 5) * 30 : 0,
-          flash: grabFlashSet.has(c.id),
-          styleText
+          flash: grabFlashSet.has(c.id)
         });
         d.dataset.cardId = c.id;
         d.addEventListener('click', () => onCardTap(c));
         // 桌面端右键选牌/出牌（e.button===2 过滤，避免吃掉手机长按的系统菜单）
         d.addEventListener('contextmenu', (e) => onCardContext(e, c));
         row.appendChild(d);
+        built.push({ d, isTrumpHead, i });
       });
+      // 间距全程按实测像素，不经 rem 换算：华为等内核根字号（textZoom/无障碍缩放）的
+      // 实际渲染值可能与 getComputedStyle 报告不一致，rem 路线会整把算缩（挤中间两侧空白）
+      const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 1;
+      const probe = built.length ? built[0].d : null;
+      const probeCs = probe && getComputedStyle(probe);
+      // 占地宽 = clientWidth + 左右边框（全局 border-box：clientWidth 不含边框，漏算会整排外溢）
+      const liveCard = probe ? probe.clientWidth : 0;
+      const cardPx = liveCard
+        ? liveCard + (parseFloat(probeCs.borderLeftWidth) || 0) + (parseFloat(probeCs.borderRightWidth) || 0)
+        : (dense ? 8.53 : 11.73) * remPx || 49;
+      const minOverlap = Math.max(2, Math.round(cardPx * 0.068)); // ≈原 -0.8rem/11.73rem
+      const maxOverlap = Math.round(cardPx * 0.75);               // ≈原 -8.8rem/11.73rem
+      let marginPx = n > 1 ? Math.floor(((usablePx - cardPx) / (n - 1)) * 100) / 100 - cardPx : 0;
+      const squeezed = marginPx < -maxOverlap;
+      if (marginPx > -minOverlap) marginPx = -minOverlap;
+      if (marginPx < -maxOverlap) marginPx = -maxOverlap;
+      built.forEach((b) => {
+        if (b.i === 0) return;
+        b.d.style.marginLeft = (b.isTrumpHead ? Math.max(marginPx, -Math.round(cardPx * 0.455)) : marginPx) + 'px';
+      });
+      handDiag(squeezed, { rowW, cardPx, marginPx, n });
     } else {
       // 集合未变：只同步 selected 态
       const children = row.children;

@@ -285,6 +285,21 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   flex-shrink: 0;
 }
 
+/* 手牌挤压诊断条（app.js handDiag 动态插入）：实测值用固定 px 字号，根字号异常也不受影响 */
+#hand-diag {
+  position: fixed;
+  left: 4px;
+  bottom: 4px;
+  z-index: 9999;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ffe9e0;
+  background: rgba(160, 20, 10, 0.85);
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
 /* ========== 卡牌 ========== */
 .card {
   position: relative;
