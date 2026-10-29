@@ -1379,11 +1379,13 @@
   function renderRules() {
     const cfg = buildConfig();
     const isSDY = cfg.gameMode === 'san_da_yi';
+    const totalCards = 54 * cfg.deckCount;
+    const perPlayer = (totalCards - cfg.bottomCards) / 4;
     $('rules-body').innerHTML = isSDY ? `
       <h3>三打一规则速查</h3>
-      <p>两副牌 108 张，1 庄家 vs 3 闲家，每人 25 张，底牌 8 张。</p>
+      <p>${cfg.deckCount} 副牌 ${totalCards} 张，1 庄家 vs 3 闲家，每人 ${perPlayer} 张，底牌 ${cfg.bottomCards} 张。</p>
       <h3>叫分</h3>
-      <li>从 90 分起叫，步长 10，最高 200 分（报 200 直接成交；加价可跳档）</li>
+      <li>从 ${cfg.sanDaYiBidStart} 分起叫，步长 ${cfg.sanDaYiBidStep}，最高 ${cfg.sanDaYiBidCap} 分（报 ${cfg.sanDaYiBidCap} 直接成交；加价可跳档）</li>
       <li>未放弃者可循环加价，直到无人再加；放弃后本局不能再叫</li>
       <li>四家全不叫 → 重新发牌（首报者轮到下家）</li>
       <h3>主牌</h3>
@@ -1397,7 +1399,7 @@
       <h3>胜负</h3>
       <li>庄家得分 ≥ 合同分 → 庄家胜；否则三家胜</li>
       <li>最后一墩赢家收底牌分 ×1（不翻倍）</li>
-      <li>庄家胜则继续坐庄，负则下家坐庄</li>
+      <li>庄家胜则下局庄家先报，负则庄家下家先报；庄家仍由最高报分者担任</li>
     ` : `
       <h3>升级（2v2）规则速查</h3>
       <p>两副牌，2v2 对战，从打 2 开始升级到过 A。</p>
