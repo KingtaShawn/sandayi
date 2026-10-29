@@ -3908,6 +3908,9 @@ const FEAT_SWEEP = envFlag('AI_SWEEP') !== '0';
 /** R12 送分风险（消融开关，默认开）：庄家未出、队友在压的副牌真的很弱
  *  （暗处更大 ≥4 张）或庄家已示缺门（将吃口）时，喂分收益按风险折减 */
 const FEAT_FEEDRISK = envFlag('AI_FEEDRISK') !== '0';
+// 攻方关键墩接力与甩牌候选保留，分别消融。
+const FEAT_RELAY = envFlag('AI_RELAY') !== '0';
+const FEAT_THROW_CHOICE = envFlag('AI_THROW_CHOICE') !== '0';
 
 class GreedyStrategy {
   /**
@@ -5288,10 +5291,14 @@ class GreedyStrategy {
       const unseenPts = mem.totalPoints - mem.pointsPlayed - mem.pointsInHand;
       if (need <= 0 || need > unseenPts) return null; // 胜负已定
       const trickPts = isLeadDec ? 0 : trick.plays.reduce((s, p) => s + pointsOf(p.cards, cfg), 0);
-      if (!isLeadDec && trickPts < 10 && trickPts < need) return null; // 跟牌只推演关键墩
+      if (!isLeadDec && trickPts < 10 && trickPts < need) return null;
       const rootCands = legalMoves(state, playerIdx);
       if (rootCands.length <= 1) return null;
       const isDealerView = playerIdx === ctx.sdy.dealerIdx;
+      const pendingMate = !isLeadDec && !isDealerView && [0, 1, 2, 3].some((seat) =>
+        seat !== playerIdx && seat !== ctx.sdy.dealerIdx
+          && !trick.plays.some((p) => p.playerIdx === seat));
+      const relayDecision = FEAT_RELAY && pendingMate;
       // 阵营消融：AI_R3_CAMP=att/dealer 只对单侧启用（缺省 both）
       const camp = envFlag('AI_R3_CAMP') || 'both';
       if (camp === 'att' && isDealerView) return null;
@@ -5329,6 +5336,21 @@ class GreedyStrategy {
       const bottomPtsReal = (state.bottomCards || []).reduce((s, c) => s + pointValue(c, cfg), 0);
       const seats = groups.map((g) => g.seat);
       const rootPruned = this._r5Prune(state, playerIdx, rootCands, isLeadDec ? null : trick, R3_K_ROOT);
+      // 固定预算内替换末位：避免高分牌排序挤掉零分甩牌/小牌接力选项。
+      if (!isDealerView) {
+        let alternative = null;
+        if (isLeadDec && FEAT_THROW_CHOICE) {
+          alternative = rootCands.filter((cards) => {
+            const combo = parseCombo(cards, ti, cfg);
+            return combo && combo.type === 'throw' && !combo.isTrump;
+          }).sort((a, b) => pointsOf(a, cfg) - pointsOf(b, cfg) || b.length - a.length)[0];
+        } else if (relayDecision) {
+          alternative = rootCands.slice().sort((a, b) =>
+            pointsOf(a, cfg) - pointsOf(b, cfg)
+              || this._maxStrength(a, ti) - this._maxStrength(b, ti))[0];
+        }
+        if (alternative && !rootPruned.includes(alternative)) rootPruned[rootPruned.length - 1] = alternative;
+      }
       // 贪心选择必须在评估集内（对照先验；剪枝可能把它挤掉）
       const evalSet = rootPruned.some((c) => c === greedyPick)
         ? rootPruned : rootPruned.concat([greedyPick]);
