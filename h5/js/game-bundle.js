@@ -1788,6 +1788,8 @@ __def("engine/trick", function (exports, __require, module) {
  *
  * 争胜资格：
  *   1. 有效将吃的主牌 > 一切副牌；主牌之间按主牌序比；
+ *      双将吃（两家皆有效毙甩牌）按领出结构对齐：对子槽比主对对头、
+ *      单张槽逐张比强度（多余主对拆两张计），全同先出为大（R13）；
  *   2. 同为领出花色：按领出结构比较（拖头/对/甩逐单元）；
  *   3. 后压过者胜（逐家滚动比较，最终最大者赢墩）；
  *   4. 垫牌（缺门非主 / 主牌结构不对应 / 非领出花色）永远不争胜。
@@ -1795,8 +1797,8 @@ __def("engine/trick", function (exports, __require, module) {
 
 'use strict';
 
-const { parseCombo, canBeat, pointsOf, domainOf } = __require('engine/combo');
-const { pointValue } = __require('engine/card');
+const { parseCombo, canBeat, pointsOf, domainOf, strengthInDomain } = __require('engine/combo');
+const { pointValue, cardKey } = __require('engine/card');
 const { isEffectiveTrumpFollow } = __require('engine/follow');
 
 /**
@@ -1857,6 +1859,44 @@ function beats(chInc, incInc, leadCombo, trumpInfo, cfg) {
   // 副牌 vs 主牌（将吃）：主赢
   if (chInc.kind === 'trump' && incInc.kind !== 'trump') return true;
   if (chInc.kind !== 'trump' && incInc.kind === 'trump') return false;
+  // 双将吃（甩牌领出、两家缺门皆有效毙）：按领出结构对齐比大小——领出的每个
+  // 对子槽比双方主对对头（降序取前 L 个，L=领出对子数），余牌无论是否成对、
+  // 逐张强度降序比单张槽（多余主对拆计两张）；首个分差定胜负，全同 → 先出为大（R13）。
+  // 两家毙牌形状可不同（主对+主单 vs 全主单），canBeat 的形状对齐比不齐，须按槽位对齐。
+  if (chInc.kind === 'trump' && incInc.kind === 'trump' && leadCombo.type === 'throw') {
+    const L = leadCombo.units.filter((u) => u.type === 'pair').length;
+    const profile = (combo) => {
+      const byKey = new Map();
+      combo.cards.forEach((c) => {
+        const k = cardKey(c);
+        if (!byKey.has(k)) byKey.set(k, []);
+        byKey.get(k).push(c);
+      });
+      const heads = [];
+      const rest = [];
+      byKey.forEach((cs) => {
+        const s = strengthInDomain(cs[0], trumpInfo);
+        while (cs.length >= 2) {
+          heads.push(s);
+          cs.splice(0, 2);
+        }
+        cs.forEach(() => rest.push(s));
+      });
+      heads.sort((a, b) => b - a);
+      const slots = heads.slice(0, L);
+      for (let i = L; i < heads.length; i++) {
+        rest.push(heads[i], heads[i]); // 多余主对拆两张计
+      }
+      rest.sort((a, b) => b - a);
+      return slots.concat(rest);
+    };
+    const ch = profile(chInc.combo);
+    const inc = profile(incInc.combo);
+    for (let i = 0; i < ch.length; i++) {
+      if (ch[i] !== inc[i]) return ch[i] > inc[i];
+    }
+    return false; // 全同 → 先出为大
+  }
   // 同类：组合比较（canBeat 语义=结构压过；tie 时返回 false → 先出为大）
   if (leadCombo.type === 'single' || leadCombo.type === 'pair' || leadCombo.type === 'tractor') {
     return canBeat(incInc.combo, chInc.combo);

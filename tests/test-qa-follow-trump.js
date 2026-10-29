@@ -19,7 +19,7 @@ const { parseCombo } = require('../miniprogram/engine/combo');
 const { buildTrumpInfo } = require('../miniprogram/engine/trump');
 const { validatePlay } = require('../miniprogram/engine/validate');
 const { resolveTrick } = require('../miniprogram/engine/trick');
-const { cards, cardsD, makeState } = require('./fixtures');
+const { cards, cardsD, makeState, C } = require('./fixtures');
 
 const TI = buildTrumpInfo('H', '2', DEFAULT_CONFIG);
 
@@ -232,4 +232,57 @@ test('QA-跟14：两对甩缺门——两主对将吃赢；一主对+两主单�
   const r2 = resolveTrick(t2, TI, DEFAULT_CONFIG);
   assert.equal(r2.detail[1].kind, 'discard');
   assert.equal(r2.winnerIdx, 0);
+});
+
+test('QA-跟15：双将吃（甩牌）——形状不同张张更大者赢：♥99+♥8 vs 大王小王♠2', () => {
+  const lead = cards('SA', 'SK', 'SQ');
+  const t = {
+    leadPlayerIdx: 0,
+    leadCombo: parseCombo(lead, TI, DEFAULT_CONFIG),
+    plays: [
+      play(0, lead),
+      play(1, [...cardsD('H9'), ...cards('H8')]),      // 主对+主单
+      play(2, [C('JOKER', 'BJ', 0), C('JOKER', 'RJ', 0), C('S', '2', 0)]), // 全主单，张张更大
+      play(3, cards('C3', 'C4', 'C5'))
+    ],
+    winnerIdx: null, points: 0
+  };
+  const r = resolveTrick(t, TI, DEFAULT_CONFIG);
+  assert.equal(r.detail[1].kind, 'trump');
+  assert.equal(r.detail[2].kind, 'trump');
+  assert.equal(r.winnerIdx, 2);
+});
+
+test('QA-跟16：双将吃（甩牌）——对子槽优先：更大主对+小单 赢 小对+主A单', () => {
+  const lead = [...cardsD('S7'), ...cards('S5')]; // 对+单甩
+  const t = {
+    leadPlayerIdx: 0,
+    leadCombo: parseCombo(lead, TI, DEFAULT_CONFIG),
+    plays: [
+      play(0, lead),
+      play(1, [...cardsD('H9'), ...cards('H8')]),      // 对头 909
+      play(2, [...cardsD('H7'), ...cards('HA')]),      // 对头 907，单张 914 更大
+      play(3, cards('C3', 'C4', 'C5'))
+    ],
+    winnerIdx: null, points: 0
+  };
+  const r = resolveTrick(t, TI, DEFAULT_CONFIG);
+  assert.equal(r.winnerIdx, 1); // 对子槽先比，♥99 > ♥77
+});
+
+test('QA-跟17：双将吃（甩牌）——强度全同（副门级牌）→ 先出为大', () => {
+  const lead = cards('SA', 'SK', 'SQ');
+  const t = {
+    leadPlayerIdx: 0,
+    leadCombo: parseCombo(lead, TI, DEFAULT_CONFIG),
+    plays: [
+      play(0, lead),
+      play(1, [C('S', '2', 0), C('S', '2', 1), C('C', '2', 0)]), // ♠22+♣2 全 970
+      play(2, [C('D', '2', 0), C('D', '2', 1), C('C', '2', 1)]), // ♦22+♣2(他副) 全 970
+      play(3, cards('C3', 'C4', 'C5'))
+    ],
+    winnerIdx: null, points: 0
+  };
+  const r = resolveTrick(t, TI, DEFAULT_CONFIG);
+  assert.equal(r.winnerIdx, 1); // R13 先出为大
 });
