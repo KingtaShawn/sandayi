@@ -20,6 +20,7 @@ const TEST_FILES = [
   'test-statemachine.js',
   'test-ai-legal.js',
   'test-ai-team-follow.js',
+  'test-ai-trump-discard.js',
   'test-qa-tractor.js',
   'test-qa-follow-trump.js',
   'test-qa-settle-koudi.js',

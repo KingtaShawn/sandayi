@@ -332,9 +332,19 @@ function followCandidates(state, playerIdx) {
       }
       return out;
     }
-    // 甩牌领出：结构自由 → 最小 n 张、保对去单组合、最大 n 张
+    // 甩牌领出：最小垫牌也须满足有对逐对跟，不能让小散牌挤掉必跟对子。
     const sorted = avail.slice().sort((a, b) => strengthSortKey(a, ti) - strengthSortKey(b, ti));
     push(sorted.slice(0, n)); // 最小垫
+    const pairs = pairsOf(avail, ti)
+      .sort((a, b) => strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti));
+    const leadPairs = lead.units.reduce(
+      (count, u) => count + (u.type === 'single' ? 0 : u.cards.length / 2), 0
+    );
+    const requiredPairs = cfg.mustFollowPairAsPair ? Math.min(leadPairs, pairs.length) : 0;
+    const smallest = pairs.slice(0, requiredPairs).reduce((all, pair) => all.concat(pair), []);
+    const usedIds = new Set(smallest.map((c) => c.id));
+    push(smallest.concat(sorted.filter((c) => !usedIds.has(c.id)).slice(0, n - smallest.length)));
+    // 小牌候选先入列：必跟的大对子相同时，评分相同也优先用小散牌补齐。
     push(sorted.slice(-n).reverse()); // 最大
     const units = decomposeDomain(avail, ti, cfg);
     const keep = [];
