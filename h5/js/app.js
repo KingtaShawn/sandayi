@@ -409,8 +409,10 @@
     const seatRow = (cards) => {
       const s = el('div', 'trick-area__seat');
       cards.forEach((c, i) => {
-        // 出牌区用小一号牌面（.trick-area .card 专属规格），不与手牌等大抢视觉
-        s.appendChild(cardEl(c, { playIn: !dim && !G.settlePause, styleText: `margin-left:${i === 0 ? 0 : -3.47}rem` }));
+        // 叠牌间距随牌面放大；10 和王牌多露出一些，避免点数或星形被遮住。
+        const previous = cards[i - 1];
+        const overlap = previous && (previous.rank === '10' || previous.isJoker) ? -2 : -3.87;
+        s.appendChild(cardEl(c, { playIn: !dim && !G.settlePause, styleText: `margin-left:${i === 0 ? 0 : overlap}rem` }));
       });
       return s;
     };

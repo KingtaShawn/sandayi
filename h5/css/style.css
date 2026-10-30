@@ -253,11 +253,11 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .status-bar__divider { width: 0.27rem; height: 5.33rem; background: rgba(255, 255, 255, 0.2); }
 
 /* ========== 中央出牌区 ========== */
-.trick-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-between; width: 100%; min-height: 27.6rem; }
+.trick-area { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-between; width: 100%; min-height: 27.6rem; }
 .trick-area--dim { opacity: 0.45; filter: saturate(0.6); }
-/* 三行各自贴边：北贴顶（头像正下方）、南贴底（手牌正上方）、西/东经 mid 贴左右——不再向中心聚拢 */
-.trick-area__seat { display: flex; align-items: center; justify-content: center; min-height: 9.2rem; }
-.trick-area__middle { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+/* 北/南贴上下边，西/东独立居中，放大牌面后仍能容纳在横屏中央区内。 */
+.trick-area__seat { display: flex; flex-shrink: 0; align-items: center; justify-content: center; min-height: 11.5rem; }
+.trick-area__middle { position: absolute; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: space-between; width: 100%; }
 .trick-area__seat--west, .trick-area__seat--east { min-width: 16rem; }
 .trick-area__bottom-holder { flex: 1; display: flex; align-items: center; justify-content: center; }
 .trick-area__bottom { display: flex; flex-direction: column; align-items: center; }
@@ -338,15 +338,13 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 .card--joker .card__rank--joker { font-weight: 700; text-shadow: 0 0 0.27rem currentColor; }
 .card--dense .card__rank--joker { font-size: 3.2rem; }
 
-/* 出牌区专属小牌规格（比 dense 再小一档）：横屏三行出牌必须塞进中央区可用高度，
-   否则 space-between 会把南家牌挤出下边界压到工具条——牌身不动，只放大角标：
-   牌高 9.2rem，角标列 0.4+3.2×1.1+2.67×1.1≈6.9rem 仍放得下 */
-.trick-area .card { width: 6.4rem; height: 9.2rem; }
-.trick-area .card__rank { font-size: 3.2rem; }
+/* 出牌区牌身、点数和中央花色同步放大 25%。 */
+.trick-area .card { width: 8rem; height: 11.5rem; }
+.trick-area .card__rank { font-size: 4rem; }
 /* 花色只在中央 pip 显示一次，角标不再重复（用户要求：只要中间的） */
 .trick-area .card__suit { display: none; }
-.trick-area .card__rank--joker { font-size: 3.2rem; }
-.trick-area .card__corner { top: 0.4rem; left: 0.53rem; }
+.trick-area .card__rank--joker { font-size: 4rem; }
+.trick-area .card__corner { top: 0.5rem; left: 0.67rem; }
 /* 中央大花色：跟牌识主要看花色，pip 比角标大近一倍；手牌叠压只露左缘故不启用 */
 .card__pip {
   position: absolute;
@@ -355,7 +353,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   align-items: center;
   justify-content: center;
 }
-.trick-area .card__pip { display: flex; font-size: 4.27rem; line-height: 1; padding-top: 2.13rem; /* 缩一档并下移，给左上角牌面数字让位 */ }
+.trick-area .card__pip { display: flex; font-size: 5.33rem; line-height: 1; padding-top: 2.67rem; /* 下移给左上角牌面数字让位 */ }
 
 /* ========== 座位信息 ========== */
 .seat-info {
