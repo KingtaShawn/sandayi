@@ -9,6 +9,33 @@ const DOMAINS = ['TRUMP', 'S', 'H', 'C', 'D'];
 const sum = (xs, fn) => xs.reduce((n, x) => n + fn(x), 0);
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
+function project(cells, total) {
+  for (let pass = 0; pass <= cells.length; pass++) {
+    const delta = total - sum(cells, (b) => b.expected);
+    if (Math.abs(delta) < 1e-8) break;
+    const free = cells.filter((b) => delta > 0 ? b.expected < b.max - 1e-9 : b.expected > b.min + 1e-9);
+    const weight = sum(free, (b) => Math.max(0.01, b.expected));
+    if (!weight) break;
+    free.forEach((b) => { b.expected = clamp(b.expected + delta * Math.max(0.01, b.expected) / weight, b.min, b.max); });
+  }
+}
+
+function bottomPointBound(domains, row, size, descending) {
+  let total = 0, used = 0;
+  const extra = [];
+  DOMAINS.forEach((d, j) => {
+    const values = [];
+    for (const e of domains.get(d).entries) for (let i = 0; i < e.n; i++) values.push(e.points);
+    values.sort((a, b) => descending ? b - a : a - b);
+    const b = row[j];
+    total += values.slice(0, b.min).reduce((n, p) => n + p, 0);
+    used += b.min;
+    extra.push(...values.slice(b.min, b.max));
+  });
+  extra.sort((a, b) => descending ? b - a : a - b);
+  return total + extra.slice(0, Math.max(0, size - used)).reduce((n, p) => n + p, 0);
+}
+
 function buildPublicKnowledge(state, viewerIdx, mem) {
   const cfg = state.config, ti = state.trumpInfo;
   const hand = state.players[viewerIdx].hand;
@@ -22,7 +49,7 @@ function buildPublicKnowledge(state, viewerIdx, mem) {
     keys.add(key);
     const n = mem.remainingOfKey(key), pts = pointValue(c, cfg);
     const dom = domains.get(domainOf(c, ti));
-    dom.entries.push({ key, n, strength: strengthInDomain(c, ti) });
+    dom.entries.push({ key, n, points: pts, strength: strengthInDomain(c, ti) });
     dom.unseen += n;
     dom.unseenPoints += n * pts;
     dom.remainingPoints += n * pts;
@@ -94,6 +121,21 @@ function buildPublicKnowledge(state, viewerIdx, mem) {
     }
   }
   const dealerIdx = state.sanDaYiTeams ? state.sanDaYiTeams.dealer : state.dealerIdx;
+  // 软估计也须遵守每家容量和全副牌守恒；不把独立持主份额当成联合概率。
+  groups.forEach((g, i) => DOMAINS.forEach((d, j) => {
+    const share = d === 'TRUMP' && g.seat === dealerIdx
+      ? Math.min(0.8, 0.57 + Math.max(0, (state.contractScore || 90) - 90) * 0.02)
+      : g.size / Math.max(1, mem.remainingCount) * (g.seat === 4 && d === 'TRUMP' ? 0.2 : 1);
+    const b = bounds[i][j];
+    b.expected = clamp(domains.get(d).unseen * share, b.min, b.max);
+  }));
+  if (consistent) {
+    for (let pass = 0; pass < 64; pass++) {
+      bounds.forEach((row, i) => project(row, groups[i].size));
+      DOMAINS.forEach((d, j) => project(bounds.map((row) => row[j]), domains.get(d).unseen));
+      if (bounds.every((row, i) => Math.abs(sum(row, (b) => b.expected) - groups[i].size) < 1e-7)) break;
+    }
+  }
   groups.forEach((g, i) => {
     if (g.seat === 4) return;
     DOMAINS.forEach((d, j) => {
@@ -107,10 +149,8 @@ function buildPublicKnowledge(state, viewerIdx, mem) {
       const pairMin = pairMax === 0 ? 0 : Math.max(0,
         Math.ceil((b.min - keyCount) / Math.max(1, cfg.deckCount - 1)));
       // 仅为估计：庄家选主的持主富集先验；所有判断「不能毙」都只用严格上界。
-      const share = d === 'TRUMP' && g.seat === dealerIdx
-        ? Math.min(0.8, 0.57 + Math.max(0, (state.contractScore || 90) - 90) * 0.02)
-        : g.size / Math.max(1, mem.remainingCount);
-      const expected = clamp(dom.unseen * share, b.min, b.max);
+      const expected = consistent ? bounds[i][j].expected
+        : clamp(dom.unseen * g.size / Math.max(1, mem.remainingCount), b.min, b.max);
       const pairExpected = possiblePairs * expected * Math.max(0, expected - 1)
         / Math.max(1, dom.unseen * (dom.unseen - 1));
       seats[g.seat].domains.set(d, {
@@ -128,7 +168,13 @@ function buildPublicKnowledge(state, viewerIdx, mem) {
       pairs: { min: pairs, max: pairs, expected: pairs }
     });
   }
-  return { domains, seats, voids, noPairs, consistent, dealerIdx };
+  const bottomRow = bounds[bounds.length - 1];
+  const pointMin = bottomPointBound(domains, bottomRow, cfg.bottomCards, false);
+  const pointMax = bottomPointBound(domains, bottomRow, cfg.bottomCards, true);
+  const bottom = { size: cfg.bottomCards,
+    domains: new Map(DOMAINS.map((d, j) => [d, { ...bottomRow[j] }])),
+    points: { min: pointMin, max: pointMax, expected: clamp(35 * cfg.deckCount / 2, pointMin, pointMax) } };
+  return { domains, seats, voids, noPairs, consistent, dealerIdx, bottom };
 }
 
 module.exports = { buildPublicKnowledge };

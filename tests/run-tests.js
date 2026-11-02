@@ -24,6 +24,8 @@ const TEST_FILES = [
   'test-h5-bundle-throw-kill.js',
   'test-ai-pair-keep.js',
   'test-ai-point-plan.js',
+  'test-ai-long-plan.js',
+  'test-ai-arena.js',
   'test-qa-tractor.js',
   'test-qa-follow-trump.js',
   'test-qa-settle-koudi.js',

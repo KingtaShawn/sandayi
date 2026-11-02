@@ -185,9 +185,9 @@ test('空牌仍可逼庄烧主：主牌尚在时，分牌不轻送', () => {
   assert.ok(ai._scoreLead(state, 1, [state.players[1].hand[1]], ctxOf(state)) >= 6);
 });
 
-test('临近末墩保留副牌控制对拿底；只剩最后这对时应立即打出', () => {
+test('临近末墩有大王接手入口时保留副牌控制对拿底；只剩最后这对时应立即打出', () => {
   const state = position([
-    ['HA', 'H2', 'D3', 'D4'], ['S3', 'S3', 'C4', 'D6'], ['S6', 'D7', 'C6', 'C8'], ['S7', 'D8', 'C7', 'C9']
+    ['HA', 'H2', 'D3', 'D4'], ['S3', 'S3', 'BJ', 'D6'], ['S6', 'D7', 'C6', 'C8'], ['S7', 'D8', 'C7', 'C9']
   ], { bottom: ['S10', 'SK', 'D5', 'DK', 'C10', 'CK', 'D9', 'DJ'],
     history: [[[2, ['H4', 'H4']], [0, ['H6', 'H7']]]] });
   const ai = new GreedyStrategy(), ctx = ctxOf(state), pair = state.players[1].hand.slice(0, 2);
@@ -270,8 +270,18 @@ test('双方向10局：持牌范围包含真值，浏览器bundle逐手一致，
       const ctx = build.call(this, state, seat);
       if (ctx.knowledge) {
         assert.equal(ctx.knowledge.consistent, true);
+        const k = ctx.knowledge, actualBottom = pointsOf(state.bottomCards, state.config);
+        assert.ok(actualBottom >= k.bottom.points.min && actualBottom <= k.bottom.points.max);
+        for (const [dom, d] of k.domains) {
+          const expected = [0, 1, 2, 3].filter((s) => s !== seat)
+            .reduce((n, s) => n + k.seats[s].domains.get(dom).count.expected, 0)
+            + k.bottom.domains.get(dom).expected;
+          assert.ok(Math.abs(expected - d.unseen) < 1e-5, `联合估计 ${dom} 守恒`);
+        }
         for (const s of [0, 1, 2, 3]) {
           const byDomain = ctx.knowledge.seats[s].domains;
+          const expected = [...byDomain.values()].reduce((n, d) => n + d.count.expected, 0);
+          assert.ok(Math.abs(expected - state.players[s].hand.length) < 1e-5, `seat=${s} 估计容量`);
           for (const [d, b] of byDomain) {
             const hand = state.players[s].hand.filter((c) => domainOf(c, state.trumpInfo) === d);
             const keys = new Map();
