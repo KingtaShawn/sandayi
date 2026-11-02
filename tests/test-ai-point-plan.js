@@ -250,6 +250,20 @@ for (const h of [2, 4, 12]) {
   });
 }
 
+test('残局多家缺门且底牌容量紧约束时，软估计仍须满足各家剩余张数', () => {
+  const state = position([['D6'], ['DJ', 'CA'], ['S10'], ['H6']], {
+    bottom: ['S5', 'S10', 'CK', 'S4', 'C3', 'S8', 'C4', 'C6'],
+    current: [[2, ['CA']], [3, ['H4']], [0, ['H5']]],
+    history: [[[1, ['S3']], [0, ['D3']], [3, ['D4']]], [[1, ['D3']], [2, ['S3']]]]
+  });
+  const k = ctxOf(state).knowledge;
+  assert.equal(k.consistent, true);
+  for (let seat = 0; seat < 4; seat++) {
+    const expected = [...k.seats[seat].domains.values()].reduce((n, d) => n + d.count.expected, 0);
+    assert.ok(Math.abs(expected - state.players[seat].hand.length) < 1e-5, `seat=${seat} 估计容量`);
+  }
+});
+
 test('双方向10局：持牌范围包含真值，浏览器bundle逐手一致，零非法且200分守恒', () => {
   let checked = 0;
   const browser = { window: {} };

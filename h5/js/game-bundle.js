@@ -4116,7 +4116,8 @@ function buildPublicKnowledge(state, viewerIdx, mem) {
     b.expected = clamp(domains.get(d).unseen * share, b.min, b.max);
   }));
   if (consistent) {
-    for (let pass = 0; pass < 64; pass++) {
+    // 残局多家缺门、底牌接近强制分配时收敛较慢，仍须满足各家容量；收敛即停。
+    for (let pass = 0; pass < 4096; pass++) {
       bounds.forEach((row, i) => project(row, groups[i].size));
       DOMAINS.forEach((d, j) => project(bounds.map((row) => row[j]), domains.get(d).unseen));
       if (bounds.every((row, i) => Math.abs(sum(row, (b) => b.expected) - groups[i].size) < 1e-7)) break;
@@ -4189,7 +4190,8 @@ __def("ai/strategy-greedy", function (exports, __require, module) {
  *       （AI_ATTACKER_PAIR）；庄家垫牌/领出拆对罚 + JQKA 大单保护（AI_PAIR）、
  *       主牌战已输（三家主牌耗尽/庄家仍持主）即刻满分防守——垫牌保
  *       副牌无敌大牌、抢分豁免省牌罚（AI_SWEEP）；
- *     · 缺门：墩内分 ≥ threshold → 主牌将吃（结构对应优先），否则垫分/垫小。
+ *     · 缺门：主牌将吃时，若庄家已缺门且尚未出牌，比较各档主牌防超毙，
+ *       同时考虑桌面分和后位队友可能跟出的分牌。
  */
 
 'use strict';
@@ -4277,6 +4279,8 @@ const FEAT_THROW_CHOICE = envFlag('AI_THROW_CHOICE') !== '0';
 const FEAT_TEAM_FOLLOW = envFlag('AI_TEAM_FOLLOW') !== '0';
 const FEAT_TEAM_PROTECT = envFlag('AI_TEAM_PROTECT') !== '0';
 const FEAT_TEAM_HANDOFF = envFlag('AI_TEAM_HANDOFF') !== '0';
+// 已决定将吃时，按庄家超毙风险选择主牌档位，不局限于候选自身是否带分。
+const FEAT_RUFF_PROTECT = envFlag('AI_RUFF_PROTECT') !== '0';
 // 按庄家剩余主牌/主对范围、各门剩余分值安排跑分、逼主和末墩储备。
 const FEAT_POINT_PLAN = envFlag('AI_POINT_PLAN') !== '0';
 const FEAT_ENTRY_PLAN = envFlag('AI_ENTRY_PLAN') !== '0';
@@ -4695,6 +4699,10 @@ class GreedyStrategy {
       const planned = this._solveEarlyPlan(state, playerIdx, ctx, candidates, pick);
       if (planned) pick = planned;
     }
+    if (ctx && FEAT_RUFF_PROTECT && !ctx.sdy.isDealer && !isLead && this.difficulty !== 'easy') {
+      const protectedRuff = this._chooseRuffProtection(state, playerIdx, ctx, candidates, pick);
+      if (protectedRuff) pick = protectedRuff;
+    }
     // 铁律：二次校验；失败回退首个候选
     const check = validatePlay(view, playerIdx, pick);
     if (!check.ok) {
@@ -4735,19 +4743,7 @@ class GreedyStrategy {
     const higher = winner ? this._unseenHigher(ctx.di, winnerDomain,
       this._maxStrength(winner.cards, state.trumpInfo)) : 0;
     const exposedRuff = winnerDomain !== 'TRUMP' && ctx.sdy.voids.dealer.has(trick.leadCombo.suit);
-    const utility = (e) => {
-      // 顶主/副牌控制牌消耗需计价，不能只为本墩多收一分就拆光后手。
-      let cost = 0;
-      for (const c of e.cards) {
-        const dom = domainOf(c, state.trumpInfo);
-        const strength = strengthInDomain(c, state.trumpInfo);
-        cost += dom === 'TRUMP' ? 2 + Math.max(0, strength - 914) / 15
-          : Math.max(0, strength - 10) * 0.75;
-      }
-      const exposure = dealerPending ? pointsOf(e.cards, state.config) * (1 - e.teamWin) * 2 : 0;
-      return e.signedPoints - cost - exposure
-        - this._attackerPairCost(e.cards, state.players[playerIdx].hand, state.trumpInfo, ctx);
-    };
+    const utility = (e) => this._teamFollowUtility(state, playerIdx, ctx, e, dealerPending);
     let best = current;
     for (const e of estimates) {
       // 单墩评估只覆盖有证据的配合调整，不推翻所有全局控牌先验：
@@ -4759,6 +4755,57 @@ class GreedyStrategy {
       if ((protectPoints || handOff) && utility(e) > utility(best) + 1e-9) best = e;
     }
     return best !== current && utility(best) >= utility(current) + (dealerPending ? 4 : 2) ? best.cards : null;
+  }
+
+  _teamFollowUtility(state, playerIdx, ctx, estimate, dealerPending) {
+    // 顶主/副牌控制牌消耗需计价，不能只为本墩多收一分就拆光后手。
+    let cost = 0;
+    for (const c of estimate.cards) {
+      const dom = domainOf(c, state.trumpInfo);
+      const strength = strengthInDomain(c, state.trumpInfo);
+      cost += dom === 'TRUMP' ? 2 + Math.max(0, strength - 914) / 15
+        : Math.max(0, strength - 10) * 0.75;
+    }
+    const exposure = dealerPending ? pointsOf(estimate.cards, state.config) * (1 - estimate.teamWin) * 2 : 0;
+    return estimate.signedPoints - cost - exposure
+      - this._attackerPairCost(estimate.cards, state.players[playerIdx].hand, state.trumpInfo, ctx);
+  }
+
+  /** 庄家已缺门且尚未出：比较小毙和各档大主，连后位队友可能跟出的分一起保。 */
+  _chooseRuffProtection(state, playerIdx, ctx, candidates, pick) {
+    const trick = state.currentTrick, ti = state.trumpInfo, cfg = state.config;
+    const pickedCombo = parseCombo(pick, ti, cfg);
+    // 两张残局交给精确求解；复杂甩牌仍按原策略处理。
+    if (state.players[playerIdx].hand.length <= 2 || candidates.length < 2
+        || !pickedCombo || !pickedCombo.isTrump || !this._wouldWin(state, trick, playerIdx, pick, pickedCombo)
+        || trick.leadCombo.isTrump || !['single', 'pair'].includes(trick.leadCombo.type)
+        || trick.plays.some((p) => p.playerIdx === ctx.sdy.dealerIdx)
+        || !ctx.sdy.voids.dealer.has(trick.leadCombo.suit)
+        || !this._dealerCanRuff(trick.leadCombo, ctx)) return null;
+    // 只调整已决定将吃的主牌档位；不为假设中的后位分牌打乱垫牌/留底规划。
+    if (this._currentWinnerTeam(state, trick, ti, cfg) === 1
+        && this._teamLocked(state, playerIdx, ctx, trick)) return null;
+    const ruffs = candidates.filter((cs) => cs.every((c) => domainOf(c, ti) === 'TRUMP')
+      && this._wouldWin(state, trick, playerIdx, cs, parseCombo(cs, ti, cfg)));
+    if (!ruffs.length) return null;
+    const estimates = this._teamFollowEstimates(state, playerIdx, ctx, candidates, pick);
+    if (!estimates) return null;
+    const current = estimates.find((e) => playKey(e.cards) === playKey(pick));
+    if (!current) return null;
+    const ruffKeys = new Set(ruffs.map(playKey));
+    const trickPts = trick.plays.reduce((n, p) => n + pointsOf(p.cards, cfg), 0);
+    const utility = (e) => this._teamFollowUtility(state, playerIdx, ctx, e, true)
+      - this._lastTrickReserve(state, playerIdx, e.cards, ctx,
+        Math.max(trickPts + pointsOf(e.cards, cfg), e.signedPoints));
+    let best = current;
+    for (const e of estimates) {
+      // 公开记牌已证明小一档也封得住时，允许把规划选中的大王换回副2。
+      const safeSaving = e.teamWin >= current.teamWin
+        && !this._dealerCanBeat(parseCombo(e.cards, ti, cfg), ctx);
+      if (ruffKeys.has(playKey(e.cards)) && (e.teamWin > current.teamWin || safeSaving)
+          && utility(e) > utility(best) + 1e-9) best = e;
+    }
+    return best !== current && utility(best) >= utility(current) + 2 - 1e-9 ? best.cards : null;
   }
 
   /** 单墩接力概率（含后位队友接手率），只使用自己手牌、已出牌和各席位缺门。 */

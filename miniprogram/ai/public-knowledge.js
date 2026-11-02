@@ -130,7 +130,8 @@ function buildPublicKnowledge(state, viewerIdx, mem) {
     b.expected = clamp(domains.get(d).unseen * share, b.min, b.max);
   }));
   if (consistent) {
-    for (let pass = 0; pass < 64; pass++) {
+    // 残局多家缺门、底牌接近强制分配时收敛较慢，仍须满足各家容量；收敛即停。
+    for (let pass = 0; pass < 4096; pass++) {
       bounds.forEach((row, i) => project(row, groups[i].size));
       DOMAINS.forEach((d, j) => project(bounds.map((row) => row[j]), domains.get(d).unseen));
       if (bounds.every((row, i) => Math.abs(sum(row, (b) => b.expected) - groups[i].size) < 1e-7)) break;
