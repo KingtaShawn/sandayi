@@ -4161,7 +4161,7 @@ function buildPublicKnowledge(state, viewerIdx, mem) {
   const bottom = { size: cfg.bottomCards,
     domains: new Map(DOMAINS.map((d, j) => [d, { ...bottomRow[j] }])),
     points: { min: pointMin, max: pointMax, expected: clamp(35 * cfg.deckCount / 2, pointMin, pointMax) } };
-  return { domains, seats, voids, noPairs, consistent, dealerIdx, bottom };
+  return { domains, seats, voids, noPairs, consistent, dealerIdx, viewerIdx, bottom };
 }
 
 module.exports = { buildPublicKnowledge };
@@ -4201,7 +4201,7 @@ const { parseCombo, domainOf, pointsOf, strengthInDomain } = __require('engine/c
 const { pointValue, sortHand } = __require('engine/card');
 const { buildMemory } = __require('ai/memory');
 const { buildPublicKnowledge } = __require('ai/public-knowledge');
-const { playKey, cashPlan, handTempo, publicPlayView, controlValue } = __require('ai/hand-plan');
+const { playKey, handUnits, cashPlan, handTempo, publicPlayView, controlValue } = __require('ai/hand-plan');
 const { createRng } = __require('utils/random');
 
 /** 将吃意愿门槛（墩内已有分） */
@@ -4287,6 +4287,7 @@ const FEAT_ENTRY_PLAN = envFlag('AI_ENTRY_PLAN') !== '0';
 const FEAT_PUBLIC_THROW = envFlag('AI_PUBLIC_THROW') !== '0';
 const FEAT_BOTTOM_BELIEF = envFlag('AI_BOTTOM_BELIEF') !== '0';
 const FEAT_LONG_PLAN = envFlag('AI_LONG_PLAN') !== '0';
+const FEAT_JOKER_RESERVE = envFlag('AI_JOKER_RESERVE') !== '0';
 const TEAM_FOLLOW_SAMPLES = 24;
 const EARLY_PLAN_SAMPLES = 6;
 const EARLY_PLAN_EVENT_CAP = 220;
@@ -4931,6 +4932,7 @@ class GreedyStrategy {
     const hand = state.players[playerIdx].hand;
     const trumps = hand.filter((c) => domainOf(c, ti) === 'TRUMP');
     let score = 0;
+    let reserve = 0;
 
     // 末墩抠底意识：剩最后一墩（手牌=领出张数）且攻方 → 最大牌
     const isLastTrick = hand.length === cards_.length;
@@ -4941,7 +4943,8 @@ class GreedyStrategy {
     // 三打一攻方领出：末墩储备——剩墩 ≤5 时别把「剩余牌无敌」的大主领出去送墩，
     // 留着末墩将吃抠底（升级模式无记牌上下文，维持基线）
     if (ctx && !ctx.sdy.isDealer) {
-      score -= this._lastTrickReserve(state, playerIdx, cards_, ctx, pointsOf(cards_, cfg));
+      reserve = this._lastTrickReserve(state, playerIdx, cards_, ctx, pointsOf(cards_, cfg));
+      score -= reserve;
       if (combo.type === 'single') score -= this._attackerPairCost(cards_, hand, ti, ctx);
       // 配合领出（v4，实测校准）：庄家示缺门的副牌 → 领空牌逼庄烧主
       // （三家主牌总量碾压一家，庄主耗尽即攻方收割；400 局同种子 A/B
@@ -4981,7 +4984,17 @@ class GreedyStrategy {
       if (combo.type === 'tractor') score += 12;
       if (combo.type === 'pair') score += 6;
       if (combo.type === 'pair' && cards_[0].rank === 'BJ') score += 12; // 对大王整对必赢：别拆成两单送墩
-      if (combo.type === 'single' && cards_[0].rank === 'BJ') score += 8; // 大王控场
+      if (combo.type === 'single' && cards_[0].rank === 'BJ') {
+        if (FEAT_JOKER_RESERVE && cfg.gameMode === 'san_da_yi' && !isDealerTeam) {
+          // 已有领出权，领大王是在花控制牌；与近末墩储备取较大成本，避免重复罚。
+          const cost = this._jokerLeadCost(state, playerIdx, cards_);
+          if (cost > 0) score -= Math.max(0, cost - reserve);
+          else score += 8; // 主力不足时，保留原有大王锁墩用途。
+        } else score += 8;
+      }
+      if (FEAT_JOKER_RESERVE && ctx && !isDealerTeam && combo.type === 'single'
+          && hand.some((c) => c.rank === 'BJ')
+          && !this._dealerCanBeat(combo, ctx)) score += this._trumpFeedValue(ctx) * 0.75;
     } else {
       // 副牌领出
       const domainCards_ = hand.filter((c) => domainOf(c, ti) === combo.suit);
@@ -5005,6 +5018,45 @@ class GreedyStrategy {
       score += this._attackerLeadPlan(state, playerIdx, cards_, combo, ctx);
     }
     return score;
+  }
+
+  /** 单大王的后手/扣底机会成本。仅用自己的余牌，rollout也遵守同一储备原则。 */
+  _jokerLeadCost(state, playerIdx, cards_) {
+    const hand = state.players[playerIdx].hand;
+    if (hand.length === 1) return 0;
+    const ti = state.trumpInfo;
+    const other = hand.filter((c) => c.id !== cards_[0].id && domainOf(c, ti) === 'TRUMP');
+    const strong = other.length >= 3 && handUnits(other).some((cs) => cs.length === 2
+      || strengthInDomain(cs[0], ti) >= 950);
+    return strong ? 14 : 0;
+  }
+
+  /** 队友已公开无主时，估计其本墩能跑的最高分；估计不是保证，不读取队友手牌。 */
+  _trumpFeedValue(ctx) {
+    if (ctx.trumpFeedValue !== undefined) return ctx.trumpFeedValue;
+    const k = ctx.knowledge;
+    if (!k) return 0;
+    const levels = [...new Set([...k.domains.values()].reduce((xs, d) =>
+      xs.concat(d.entries.filter((e) => e.n > 0 && e.points > 0).map((e) => e.points)), []))].sort((a, b) => a - b);
+    let feed = 0;
+    for (let seat = 0; seat < 4; seat++) {
+      if (seat === k.dealerIdx || k.seats[seat].domains.get('TRUMP').count.max > 0) continue;
+      if (seat === k.viewerIdx) continue;
+      let previous = 0;
+      for (const points of levels) {
+        let none = 1;
+        for (const [dom, d] of k.domains) {
+          if (dom === 'TRUMP' || !d.unseen) continue;
+          const count = k.seats[seat].domains.get(dom).count.expected;
+          const scoring = d.entries.reduce((n, e) => n + (e.points >= points ? e.n : 0), 0);
+          none *= Math.pow(Math.max(0, 1 - scoring / d.unseen), count);
+        }
+        feed += (points - previous) * (1 - none);
+        previous = points;
+      }
+    }
+    ctx.trumpFeedValue = feed;
+    return feed;
   }
 
   /**

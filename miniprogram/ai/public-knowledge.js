@@ -175,7 +175,7 @@ function buildPublicKnowledge(state, viewerIdx, mem) {
   const bottom = { size: cfg.bottomCards,
     domains: new Map(DOMAINS.map((d, j) => [d, { ...bottomRow[j] }])),
     points: { min: pointMin, max: pointMax, expected: clamp(35 * cfg.deckCount / 2, pointMin, pointMax) } };
-  return { domains, seats, voids, noPairs, consistent, dealerIdx, bottom };
+  return { domains, seats, voids, noPairs, consistent, dealerIdx, viewerIdx, bottom };
 }
 
 module.exports = { buildPublicKnowledge };

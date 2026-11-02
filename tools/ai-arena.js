@@ -21,12 +21,14 @@ const { createRng } = require('../miniprogram/utils/random');
 const ROOT = path.resolve(__dirname, '..');
 const PROFILES = ['normal', 'pressure', 'cash', 'low-bottom'];
 const VARIANTS = {
-  points: { AI_WIN_OBJECTIVE: 'off', AI_WIN_SAMPLE_SCALE: '1' },
-  endgame: { AI_WIN_OBJECTIVE: 'endgame', AI_WIN_SAMPLE_SCALE: '1' },
-  all: { AI_WIN_OBJECTIVE: 'all', AI_WIN_SAMPLE_SCALE: '1' },
-  late: { AI_WIN_OBJECTIVE: 'late', AI_WIN_SAMPLE_SCALE: '1' },
-  critical: { AI_WIN_OBJECTIVE: 'critical', AI_WIN_SAMPLE_SCALE: '1' },
-  wide: { AI_WIN_OBJECTIVE: 'late', AI_WIN_SAMPLE_SCALE: '2' }
+  points: { AI_WIN_OBJECTIVE: 'off', AI_WIN_SAMPLE_SCALE: '1', AI_JOKER_RESERVE: '0' },
+  endgame: { AI_WIN_OBJECTIVE: 'endgame', AI_WIN_SAMPLE_SCALE: '1', AI_JOKER_RESERVE: '0' },
+  all: { AI_WIN_OBJECTIVE: 'all', AI_WIN_SAMPLE_SCALE: '1', AI_JOKER_RESERVE: '0' },
+  late: { AI_WIN_OBJECTIVE: 'late', AI_WIN_SAMPLE_SCALE: '1', AI_JOKER_RESERVE: '0' },
+  critical: { AI_WIN_OBJECTIVE: 'critical', AI_WIN_SAMPLE_SCALE: '1', AI_JOKER_RESERVE: '0' },
+  wide: { AI_WIN_OBJECTIVE: 'late', AI_WIN_SAMPLE_SCALE: '2', AI_JOKER_RESERVE: '0' },
+  base: { AI_WIN_OBJECTIVE: 'late', AI_WIN_SAMPLE_SCALE: '1', AI_JOKER_RESERVE: '0' },
+  reserve: { AI_WIN_OBJECTIVE: 'late', AI_WIN_SAMPLE_SCALE: '1', AI_JOKER_RESERVE: '1' }
 };
 
 function loadStrategy(file, flags = {}) {
@@ -44,7 +46,7 @@ function loadStrategy(file, flags = {}) {
 }
 
 function dealerProfile(file, name) {
-  const ai = loadStrategy(file, { AI_WIN_OBJECTIVE: 'off' });
+  const ai = loadStrategy(file, { AI_WIN_OBJECTIVE: 'off', AI_JOKER_RESERVE: '0' });
   if (name === 'pressure') {
     const lead = ai._scoreLeadSdy.bind(ai), bid = ai.decideScoreBid.bind(ai);
     ai._scoreLeadSdy = (st, seat, cs, ctx) => lead(st, seat, cs, ctx)
@@ -125,19 +127,19 @@ function scenarios(count, start, profiles = PROFILES) {
     firstBidder: Math.floor(i / (profiles.length * 2)) % 4 }));
 }
 
-function pairedStats(rows, variant) {
+function pairedStats(rows, variant, reference = 'points') {
   const metric = (key) => {
-    const diffs = rows.map((r) => Number(r.results[variant][key]) - Number(r.results.points[key]));
+    const diffs = rows.map((r) => Number(r.results[variant][key]) - Number(r.results[reference][key]));
     const mean = diffs.reduce((n, d) => n + d, 0) / rows.length;
     const se = rows.length > 1 ? Math.sqrt(diffs.reduce((n, d) => n + (d - mean) ** 2, 0) / (rows.length - 1) / rows.length) : 0;
     return { mean, ci95: [mean - 1.96 * se, mean + 1.96 * se] };
   };
   return { n: rows.length, win: metric('win'), points: metric('points'), bottom: metric('bottom'), bottomPoints: metric('bottomPoints'),
-    gained: rows.filter((r) => r.results[variant].win && !r.results.points.win).length,
-    lost: rows.filter((r) => !r.results[variant].win && r.results.points.win).length };
+    gained: rows.filter((r) => r.results[variant].win && !r.results[reference].win).length,
+    lost: rows.filter((r) => !r.results[variant].win && r.results[reference].win).length };
 }
 
-function summarize(rows, variants) {
+function summarize(rows, variants, reference = 'points') {
   const overall = {}, byProfile = {};
   for (const v of variants) {
     const total = rows.reduce((m, r) => {
@@ -146,23 +148,24 @@ function summarize(rows, variants) {
     }, { win: 0, points: 0, bottom: 0, bottomPoints: 0, decisions: 0 });
     overall[v] = { ...total, n: rows.length, winRate: total.win / rows.length,
       meanPoints: total.points / rows.length, bottomRate: total.bottom / rows.length };
-    if (v !== 'points') overall[v].paired = pairedStats(rows, v);
+    if (v !== reference) overall[v].paired = pairedStats(rows, v, reference);
   }
   for (const profile of [...new Set(rows.map((r) => r.scenario.profile))]) {
     const sub = rows.filter((r) => r.scenario.profile === profile);
-    byProfile[profile] = Object.fromEntries(variants.filter((v) => v !== 'points').map((v) => [v, pairedStats(sub, v)]));
+    byProfile[profile] = Object.fromEntries(variants.filter((v) => v !== reference).map((v) => [v, pairedStats(sub, v, reference)]));
   }
   const coverage = {}, seats = {}, contracts = {}, directions = {};
   for (const r of rows) {
     seats[r.dealerSeat] = (seats[r.dealerSeat] || 0) + 1;
     contracts[r.contract] = (contracts[r.contract] || 0) + 1;
     directions[r.scenario.direction] = (directions[r.scenario.direction] || 0) + 1;
-    for (const [k, n] of Object.entries(r.results.points.coverage)) coverage[k] = (coverage[k] || 0) + n;
+    for (const [k, n] of Object.entries(r.results[reference].coverage)) coverage[k] = (coverage[k] || 0) + n;
   }
   return { overall, byProfile, coverage, seats, contracts, directions };
 }
 
 async function run(options, onProgress = () => {}) {
+  options = { ...options, reference: options.reference || (options.variants.includes('points') ? 'points' : 'base') };
   const hashes = {
     baseline: crypto.createHash('sha256').update(fs.readFileSync(options.baseline)).digest('hex'),
     candidate: crypto.createHash('sha256').update(fs.readFileSync(options.candidate)).digest('hex'),
@@ -178,12 +181,12 @@ async function run(options, onProgress = () => {}) {
     worker.on('exit', (code) => { if (code) reject(Error(`worker exit ${code}`)); });
   })))).flat().sort((a, b) => a.scenario.seed - b.scenario.seed);
   return { options, hashes, variantFlags: Object.fromEntries(options.variants.map((v) => [v, VARIANTS[v]])),
-  summary: summarize(rows, options.variants), rows };
+  summary: summarize(rows, options.variants, options.reference), rows };
 }
 
 if (!isMainThread) {
   const o = workerData;
-  const attackers = Object.fromEntries(o.variants.map((v) => [v, loadStrategy(v === 'points' ? o.baseline : o.candidate, VARIANTS[v])]));
+  const attackers = Object.fromEntries(o.variants.map((v) => [v, loadStrategy(v === o.reference ? o.baseline : o.candidate, VARIANTS[v])]));
   const dealers = Object.fromEntries(o.profiles.map((p) => [p, dealerProfile(o.baseline, p)]));
   const rows = [];
   for (const scenario of o.jobs) {
@@ -202,7 +205,8 @@ if (!isMainThread) {
     variants: get('--variants', 'points,late').split(','),
     baseline: path.resolve(get('--baseline', 'miniprogram/ai/strategy-greedy.js')),
     candidate: path.resolve(get('--candidate', 'miniprogram/ai/strategy-greedy.js')), capture: args.includes('--capture') };
-  if (!options.variants.includes('points') || options.variants.some((v) => !VARIANTS[v])
+  options.reference = get('--reference', options.variants.includes('points') ? 'points' : 'base');
+  if (!options.variants.includes(options.reference) || options.variants.some((v) => !VARIANTS[v])
       || !Number.isInteger(options.count) || options.count < 1 || !Number.isInteger(options.workers) || options.workers < 1
       || !Number.isInteger(options.start) || options.start < 1) throw Error('参数无效');
   let done = 0;
