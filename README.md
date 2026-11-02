@@ -52,7 +52,7 @@ npm run build:h5   # 重打 game-bundle → h5/dist/（只含发布文件，注�
 等功率交叉淡化，接缝两侧响度差 0.02dB，单声道 64kbps AAC。🎵 开关状态与音效独立，
 存 `tractor:settings.music`。
 
-两个入口由同一个 GitHub Actions 工作流（`.github/workflows/deploy-h5.yml`）自动发布：每次 push 到 `main`，先运行测试并构建一次，再发布 Cloudflare Pages 和 GitHub Pages，最后核对线上版本、静态资源哈希及 API。支持在 Actions 中手动重新发布 `main`；同一时间只执行一轮发布。
+两个入口由同一个 GitHub Actions 工作流（`.github/workflows/deploy-h5.yml`）自动发布：每次 push 到 `main`，先运行测试并构建一次，再独立发布 Cloudflare Pages 和 GitHub Pages，各自核对线上版本、静态资源哈希及 API，最后统一复核。单个入口发布失败不会阻塞另一个入口更新；修复授权后可重跑失败任务补发。支持在 Actions 中手动重新发布 `main`；同一时间只执行一轮发布。
 - **GitHub Pages（玩家主入口，静态）**：`https://kingtashawn.github.io/sandayi/`。云端功能跨域调用下面的后端（`CLOUD_BASE` 已配置）。
 - **Cloudflare Pages（全栈，后端+备用入口）**：`https://sandayi.pages.dev`，同源带 `/api` 后端（KV + AUTH_SECRET 已配）。工作流携带编译后的 `_worker.js`，保留账号、存档和排行榜；首次授权及手动部署见 `h5/functions/README.md`。
 

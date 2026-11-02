@@ -42,8 +42,8 @@ jobs:
           retention-days: 7
 
   deploy:
-    # 备用入口发布成功后才更新主入口，Cloudflare 授权失败时保留现有版本。
-    needs: [build, deploy-cloudflare]
+    # 两个入口独立发布同一次构建，备用入口授权故障不能阻塞主入口。
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -55,6 +55,16 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: cloudflare-pages
+          path: h5/dist
+      - name: Verify GitHub Pages and Cloudflare API
+        run: node tools/verify-h5-deploy.js --site github
 
   deploy-cloudflare:
     needs: build
@@ -79,6 +89,8 @@ jobs:
             exit 1
           fi
           npx --yes wrangler@4.152.0 pages deploy h5/dist --project-name sandayi --branch main --commit-hash "$GITHUB_SHA" --commit-dirty=false
+      - name: Verify Cloudflare Pages and API
+        run: node tools/verify-h5-deploy.js --site cloudflare
 
   verify:
     needs: [deploy, deploy-cloudflare]

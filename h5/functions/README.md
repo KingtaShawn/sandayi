@@ -12,7 +12,7 @@
 
 ### 自动部署（前端、AI 与后端共用）
 
-每次推送 `main`，`.github/workflows/deploy-h5.yml` 会运行测试并构建一次 H5，生成 Cloudflare API Worker，依次发布到 `sandayi.pages.dev` 和 GitHub Pages。发布后自动比较两个入口的版本及 6 项静态资源哈希，并检查排行榜、CORS 和存档鉴权；失败会在 Actions 中显示。两家平台不能原子切换，发布期间可能短暂不同步；Cloudflare 发布失败时不会继续更新 GitHub Pages，修复后可手动重跑同一工作流。
+每次推送 `main`，`.github/workflows/deploy-h5.yml` 会运行测试并构建一次 H5，生成 Cloudflare API Worker，再由两个独立任务发布到 `sandayi.pages.dev` 和 GitHub Pages。每个入口发布后分别核对版本及 6 项静态资源哈希，并检查排行榜、CORS 和存档鉴权；两边成功后再统一复核。单个入口发布失败会在 Actions 中显示，不阻塞另一个入口更新。两家平台不能原子切换，发布期间可能短暂不同步；修复授权后可在同一工作流运行中选择 Re-run failed jobs，使用原来的构建补发。
 
 GitHub 仓库 **Settings → Secrets and variables → Actions** 需要一次性配置：
 - Secret `CLOUDFLARE_API_TOKEN`：Cloudflare 自定义 API Token，权限为 **Account → Cloudflare Pages → Edit**，账户限定为该项目所在账户。
