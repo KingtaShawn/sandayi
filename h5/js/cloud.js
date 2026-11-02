@@ -32,6 +32,8 @@
   var pushTimer = null;
   var pushing = false;
   var pushPending = false;
+  var pushPromise = null;
+  var pushingPayload = null;
 
   /* ---------- 存储 ---------- */
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -62,8 +64,16 @@
   function applyData(data) {
     if (!data) return;
     SYNC_KEYS.forEach(function (k) {
-      if (Object.prototype.hasOwnProperty.call(data, k)) lsSet(k, data[k]);
+      if (Object.prototype.hasOwnProperty.call(data, k)) {
+        if (k === 'tractor:maxBids') mergeMaxBids(data[k]);
+        else lsSet(k, data[k]);
+      }
     });
+  }
+
+  function mergeMaxBids(value) {
+    var n = Number(value);
+    if (isFinite(n) && n > (Number(lsGet('tractor:maxBids')) || 0)) lsSet('tractor:maxBids', String(Math.floor(n)));
   }
 
   function localAt() { return Number(lsGet(LS_LOCAL_AT)) || 0; }
@@ -111,6 +121,7 @@
     });
     var reqP = fetch(CLOUD_BASE + '/api/' + path, {
       method: opts.method || 'GET',
+      cache: 'no-store',
       headers: headers,
       body: opts.body ? JSON.stringify(opts.body) : undefined
     }).then(function (r) {
@@ -152,27 +163,49 @@
 
   function push() {
     if (!token) return Promise.resolve();
-    if (pushing) { pushPending = true; return Promise.resolve(); }
+    var body = { save: { updatedAt: localAt() || Date.now(), data: collectData() }, lb: summarize() };
+    var payload = JSON.stringify(body);
+    if (pushing) { if (payload !== pushingPayload) pushPending = true; return pushPromise; }
+    if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
     pushing = true;
-    return api('sync', {
+    pushingPayload = payload;
+    pushPromise = api('sync', {
       method: 'PUT',
       auth: true,
-      body: {
-        save: { updatedAt: localAt() || Date.now(), data: collectData() },
-        lb: summarize()
-      }
+      body: body
     }).then(function (r) {
+      mergeMaxBids(r && r.maxBids);
       if (r && r.kept === 'server') {
         // 双端同时改且服务端更新（罕见）：拉回来
-        return pull();
+        return pull().then(function () { return r; });
       }
+      return r;
     }).catch(function (e) {
       if (e && e.status === 401) reGuest(); // token 失效：重建游客，本地数据随后自动推
       // 网络失败静默：下次 notifyLocal/flush 再试
-    }).then(function () {
+    }).then(function (r) {
       pushing = false;
-      if (pushPending) { pushPending = false; schedulePush(); }
+      pushPromise = null;
+      pushingPayload = null;
+      if (pushPending) { pushPending = false; return push(); }
+      return r;
     });
+    return pushPromise;
+  }
+
+  function flush() {
+    if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
+    return push();
+  }
+
+  function confirmedLeaderboard(list, row) {
+    list = Array.isArray(list) ? list.slice() : [];
+    if (!row || !user || row.uid !== user.uid) return list;
+    var i = list.findIndex(function (r) { return r && r.uid === row.uid; });
+    if (i < 0) list.push(row);
+    else if (Number(row.maxBids) >= Number(list[i].maxBids)) list[i] = row;
+    list.sort(function (a, b) { return (b.maxBids - a.maxBids) || (b.rounds - a.rounds); });
+    return list.slice(0, 100);
   }
 
   function pull() {
@@ -222,10 +255,7 @@
     },
 
     /** 立即推送（页面隐藏等收尾时机）。 */
-    flush: function () {
-      if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
-      return push();
-    },
+    flush: flush,
 
     /** 游客升级为正式账号（uid 不变，战绩不丢）。 */
     bind: function (name, pass) {
@@ -244,7 +274,9 @@
 
     /** 拉排行榜（满分庄家榜，公开接口无需登录）。 */
     leaderboard: function () {
-      return api('leaderboard').then(function (r) { return r.list || []; });
+      return flush().then(function (ack) {
+        return api('leaderboard').then(function (r) { return confirmedLeaderboard(r.list, ack && ack.leaderboardRow); });
+      });
     },
 
     /** 现场诊断（弹层诊断行用）：入口域名、本机登录态、最近一次后端请求结果。 */

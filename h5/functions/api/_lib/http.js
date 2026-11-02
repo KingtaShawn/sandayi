@@ -16,7 +16,7 @@ const CORS_HEADERS = {
 export function jsonResp(body, status) {
   return new Response(JSON.stringify(body), {
     status: status || 200,
-    headers: Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, CORS_HEADERS)
+    headers: Object.assign({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }, CORS_HEADERS)
   });
 }
 

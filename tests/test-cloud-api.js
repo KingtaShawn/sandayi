@@ -186,6 +186,71 @@ test('排行榜（满分庄家榜）：没满分坐庄不上榜；按次数排�
 
 /* ---------- 小程序登录占位 ---------- */
 
+test('旧设备上传6次不能把已保存的7次满分成绩和榜单改回6次', async () => {
+  const { env, token, user } = await mkGuest();
+  const t = Date.now();
+  const put = async (at, n, extra) => json(await api.handleSyncPut(mkReq('PUT', '/api/sync', {
+    save: { updatedAt: at, data: { 'tractor:maxBids': String(n), marker: extra } },
+    lb: { maxBids: n, rounds: 200 }
+  }, token), env));
+  await put(t, 7, 'new');
+  const older = await put(t - 1000, 6, 'old');
+  assert.strictEqual(older.kept, 'server');
+  assert.strictEqual(older.maxBids, 7);
+  let board = await json(await api.handleLeaderboard(mkReq('GET', '/api/leaderboard'), env));
+  assert.strictEqual(board.list[0].maxBids, 7);
+  const later = await put(t + 1000, 6, 'new-settings');
+  assert.strictEqual(later.maxBids, 7);
+  const save = JSON.parse(await env.KV.get('save:' + user.uid));
+  assert.strictEqual(save.data['tractor:maxBids'], '7');
+  assert.strictEqual(save.data.marker, 'new-settings', '其他档案字段仍遵循正常的时间戳合并');
+});
+
+test('较旧档案带来新增满分时，只合并累计次数，保留服务端较新的其他数据', async () => {
+  const { env, token, user } = await mkGuest();
+  const t = Date.now();
+  await api.handleSyncPut(mkReq('PUT', '/api/sync', {
+    save: { updatedAt: t, data: { 'tractor:maxBids': '6', marker: 'latest' } }, lb: { maxBids: 6, rounds: 200 }
+  }, token), env);
+  const result = await json(await api.handleSyncPut(mkReq('PUT', '/api/sync', {
+    save: { updatedAt: t - 1000, data: { 'tractor:maxBids': '7', marker: 'stale' } }, lb: { maxBids: 7, rounds: 199 }
+  }, token), env));
+  assert.strictEqual(result.kept, 'server');
+  assert.strictEqual(result.maxBids, 7);
+  const save = JSON.parse(await env.KV.get('save:' + user.uid));
+  assert.strictEqual(save.data['tractor:maxBids'], '7');
+  assert.strictEqual(save.data.marker, 'latest');
+  assert.strictEqual(save.updatedAt, t);
+});
+
+test('排行榜已有的较高计数也参与恢复，不因设备档案落后而丢失', async () => {
+  const { env, token, user } = await mkGuest();
+  await env.KV.put('lb:global', JSON.stringify([{ uid: user.uid, nick: user.nick, maxBids: 8, rounds: 200 }]));
+  const result = await json(await api.handleSyncPut(mkReq('PUT', '/api/sync', {
+    save: { updatedAt: Date.now(), data: { 'tractor:maxBids': '6' } }, lb: { maxBids: 6, rounds: 200 }
+  }, token), env));
+  assert.strictEqual(result.maxBids, 8);
+  assert.strictEqual(JSON.parse(await env.KV.get('save:' + user.uid)).data['tractor:maxBids'], '8');
+});
+
+test('刚上传后立即看榜不重复写相同存档和榜单，避免KV单键写入频率限制', async () => {
+  const { env, token } = await mkGuest();
+  const writes = new Set(), put = env.KV.put;
+  env.KV.put = async (key, value) => {
+    assert.ok(!writes.has(key), '同一份同步不能再次重写 ' + key);
+    writes.add(key);
+    await put(key, value);
+  };
+  const body = { save: { updatedAt: Date.now(), data: { 'tractor:maxBids': '7' } }, lb: { maxBids: 7, rounds: 200 } };
+  for (let i = 0; i < 2; i++) {
+    const r = await api.handleSyncPut(mkReq('PUT', '/api/sync', body, token), env);
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual((await json(r)).leaderboardRow.maxBids, 7);
+  }
+  const board = await api.handleLeaderboard(mkReq('GET', '/api/leaderboard'), env);
+  assert.strictEqual(board.headers.get('Cache-Control'), 'no-store');
+});
+
 test('wx 登录未配置时返回 501（占位可用）', async () => {
   const env = freshEnv();
   const r = await api.handleWx(mkReq('POST', '/api/auth/wx', { code: 'x' }), env);

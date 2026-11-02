@@ -38,6 +38,8 @@ const TEST_FILES = [
   'test-san-da-yi.js',
   'test-eight-throw.js',
   'test-cloud-api.js',
+  'test-cloud-h5.js',
+  'test-settle-accounting.js',
   'test-cloud-mp.js'
 ];
 

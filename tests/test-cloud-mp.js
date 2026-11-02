@@ -113,6 +113,30 @@ test('小程序云层全链路：降级游客 → 上云 → 绑定 → 满分�
   assert.strictEqual(String(fakeWx2.getStorageSync('tractor:maxBids')), '2', '报满计数随档案找回');
 });
 
+test('小程序旧榜缓存不覆盖服务端已确认成绩，较高累计值也回写本地', async () => {
+  const backend = freshBackend(), fakeWx = makeFakeWx(backend);
+  global.wx = fakeWx;
+  Cloud._test.reset();
+  Cloud._test.setBase('http://localhost');
+  Cloud.init();
+  await sleep(50);
+  const uid = Cloud.uid();
+  await backend.KV.put('lb:global', JSON.stringify([{ uid, nick: Cloud.nick(), maxBids: 8, rounds: 200 }]));
+  fakeWx.setStorageSync('tractor:maxBids', '6');
+  Cloud.notifyLocal();
+  const request = fakeWx.request;
+  fakeWx.request = (opts) => {
+    if (opts.url.endsWith('/leaderboard')) {
+      return setTimeout(() => opts.success({ statusCode: 200, data: { list: [{ uid, maxBids: 6, rounds: 200 }] } }), 0);
+    }
+    return request(opts);
+  };
+  const board = await Cloud.leaderboard();
+  assert.strictEqual(board[0].maxBids, 8);
+  assert.strictEqual(fakeWx.getStorageSync('tractor:maxBids'), '8');
+  Cloud._test.reset();
+});
+
 test('离线全静默：wx.request 失败不抛错、状态保持 off', async () => {
   const fakeWx = makeFakeWx(freshBackend());
   fakeWx.request = (opts) => { setTimeout(() => opts.fail && opts.fail(new Error('offline')), 0); };

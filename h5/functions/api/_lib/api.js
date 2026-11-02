@@ -25,22 +25,36 @@ import Users from './users.js';
 const SAVE_MAX_BYTES = 200 * 1024;
 /** 排行榜保留行数。 */
 const LB_SIZE = 100;
+const MAX_BIDS_KEY = 'tractor:maxBids';
+
+function countOf(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+async function readLeaderboard(kv) {
+  const raw = await kv.get('lb:global');
+  try {
+    const list = JSON.parse(raw || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch (e) { return []; }
+}
 
 /**
- * 排行榜合并（满分庄家榜）：整行替换该 uid 数据后按满分坐庄次数重排。
+ * 排行榜合并（满分庄家榜）：累计次数取较大值，更新昵称后重新排序。
  * 满分坐庄 = 我坐庄独揽全部 200 分（客户端判 dealerPoints ≥ 200）；计数来自客户端单机局，
  * 天然可刷，休闲榜不做反作弊。
  */
-async function updateLeaderboard(kv, uid, nick, lb) {
+async function updateLeaderboard(kv, uid, nick, lb, list) {
   if (!lb || typeof lb !== 'object') return;
-  const maxBids = Math.floor(Number(lb.maxBids));
-  if (!Number.isFinite(maxBids) || maxBids < 1) return; // 没满分坐庄过不上榜
-  const rounds = Math.max(0, Math.floor(Number(lb.rounds) || 0));
-  let list;
-  try { list = JSON.parse((await kv.get('lb:global')) || '[]'); } catch (e) { list = []; }
-  if (!Array.isArray(list)) list = [];
-  const row = { uid, nick, maxBids, rounds, updatedAt: Date.now() };
   const i = list.findIndex((r) => r && r.uid === uid);
+  const previous = i >= 0 ? list[i] : null;
+  const maxBids = Math.max(countOf(lb.maxBids), countOf(previous && previous.maxBids));
+  if (maxBids < 1) return; // 没满分坐庄过不上榜
+  const rounds = Math.max(countOf(lb.rounds), countOf(previous && previous.rounds));
+  // 普通设置同步不反复重写全局榜，减少同一KV键的写入冲突。
+  if (previous && previous.nick === nick && previous.maxBids === maxBids && previous.rounds === rounds) return;
+  const row = { uid, nick, maxBids, rounds, updatedAt: Date.now() };
   if (i >= 0) list[i] = row; else list.push(row);
   list.sort((a, b) => (b.maxBids - a.maxBids) || (b.rounds - a.rounds));
   await kv.put('lb:global', JSON.stringify(list.slice(0, LB_SIZE)));
@@ -153,17 +167,29 @@ export async function handleSyncPut(request, env) {
   const key = 'save:' + uid;
   let prev = null;
   try { prev = JSON.parse((await kv.get(key)) || 'null'); } catch (e) { prev = null; }
+  const list = await readLeaderboard(kv);
+  const ranked = list.find((r) => r && r.uid === uid);
+  // 满分次数是累计成绩：与普通设置的LWW分开合并，迟到上传不能倒扣。
+  const maxBids = Math.max(countOf(save.data[MAX_BIDS_KEY]), countOf(prev && prev.data && prev.data[MAX_BIDS_KEY]),
+    countOf(body.lb && body.lb.maxBids), countOf(ranked && ranked.maxBids));
   let kept = 'none';
   if (!prev || save.updatedAt >= prev.updatedAt) {
-    await kv.put(key, JSON.stringify(save));
     kept = 'client';
   } else {
     kept = 'server'; // 服务端更新，客户端该来拉取
   }
+  const accepted = kept === 'client' ? save : prev;
+  if (kept === 'client' || maxBids > countOf(prev && prev.data && prev.data[MAX_BIDS_KEY])) {
+    const stored = maxBids > 0 ? { ...accepted, data: { ...accepted.data, [MAX_BIDS_KEY]: String(maxBids) } } : accepted;
+    const raw = JSON.stringify(stored);
+    if (raw !== JSON.stringify(prev)) await kv.put(key, raw);
+  }
   // 排行榜与档案独立合并：即使档案输了 LWW，最新战绩也进榜
   const user = await Users.getUser(env, uid);
-  if (user) await updateLeaderboard(kv, uid, user.nick, body.lb);
-  return jsonResp({ ok: true, kept });
+  if (user) await updateLeaderboard(kv, uid, user.nick, { ...body.lb, maxBids }, list);
+  // 返回本次已确认的榜单行，客户端可立即展示，不必等KV跨机房缓存传播。
+  const leaderboardRow = list.slice(0, LB_SIZE).find((r) => r && r.uid === uid) || null;
+  return jsonResp({ ok: true, kept, maxBids, leaderboardRow });
 }
 
 /** GET /api/leaderboard */

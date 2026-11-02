@@ -328,6 +328,7 @@ Page({
     };
     // 结算视图
     if (st.lastSettle && (st.phase === 'SCORING' || st.phase === 'GAME_OVER')) {
+      this.accountSettle(); // 结算已完成即入账，不再依赖离开结算页。
       const sl = st.lastSettle;
       view.settle = {
         attackPoints: sl.attackPoints,
@@ -1029,7 +1030,7 @@ Page({
 
   /* ==================== 结算 ==================== */
 
-  /** 结算落账：战绩入档 + 满分坐庄计数 + 上云。「下一局」和「回到首页」两个出口都调（按局号防双记）。 */
+  /** 结算展示即落账；两个出口保留兜底，稳定局标识防止恢复后重复记分。 */
   accountSettle() {
     const st = this.service.getState();
     const prev = st.lastSettle;
@@ -1038,11 +1039,14 @@ Page({
     this.accountedRoundNo = st.roundNo;
     const wasSDY = prev.mode === 'san_da_yi';
     const records = storage.get(STORAGE_KEYS.STATS) || [];
+    const settleId = String(st.seed) + ':' + st.roundNo;
+    if (records.some(r => r && r.settleId === settleId)) return;
     // 记录战绩（三打一：真人阵营胜负，庄家身份以结算时 dealerIdx 为准；升级：队伍胜负）
     const sdyWon = wasSDY
       ? (prev.winnerTeam === 'dealer' ? prev.dealerIdx === 0 : prev.dealerIdx !== 0)
       : prev.winnerTeam === 0;
     storage.set(STORAGE_KEYS.STATS, appendRecord(records, {
+      settleId,
       roundNo: st.roundNo,
       myTeamWon: sdyWon,
       passedA: prev.passedA,
@@ -1054,7 +1058,7 @@ Page({
     if (perfectWin) {
       const K = 'tractor:maxBids';
       try { wx.setStorageSync(K, String((Number(wx.getStorageSync(K)) || 0) + 1)); } catch (e) { /* 忽略 */ }
-      wx.showToast({ title: '满分坐庄 +1，已计入全网榜', icon: 'none' });
+      wx.showToast({ title: '满分坐庄 +1，成绩已保存', icon: 'none' });
     }
     Cloud.notifyLocal(); // 战绩落本地后异步上云（防抖 2.5s）
     if (perfectWin) Cloud.flush(); // 满分是稀罕事：不等防抖，立刻同步后台进榜

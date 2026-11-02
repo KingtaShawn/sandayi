@@ -536,6 +536,7 @@
       modal.hidden = true;
       return;
     }
+    accountSettle(); // 结算面板出现就入账，直接关页也不漏满分成绩。
     const wasHidden = modal.hidden;
     modal.hidden = false;
     if (wasHidden) Sfx.play(view.settleIsWin ? 'win' : 'lose'); // 弹层首次出现才响（重渲不重复）
@@ -1175,7 +1176,7 @@
     $('history-modal').hidden = false;
   }
 
-  /** 结算落账：战绩入档 + 满分坐庄计数 + 上云。「下一局」和「回到首页」两个出口都调（按局号防双记）。 */
+  /** 结算展示即落账；两个出口保留兜底，稳定局标识防止恢复后重复记分。 */
   function accountSettle() {
     const st = G.service.getState();
     const prev = st.lastSettle;
@@ -1184,10 +1185,13 @@
     G.accountedRoundNo = st.roundNo;
     const wasSDY = prev.mode === 'san_da_yi';
     const records = storage.get(STORAGE_KEYS.STATS) || [];
+    const settleId = String(st.seed) + ':' + st.roundNo;
+    if (records.some(r => r && r.settleId === settleId)) return;
     const sdyWon = wasSDY
       ? (prev.winnerTeam === 'dealer' ? prev.dealerIdx === 0 : prev.dealerIdx !== 0)
       : prev.winnerTeam === 0;
     storage.set(STORAGE_KEYS.STATS, stats.appendRecord(records, {
+      settleId,
       roundNo: st.roundNo,
       myTeamWon: sdyWon,
       passedA: prev.passedA,
@@ -1199,7 +1203,7 @@
     if (perfectWin) {
       const K = 'tractor:maxBids';
       try { localStorage.setItem(K, String((Number(localStorage.getItem(K)) || 0) + 1)); } catch (e) { /* 忽略 */ }
-      toast('满分坐庄 +1，已计入全网榜');
+      toast('满分坐庄 +1，成绩已保存');
     }
     if (window.Cloud) Cloud.notifyLocal(); // 战绩落本地后异步上云（防抖 2.5s）
     if (perfectWin && window.Cloud) Cloud.flush(); // 满分是稀罕事：不等防抖，立刻同步后台进榜
