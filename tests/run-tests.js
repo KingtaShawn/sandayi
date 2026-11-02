@@ -22,6 +22,7 @@ const TEST_FILES = [
   'test-ai-team-follow.js',
   'test-ai-trump-discard.js',
   'test-h5-bundle-throw-kill.js',
+  'test-ai-pair-keep.js',
   'test-qa-tractor.js',
   'test-qa-follow-trump.js',
   'test-qa-settle-koudi.js',

@@ -222,6 +222,31 @@ function followCandidates(state, playerIdx) {
     if (cards_.length === n) out.push(cards_);
   };
 
+  // 垫散牌保留完整对子；补一个代表候选，避免低牌截断/半跟补牌只给出拆对选项。
+  // 这是候选覆盖，不改变跟牌规则；最终仍统一经过 validatePlay 过滤。
+  const pushKeepingPairs = (required, pool) => {
+    const byKey = new Map();
+    pool.forEach((c) => {
+      const key = cardKey(c);
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key).push(c);
+    });
+    const units = [];
+    byKey.forEach((list) => {
+      if (list.length % 2) units.push([list.pop()]);
+      while (list.length) units.push(list.splice(0, 2));
+    });
+    units.sort((a, b) => a.length - b.length
+      || pointsOf(a, cfg) - pointsOf(b, cfg) || strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti));
+    const chosen = required.slice(), rest = [];
+    for (const unit of units) {
+      if (chosen.length + unit.length <= n) chosen.push(...unit);
+      else rest.push(...unit);
+    }
+    if (chosen.length < n) chosen.push(...rest.slice(0, n - chosen.length));
+    push(chosen);
+  };
+
   // 八张同点甩牌领出：无门可跟，任意 8 张合法但有对必逐对跟——
   // 候选：自家更大的八甩（若握有）/ 最小对+最小单（垫）/ 对+分牌单（队友领出喂分）
   if (lead.type === 'eight') {
@@ -280,6 +305,7 @@ function followCandidates(state, playerIdx) {
       push(avail.concat(rest.slice().sort(
         (a, b) => pointsOf([b], cfg) - pointsOf([a], cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)
       ).slice(0, k)));
+      pushKeepingPairs(avail, rest);
       return out;
     }
     if (n === 1) {
@@ -365,6 +391,7 @@ function followCandidates(state, playerIdx) {
       keep.push(s);
     }
     if (keep.length === n) push(keep);
+    pushKeepingPairs([], avail);
     return out;
   }
 
@@ -389,6 +416,7 @@ function followCandidates(state, playerIdx) {
     push(hand.slice().sort(
       (a, b) => pointsOf([b], cfg) - pointsOf([a], cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)
     ).slice(0, n));
+    pushKeepingPairs([], hand);
     return out;
   }
   if (lead.type === 'tractor') {
@@ -411,6 +439,7 @@ function followCandidates(state, playerIdx) {
     push(hand.slice().sort(
       (a, b) => pointsOf([b], cfg) - pointsOf([a], cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)
     ).slice(0, n));
+    pushKeepingPairs([], hand);
     return out;
   }
   // 甩牌缺门：主牌全压组合 / 最小垫
@@ -443,6 +472,7 @@ function followCandidates(state, playerIdx) {
     if (!pfIds.has(c.id)) { pf.push(c); pfIds.add(c.id); }
   }
   if (pf.length === n) push(pf);
+  pushKeepingPairs([], hand);
   return out;
 }
 

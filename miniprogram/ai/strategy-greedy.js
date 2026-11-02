@@ -16,7 +16,8 @@
  *       （剩 ≤5 墩不把无敌大主花在小分墩上，留力抠底）
  *       + 配合领出（往庄家示缺门领空牌逼烧主——三家主牌碾压一家）；
  *     · 跟牌：末家必赢 → 甩分牌收分；能小赢 → 最小能赢牌；赢不了 → 垫最小/喂分给稳赢队友；
- *       结构防守（v6）：庄家垫牌/领出拆对罚 + JQKA 大单保护（AI_PAIR）、
+ *       结构防守：闲家垫单、整对垫牌、领单与前期接力统一计对子成本
+ *       （AI_ATTACKER_PAIR）；庄家垫牌/领出拆对罚 + JQKA 大单保护（AI_PAIR）、
  *       主牌战已输（三家主牌耗尽/庄家仍持主）即刻满分防守——垫牌保
  *       副牌无敌大牌、抢分豁免省牌罚（AI_SWEEP）；
  *     · 缺门：墩内分 ≥ threshold → 主牌将吃（结构对应优先），否则垫分/垫小。
@@ -92,6 +93,8 @@ const FEAT_R3_LEAD = envFlag('AI_R3_LEAD') !== '0';
 const FEAT_R7 = envFlag('AI_R7') !== '0';
 /** v6 结构防守（消融开关，默认开）：PAIR=庄家拆对/大单保护，SWEEP=满分破光 */
 const FEAT_PAIR = envFlag('AI_PAIR') !== '0';
+/** 闲家对子是后续走墩、接分和扣底的资产，拆一张或整对垫掉都计结构成本。 */
+const FEAT_ATTACKER_PAIR = envFlag('AI_ATTACKER_PAIR') !== '0';
 const FEAT_SWEEP = envFlag('AI_SWEEP') !== '0';
 /** R12 送分风险（消融开关，默认开）：庄家未出、队友在压的副牌真的很弱
  *  （暗处更大 ≥4 张）或庄家已示缺门（将吃口）时，喂分收益按风险折减 */
@@ -545,7 +548,8 @@ class GreedyStrategy {
           : Math.max(0, strength - 10) * 0.75;
       }
       const exposure = dealerPending ? pointsOf(e.cards, state.config) * (1 - e.teamWin) * 2 : 0;
-      return e.signedPoints - cost - exposure;
+      return e.signedPoints - cost - exposure
+        - this._attackerPairCost(e.cards, state.players[playerIdx].hand, state.trumpInfo, ctx);
     };
     let best = current;
     for (const e of estimates) {
@@ -619,6 +623,13 @@ class GreedyStrategy {
     const cheap = candidates.slice().sort((a, b) => pointsOf(a, cfg) - pointsOf(b, cfg)
       || this._maxStrength(a, ti) - this._maxStrength(b, ti));
     add(cheap[0]);
+    if (FEAT_ATTACKER_PAIR) {
+      // 保对的散牌可能既不是最小牌，也不是分最多的牌，必须进入比较集。
+      add(cheap.slice().sort((a, b) =>
+        this._attackerPairCost(a, state.players[playerIdx].hand, ti, ctx)
+          - this._attackerPairCost(b, state.players[playerIdx].hand, ti, ctx)
+        || pointsOf(a, cfg) - pointsOf(b, cfg) || this._maxStrength(a, ti) - this._maxStrength(b, ti))[0]);
+    }
     const winning = cheap.filter((cards) => this._wouldWin(state, trick, playerIdx, cards, parseCombo(cards, ti, cfg)))
       .sort((a, b) => this._maxStrength(a, ti) - this._maxStrength(b, ti)
         || pointsOf(a, cfg) - pointsOf(b, cfg));
@@ -663,7 +674,7 @@ class GreedyStrategy {
    * @returns {number}
    */
   _scoreLead(state, playerIdx, cards_, ctx) {
-    // 三打一：仅庄家用增强领出；攻方沿用贪心基线（自对弈实测更优）
+    // 三打一：庄家用增强领出；攻方保留基线节奏，并计入领单拆对的成本。
     if (ctx && ctx.sdy.isDealer) return this._scoreLeadSdy(state, playerIdx, cards_, ctx);
     const cfg = state.config;
     const ti = state.trumpInfo;
@@ -686,6 +697,7 @@ class GreedyStrategy {
     // 留着末墩将吃抠底（升级模式无记牌上下文，维持基线）
     if (ctx && !ctx.sdy.isDealer) {
       score -= this._lastTrickReserve(state, playerIdx, cards_, ctx, 0);
+      if (combo.type === 'single') score -= this._attackerPairCost(cards_, hand, ti, ctx);
       // 配合领出（v4，实测校准）：庄家示缺门的副牌 → 领空牌逼庄烧主
       // （三家主牌总量碾压一家，庄主耗尽即攻方收割；400 局同种子 A/B
       // 对比「避让缺门 58.8% → 逼烧主 43.0% 庄胜率」，方向相反收益巨大）；
@@ -838,6 +850,17 @@ class GreedyStrategy {
       .filter((c) => domainOf(c, ti) === 'TRUMP').length;
     const mates = [0, 1, 2, 3].filter((s) => s !== playerIdx && s !== sdy.dealerIdx);
     const unseenTr = (di.byDomain.get('TRUMP') || []).reduce((s, e) => s + e.unseen, 0);
+    // 主牌还有大单不等于还能毙对子；每个牌键分别计数，不能把不同花色的2凑成对。
+    // 有对必跟对时，庄家在主对墩散跟过一次，就已证明此后没有主对。
+    const dealerNoTrumpPair = tv[sdy.dealerIdx] || (state.config.mustFollowPairAsPair
+      && (state.completedTricks || []).concat(state.currentTrick ? [state.currentTrick] : []).some((t) => {
+        if (!t.leadCombo || t.leadCombo.type !== 'pair' || !t.leadCombo.isTrump
+            || t.leadPlayerIdx === sdy.dealerIdx) return false;
+        const p = t.plays.find((p) => p.playerIdx === sdy.dealerIdx);
+        const combo = p && parseCombo(p.cards, ti, state.config);
+        return p && (!combo || combo.type !== 'pair' || !combo.isTrump);
+      }));
+    sdy.trumpPairThreats = dealerNoTrumpPair ? 0 : this._unseenHigherPairs(di, 'TRUMP', -Infinity);
     sdy.trumpWatch = FEAT_SWEEP && !sdy.isDealer && myTr === 0 && unseenTr > 0
       && mates.every((s) => tv[s]);
     return { mem, di, sdy };
@@ -898,6 +921,40 @@ class GreedyStrategy {
       if (list[i].s > strength) n += list[i].unseen;
     }
     return n;
+  }
+
+  /** 未见牌中仍可能成对的更大牌键数；单张不能压对子。仅作保守威胁上界。 */
+  _unseenHigherPairs(di, domain, strength) {
+    return (di.byDomain.get(domain) || []).filter((e) => e.unseen >= 2 && e.s > strength).length;
+  }
+
+  /**
+   * 闲家失去完整对子的机会成本：所有点数均保留基础价值；公开主对减少、
+   * 同门更大潜在对子减少和临近末墩时更值得留。只看公开牌和自己的手牌，
+   * 「可能还有主对」不等于断言庄家握有主对，未知底牌也保守算作未见牌。
+   */
+  _attackerPairCost(cards_, hand, ti, ctx) {
+    if (!FEAT_ATTACKER_PAIR || !ctx || ctx.sdy.isDealer || cards_.length === hand.length) return 0;
+    const played = new Set(cards_.map((c) => c.id));
+    const groups = new Map();
+    hand.forEach((c) => {
+      const key = `${c.suit}-${c.rank}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(c);
+    });
+    let cost = 0;
+    groups.forEach((list) => {
+      const left = list.filter((c) => !played.has(c.id)).length;
+      const lostPairs = Math.floor(list.length / 2) - Math.floor(left / 2);
+      if (!lostPairs) return;
+      const c = list[0], dom = domainOf(c, ti);
+      let value = 7;
+      value += Math.max(0, 3 - this._unseenHigherPairs(ctx.di, dom, strengthInDomain(c, ti)));
+      if (dom !== 'TRUMP') value += Math.max(0, 4 - ctx.sdy.trumpPairThreats);
+      if (hand.length <= 6) value += 3;
+      cost += lostPairs * value;
+    });
+    return cost;
   }
 
   /** 组合的每个单元在剩余牌里都无更大者（副牌仍可能被将吃，配 _ruffFactor 折减） */
@@ -1192,18 +1249,16 @@ class GreedyStrategy {
   }
 
   /**
-   * 垫牌结构保护（v6.1 AI_PAIR 庄家侧 + v6.3 SWEEP 攻方主牌战已输）：
+   * 垫牌结构保护（AI_PAIR 庄家侧 + AI_ATTACKER_PAIR 闲家对子 + SWEEP）：
    *   - 庄家（PAIR）：拆对罚 4（清场甩牌收割靠对子结构，足以让「拆小对」
    *     劣于「垫 JQKA 大单」）+ JQKA 大单保护 1.2（控制牌）。
    *   - 攻方（SWEEP，仅 trumpWatch 触发时）：副牌「剩余牌无敌」大牌
    *     垫牌罚 8——主牌战已输后这是唯一能走墩抢分的资产（庄家领非
    *     最大牌时反压赢墩、队友喂分），庄家已示缺门的死牌除外。
-   * 攻方普遍保结构已试尽删（2026-10-28 负结果存档）：普遍保对 −2pp、
-   * 缺门大户养甩结构 −1.5pp、缺门空甩张数加成无效——保对的机会成本
-   * 立即支付而兑现时刻近乎不存在；v6.3 的差别=只在主牌战已输（可观测
-   * 局势事实）且只保可证走墩的单张大牌，非终局不启用。
-   * 只动垫牌选项间的相对序，不动绝对量级（2026-10-28 教训：跨分支绝对
-   * 值是「能赢就赢」强行为的隐形实现，实测勿碰）。
+   *   - 闲家：拆对/整对垫掉均计一次失去结构的成本，主对减少后副对更值钱。
+   * 早先「养结构等甩牌」实验为负，不能据此否定对子本身走墩与扣底价值；
+   * 本次还补齐保对垫散候选，并把成本纳入前期接力，避免只修改贪心一处。
+   * 用对子赢墩的分支不加保对罚；合法跟牌、夺关键墩与锁墩稳跑分仍优先。
    */
   _discardKeep(cards_, hand, ti, ctx) {
     const isDealer = ctx && ctx.sdy.isDealer;
@@ -1212,7 +1267,7 @@ class GreedyStrategy {
     // 的资产（seed 374 墩16 把 D/C 两门 A 当垃圾垫掉即典型失误）：庄家
     // 领非最大牌时反压赢墩、队友喂分入袋；垫掉=亲手拆自己的桥。
     const sweepKeep = FEAT_SWEEP && ctx && !isDealer && ctx.sdy.trumpWatch;
-    if (!FEAT_PAIR && !sweepKeep) return 0;
+    if (!FEAT_PAIR && !sweepKeep && !FEAT_ATTACKER_PAIR) return 0;
     if (isDealer) {
       if (!FEAT_PAIR) return 0;
       let s = 0;
@@ -1224,7 +1279,9 @@ class GreedyStrategy {
       });
       return s;
     }
-    let s = 0;
+    let s = -this._attackerPairCost(cards_, hand, ti, ctx);
+    // 沿用既有 AI_PAIR 下的副牌大单保护，避免把单张价值调整混入本次保对改动。
+    if (!FEAT_PAIR && !sweepKeep) return s;
     cards_.forEach((c) => {
       const dom = domainOf(c, ti);
       if (dom !== 'TRUMP'
