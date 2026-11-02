@@ -7124,6 +7124,8 @@ var token = null;
 var pushTimer = null;
 var pushing = false;
 var pushPending = false;
+var pushPromise = null;
+var pushingPayload = null;
 var inited = false;
 
 /* ---------- wx storage 薄封装（惰性取 global wx，Node 测试可注入） ---------- */
@@ -7159,8 +7161,16 @@ function collectData() {
 function applyData(data) {
   if (!data) return;
   SYNC_KEYS.forEach(function (k) {
-    if (Object.prototype.hasOwnProperty.call(data, k)) lsSet(k, data[k]);
+    if (Object.prototype.hasOwnProperty.call(data, k)) {
+      if (k === 'tractor:maxBids') mergeMaxBids(data[k]);
+      else lsSet(k, data[k]);
+    }
   });
+}
+
+function mergeMaxBids(value) {
+  var n = Number(value);
+  if (isFinite(n) && n > (Number(lsGet('tractor:maxBids')) || 0)) lsSet('tractor:maxBids', String(Math.floor(n)));
 }
 
 function localAt() { return Number(lsGet(LS_LOCAL_AT)) || 0; }
@@ -7240,19 +7250,41 @@ function schedulePush() {
 
 function push() {
   if (!token) return Promise.resolve();
-  if (pushing) { pushPending = true; return Promise.resolve(); }
+  var body = { save: { updatedAt: localAt() || Date.now(), data: collectData() }, lb: summarize() };
+  var payload = JSON.stringify(body);
+  if (pushing) { if (payload !== pushingPayload) pushPending = true; return pushPromise; }
+  if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
   pushing = true;
-  return request('PUT', 'sync', {
-    save: { updatedAt: localAt() || Date.now(), data: collectData() },
-    lb: summarize()
-  }, true).then(function (r) {
-    if (r && r.kept === 'server') return pull();
+  pushingPayload = payload;
+  pushPromise = request('PUT', 'sync', body, true).then(function (r) {
+    mergeMaxBids(r && r.maxBids);
+    if (r && r.kept === 'server') return pull().then(function () { return r; });
+    return r;
   }).catch(function (e) {
     if (e && e.status === 401) reLogin();
-  }).then(function () {
+  }).then(function (r) {
     pushing = false;
-    if (pushPending) { pushPending = false; schedulePush(); }
+    pushPromise = null;
+    pushingPayload = null;
+    if (pushPending) { pushPending = false; return push(); }
+    return r;
   });
+  return pushPromise;
+}
+
+function flush() {
+  if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
+  return push();
+}
+
+function confirmedLeaderboard(list, row) {
+  list = Array.isArray(list) ? list.slice() : [];
+  if (!row || !user || row.uid !== user.uid) return list;
+  var i = list.findIndex(function (r) { return r && r.uid === row.uid; });
+  if (i < 0) list.push(row);
+  else if (Number(row.maxBids) >= Number(list[i].maxBids)) list[i] = row;
+  list.sort(function (a, b) { return (b.maxBids - a.maxBids) || (b.rounds - a.rounds); });
+  return list.slice(0, 100);
 }
 
 function pull() {
@@ -7302,10 +7334,7 @@ module.exports = {
   },
 
   /** 立即推送（onHide 等收尾时机）。 */
-  flush: function () {
-    if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
-    return push();
-  },
+  flush: flush,
 
   /** 游客升级为正式账号（uid 不变，战绩不丢；可与 H5 绑同名账号互通）。 */
   bind: function (name, pass) {
@@ -7324,7 +7353,10 @@ module.exports = {
 
   /** 拉排行榜（满分庄家榜，公开接口）。 */
   leaderboard: function () {
-    return request('GET', 'leaderboard', undefined, false).then(function (r) { return (r && r.list) || []; });
+    return flush().then(function (ack) {
+      return request('GET', 'leaderboard', undefined, false)
+        .then(function (r) { return confirmedLeaderboard(r && r.list, ack && ack.leaderboardRow); });
+    });
   },
 
   on: function (evt, fn) { if (listeners[evt]) listeners[evt].push(fn); },
@@ -7334,7 +7366,7 @@ module.exports = {
     setBase: function (b) { CLOUD_BASE = b; },
     reset: function () {
       inited = false; user = null; token = null;
-      pushing = false; pushPending = false;
+      pushing = false; pushPending = false; pushPromise = null; pushingPayload = null;
       if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
     }
   }
