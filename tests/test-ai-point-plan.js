@@ -272,7 +272,7 @@ test('双方向10局：持牌范围包含真值，浏览器bundle逐手一致，
   const bundleAI = new browser.window.GameCore.GameService().ai;
   for (const playDirection of ['clockwise', 'counterclockwise']) {
     const cfg = createConfig({ gameMode: 'san_da_yi', playDirection, throwPenalty: 'penalty_smallest' });
-    const ai = new GreedyStrategy(), build = ai._buildCtx;
+    const ai = new (require('../miniprogram/services/game-service').GameService)().ai, build = ai._buildCtx;
     const sourceDecide = ai.decidePlay;
     ai.decidePlay = function (state, seat, rng) {
       const pick = sourceDecide.call(this, state, seat, rng);

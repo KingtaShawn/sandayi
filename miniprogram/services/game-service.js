@@ -9,6 +9,7 @@ const { transition } = require('../core/statemachine');
 const { stepAI, aiBidOptions } = require('../core/dealer-ai-loop');
 const { Logger } = require('../core/logger');
 const { createAI } = require('../ai/strategy');
+const { SharedAttackStrategy } = require('../ai/strategy-shared');
 const { validatePlay, validateBury } = require('../engine/validate');
 const { canBid } = require('../engine/bid');
 const { RuleError } = require('../engine/errors');
@@ -23,7 +24,7 @@ class GameService {
     const o = options || {};
     this.config = o.config || DEFAULT_CONFIG;
     this.difficulty = o.difficulty || 'normal';
-    this.ai = createAI(this.difficulty);
+    this.ai = this.difficulty === 'easy' ? createAI(this.difficulty) : new SharedAttackStrategy(this.difficulty);
     this.logger = new Logger();
     this.rng = o.rng || createRng(o.seed);
     this.state = null;

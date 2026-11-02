@@ -29,6 +29,7 @@ const TEST_FILES = [
   'test-ai-long-plan.js',
   'test-ai-arena.js',
   'test-ai-joker-reserve.js',
+  'test-ai-shared-hands.js',
   'test-qa-tractor.js',
   'test-qa-follow-trump.js',
   'test-qa-settle-koudi.js',
