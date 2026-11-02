@@ -7,9 +7,18 @@ const { GreedyStrategy } = require('../miniprogram/ai/strategy-greedy');
 const { SharedAttackStrategy } = require('../miniprogram/ai/strategy-shared');
 const { prepare, play, scenarios, dealerProfile, summarize } = require('./ai-arena');
 
-function run(count = 128, seedStart = 48001) {
+function run(count = 128, seedStart = 48001, compareTail = false) {
   const file = path.resolve(__dirname, '../miniprogram/ai/strategy-greedy.js');
-  const publicAI = new GreedyStrategy(), sharedAI = new SharedAttackStrategy();
+  const publicAI = compareTail ? new SharedAttackStrategy() : new GreedyStrategy(), sharedAI = new SharedAttackStrategy();
+  const reference = compareTail ? 'previous' : 'public';
+  if (compareTail) publicAI.trumpTailEnabled = false;
+  const tailReadings = { canCash: 0, cannotCash: 0 };
+  const readTail = sharedAI._readTrumpTail;
+  sharedAI._readTrumpTail = function (...args) {
+    const result = readTail.apply(this, args);
+    if (result) tailReadings[result.canCash ? 'canCash' : 'cannotCash']++;
+    return result;
+  };
   const rows = [], started = Date.now();
   for (const scenario of scenarios(count, seedStart)) {
     const dealer = dealerProfile(file, scenario.profile);
@@ -17,7 +26,7 @@ function run(count = 128, seedStart = 48001) {
     // 评测庄家策略代替真人出牌，其余三席明确都是AI；轮换首报位和双方向。
     st.players.forEach((p, seat) => { p.isHuman = seat === st.dealerIdx; });
     rows.push({ scenario, dealerSeat: st.dealerIdx, contract: st.contractScore, results: {
-      public: play(st, scenario, dealer, publicAI),
+      [reference]: play(st, scenario, dealer, publicAI),
       shared: play(st, scenario, dealer, sharedAI)
     } });
     if (rows.length % 32 === 0) console.log(`progress=${rows.length}/${count}`);
@@ -28,12 +37,12 @@ function run(count = 128, seedStart = 48001) {
     hashes: Object.fromEntries(sources.map((f) => [f, crypto.createHash('sha256')
       .update(fs.readFileSync(path.resolve(__dirname, '..', f))).digest('hex')])),
     note: 'winRate为闲家胜率；庄家由四种固定AI风格代替真人，不代表真人胜率或最优策略。',
-    summary: summarize(rows, ['public', 'shared'], 'public'), rows };
+    reference, tailReadings, summary: summarize(rows, [reference, 'shared'], reference), rows };
 }
 
 if (require.main === module) {
   const args = process.argv.slice(2), get = (name, fallback) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
-  const result = run(Number(get('--count', 128)), Number(get('--seed-start', 48001)));
+  const result = run(Number(get('--count', 128)), Number(get('--seed-start', 48001)), args.includes('--compare-tail'));
   fs.writeFileSync(path.resolve(get('--out', '/tmp/sandayi-shared-bench.json')), JSON.stringify(result, null, 2));
   console.log(JSON.stringify({ elapsedMs: result.elapsedMs, summary: result.summary }, null, 2));
 }

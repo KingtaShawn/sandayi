@@ -6632,7 +6632,7 @@ __def("ai/strategy-shared", function (exports, __require, module) {
 'use strict';
 
 const { GreedyStrategy } = __require('ai/strategy-greedy');
-const { domainOf } = __require('engine/combo');
+const { domainOf, pointsOf, strengthInDomain } = __require('engine/combo');
 
 function canShareHands(state, viewerIdx) {
   if (state.config.gameMode !== 'san_da_yi' || state.phase !== 'PLAYING') return false;
@@ -6664,6 +6664,7 @@ class SharedAttackStrategy extends GreedyStrategy {
     if (!canShareHands(state, playerIdx)) return ctx;
     const progress = readingProgress(state);
     if (!progress.stage || !ctx.knowledge || !ctx.knowledge.consistent) return ctx;
+    ctx.trumpTail = this._readTrumpTail(state, playerIdx, ctx, progress);
     const domains = [...progress.exposure].filter(([d, times]) => times >= 2).map(([d]) => d);
     if (!domains.length) return ctx;
     ctx.teamReadings = new Map();
@@ -6682,6 +6683,50 @@ class SharedAttackStrategy extends GreedyStrategy {
       if (readings.size) ctx.teamReadings.set(seat, readings);
     });
     return ctx;
+  }
+
+  /**
+   * 清主至少三轮、公开未见主牌至多六张时，只开放“后位能否接当前单主”这一位信息。
+   * 不给出王的种类、牌面或真手牌；张数已公开为0的队友也不再读取暗牌。
+   */
+  _readTrumpTail(state, playerIdx, ctx, progress) {
+    const trick = state.currentTrick, ti = state.trumpInfo;
+    if (this.trumpTailEnabled === false || state.turnIdx !== playerIdx
+        || !trick || trick.leadPlayerIdx !== ctx.sdy.dealerIdx
+        || !trick.leadCombo.isTrump || trick.leadCombo.type !== 'single'
+        || (progress.exposure.get('TRUMP') || 0) < 3
+        || ctx.knowledge.domains.get('TRUMP').unseen > 6
+        || state.players[playerIdx].hand.some((c) => domainOf(c, ti) === 'TRUMP')) return null;
+    const winner = this._currentWinnerPlay(state, trick, ti, state.config);
+    if (!winner || winner.playerIdx !== ctx.sdy.dealerIdx) return null;
+    const threshold = strengthInDomain(winner.cards[0], ti);
+    const pending = state.players.map((p, seat) => seat).filter((seat) => seat !== playerIdx
+      && seat !== ctx.sdy.dealerIdx && !trick.plays.some((p) => p.playerIdx === seat));
+    if (!pending.length) return null;
+    const readings = pending.map((seat) => {
+      if (ctx.knowledge.seats[seat].domains.get('TRUMP').count.max === 0) return false;
+      const trumps = state.players[seat].hand.filter((c) => domainOf(c, ti) === 'TRUMP');
+      if (trumps.length > 2) return null; // 主力还多，不据此提前开放大牌情报。
+      return trumps.some((c) => strengthInDomain(c, ti) > threshold);
+    });
+    if (readings.some((canBeat) => canBeat === true)) return { canCash: true };
+    return readings.every((canBeat) => canBeat === false) ? { canCash: false } : null;
+  }
+
+  _chooseTeamFollow(state, playerIdx, ctx, candidates, pick) {
+    if (!ctx.trumpTail) return super._chooseTeamFollow(state, playerIdx, ctx, candidates, pick);
+    // 庄家已先出单主，后续只剩同阵营；若有后位可反压，本家垫分不会改变赢墩归属。
+    const sign = ctx.trumpTail.canCash ? 1 : -1;
+    const hand = state.players[playerIdx].hand, ti = state.trumpInfo;
+    const score = (cards) => sign * pointsOf(cards, state.config) * 4
+      + (20 - this._maxStrength(cards, ti)) / 20 * 6 + this._discardKeep(cards, hand, ti, ctx);
+    return candidates.reduce((best, cards) => score(cards) > score(best) + 1e-9 ? cards : best, pick);
+  }
+
+  _solveEarlyPlan(state, playerIdx, ctx, candidates, pick) {
+    // 两墩采样不能把已获得的接手情报丢掉，再用随机假设改成送分或错过跑分。
+    if (ctx.trumpTail) return null;
+    return super._solveEarlyPlan(state, playerIdx, ctx, candidates, pick);
   }
 
   _constrainPublicGroups(ctx, groups) {
