@@ -52,9 +52,9 @@ npm run build:h5   # 重打 game-bundle → h5/dist/（只含发布文件，注�
 等功率交叉淡化，接缝两侧响度差 0.02dB，单声道 64kbps AAC。🎵 开关状态与音效独立，
 存 `tractor:settings.music`。
 
-两条部署线（2026-10 现状）：
-- **GitHub Pages（玩家主入口，静态）**：push 到 main → GitHub Actions（`.github/workflows/deploy-h5.yml`）构建 `h5/dist` 上线 `kingtashawn.github.io/sandayi/`。云端功能跨域调用下面的后端（`CLOUD_BASE` 已配置）。
-- **Cloudflare Pages（全栈，后端+备用入口）**：`https://sandayi.pages.dev`——同源带 `/api` 后端（KV + AUTH_SECRET 已配），部署命令见 `h5/functions/README.md`。EdgeOne 因无备案域名不可用（默认域名仅 3 小时预览链/大陆 401），兼容代码保留。
+两个入口由同一个 GitHub Actions 工作流（`.github/workflows/deploy-h5.yml`）自动发布：每次 push 到 `main`，先运行测试并构建一次，再发布 Cloudflare Pages 和 GitHub Pages，最后核对线上版本、静态资源哈希及 API。支持在 Actions 中手动重新发布 `main`；同一时间只执行一轮发布。
+- **GitHub Pages（玩家主入口，静态）**：`https://kingtashawn.github.io/sandayi/`。云端功能跨域调用下面的后端（`CLOUD_BASE` 已配置）。
+- **Cloudflare Pages（全栈，后端+备用入口）**：`https://sandayi.pages.dev`，同源带 `/api` 后端（KV + AUTH_SECRET 已配）。工作流携带编译后的 `_worker.js`，保留账号、存档和排行榜；首次授权及手动部署见 `h5/functions/README.md`。
 
 ## 规则配置
 

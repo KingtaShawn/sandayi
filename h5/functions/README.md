@@ -10,7 +10,19 @@
 > 为什么不是 EdgeOne：EdgeOne 默认域名不备案只有 3 小时有效的预览链接、大陆直连 401（官方错误码文档明确），
 > 个人无备案域名用不了；`*.workers.dev` 又被大陆 SNI 阻断——`*.pages.dev` 是免费方案里唯一大陆可达的。EdgeOne 兼容代码（双目录 + 全局 KV）保留，将来有备案域名可迁回。
 
-### 日常部署（改了后端代码 h5/functions/** 后）
+### 自动部署（前端、AI 与后端共用）
+
+每次推送 `main`，`.github/workflows/deploy-h5.yml` 会运行测试并构建一次 H5，生成 Cloudflare API Worker，依次发布到 `sandayi.pages.dev` 和 GitHub Pages。发布后自动比较两个入口的版本及 6 项静态资源哈希，并检查排行榜、CORS 和存档鉴权；失败会在 Actions 中显示。两家平台不能原子切换，发布期间可能短暂不同步；Cloudflare 发布失败时不会继续更新 GitHub Pages，修复后可手动重跑同一工作流。
+
+GitHub 仓库 **Settings → Secrets and variables → Actions** 需要一次性配置：
+- Secret `CLOUDFLARE_API_TOKEN`：Cloudflare 自定义 API Token，权限为 **Account → Cloudflare Pages → Edit**，账户限定为该项目所在账户。
+- Variable `CLOUDFLARE_ACCOUNT_ID`：项目所在的 Cloudflare Account ID。
+
+令牌只存 GitHub Secret；本机 Wrangler 的 OAuth 登录和刷新令牌不用于 CI。现有云端 `AUTH_SECRET` 与 KV 绑定继续沿用 `wrangler.toml` 配置，无需放入 GitHub。
+
+工作流固定使用 Wrangler `4.152.0`、Node.js 22；只允许 `main` 发布生产入口。若更新工具版本，需要验证下面的 Worker 构建行为以及 `/api` 端点。
+
+### 手动部署（故障恢复）
 
 ```bash
 npm run build:h5                                              # 重建 dist
