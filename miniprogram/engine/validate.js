@@ -9,7 +9,7 @@
 'use strict';
 
 const { parseCombo, domainOf, decomposeDomain, isPair, pointsOf, findEightOfKind } = require('./combo');
-const { cardKey } = require('./card');
+const { cardKey, pointValue } = require('./card');
 const { validateThrow } = require('./throw');
 const { validateFollow } = require('./follow');
 const { result } = require('./errors');
@@ -222,6 +222,14 @@ function followCandidates(state, playerIdx) {
     if (cards_.length === n) out.push(cards_);
   };
 
+  // 缺门/半跟时既保留少送分的组合，也保留省主的组合，交给AI按局面取舍。
+  // 单按域内强度排序会把所有主牌排在10/K之后；保对候选也不能替代保分候选。
+  const pushPointSaving = (required, pool) => {
+    const k = n - required.length;
+    push(required.concat(pool.slice().sort((a, b) => pointValue(a, cfg) - pointValue(b, cfg)
+      || strengthSortKey(a, ti) - strengthSortKey(b, ti)).slice(0, k)));
+  };
+
   // 垫散牌保留完整对子；补一个代表候选，避免低牌截断/半跟补牌只给出拆对选项。
   // 这是候选覆盖，不改变跟牌规则；最终仍统一经过 validatePlay 过滤。
   const pushKeepingPairs = (required, pool) => {
@@ -306,6 +314,7 @@ function followCandidates(state, playerIdx) {
         (a, b) => pointsOf([b], cfg) - pointsOf([a], cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)
       ).slice(0, k)));
       pushKeepingPairs(avail, rest);
+      pushPointSaving(avail, rest);
       return out;
     }
     if (n === 1) {
@@ -392,6 +401,12 @@ function followCandidates(state, playerIdx) {
     }
     if (keep.length === n) push(keep);
     pushKeepingPairs([], avail);
+    // 同门甩牌也可能已经被毙：有对必跟对，剩余散牌优先少带分。
+    const pointPairs = pairs.slice().sort((a, b) => pointsOf(a, cfg) - pointsOf(b, cfg)
+      || strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti)).slice(0, requiredPairs)
+      .reduce((all, pair) => all.concat(pair), []);
+    const pointIds = new Set(pointPairs.map((c) => c.id));
+    pushPointSaving(pointPairs, avail.filter((c) => !pointIds.has(c.id)));
     return out;
   }
 
@@ -458,6 +473,24 @@ function followCandidates(state, playerIdx) {
     if (!trumpKeep.find((c) => c.id === s.id)) { tk++; trumpKeep.push(s); }
   }
   if (trumpKeep.length === n) push(trumpKeep);
+  // 保留各档将吃结构。只枚举最小主牌会漏掉本可超毙庄家的大主组合。
+  const leadPairs = lead.units.reduce((count, u) => count + (u.type === 'single' ? 0 : u.cards.length / 2), 0);
+  const trumpPairs = pairsOf(trumps, ti).sort((a, b) => strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti));
+  const addRuff = (pairs, singles) => {
+    const chosen = pairs.slice(0, leadPairs).reduce((all, pair) => all.concat(pair), []);
+    const ids = new Set(chosen.map((c) => c.id));
+    push(chosen.concat(singles.filter((c) => !ids.has(c.id)).slice(0, n - chosen.length)));
+  };
+  if (trumpPairs.length >= leadPairs) {
+    addRuff(trumpPairs, tSorted);
+    addRuff(trumpPairs.slice().reverse(), tSorted.slice().reverse());
+    if (leadPairs === 0) {
+      for (let i = 0; i + n <= tSorted.length; i++) push(tSorted.slice(i, i + n));
+    } else {
+      // 对子槽优先比较；够大的主对仍可搭最小散主，不必一起烧最大主单。
+      for (let i = 0; i + leadPairs <= trumpPairs.length; i++) addRuff(trumpPairs.slice(i), tSorted);
+    }
+  }
   const all = hand.slice().sort((a, b) => strengthSortKey(a, ti) - strengthSortKey(b, ti));
   push(all.slice(0, n));
   const pointFirst = hand.slice().sort((a, b) => pointsOf([b], cfg) - pointsOf([a], cfg));
@@ -473,6 +506,7 @@ function followCandidates(state, playerIdx) {
   }
   if (pf.length === n) push(pf);
   pushKeepingPairs([], hand);
+  pushPointSaving([], hand);
   return out;
 }
 

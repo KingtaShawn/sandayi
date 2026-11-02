@@ -2107,7 +2107,7 @@ __def("engine/validate", function (exports, __require, module) {
 'use strict';
 
 const { parseCombo, domainOf, decomposeDomain, isPair, pointsOf, findEightOfKind } = __require('engine/combo');
-const { cardKey } = __require('engine/card');
+const { cardKey, pointValue } = __require('engine/card');
 const { validateThrow } = __require('engine/throw');
 const { validateFollow } = __require('engine/follow');
 const { result } = __require('engine/errors');
@@ -2320,6 +2320,14 @@ function followCandidates(state, playerIdx) {
     if (cards_.length === n) out.push(cards_);
   };
 
+  // 缺门/半跟时既保留少送分的组合，也保留省主的组合，交给AI按局面取舍。
+  // 单按域内强度排序会把所有主牌排在10/K之后；保对候选也不能替代保分候选。
+  const pushPointSaving = (required, pool) => {
+    const k = n - required.length;
+    push(required.concat(pool.slice().sort((a, b) => pointValue(a, cfg) - pointValue(b, cfg)
+      || strengthSortKey(a, ti) - strengthSortKey(b, ti)).slice(0, k)));
+  };
+
   // 垫散牌保留完整对子；补一个代表候选，避免低牌截断/半跟补牌只给出拆对选项。
   // 这是候选覆盖，不改变跟牌规则；最终仍统一经过 validatePlay 过滤。
   const pushKeepingPairs = (required, pool) => {
@@ -2404,6 +2412,7 @@ function followCandidates(state, playerIdx) {
         (a, b) => pointsOf([b], cfg) - pointsOf([a], cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)
       ).slice(0, k)));
       pushKeepingPairs(avail, rest);
+      pushPointSaving(avail, rest);
       return out;
     }
     if (n === 1) {
@@ -2490,6 +2499,12 @@ function followCandidates(state, playerIdx) {
     }
     if (keep.length === n) push(keep);
     pushKeepingPairs([], avail);
+    // 同门甩牌也可能已经被毙：有对必跟对，剩余散牌优先少带分。
+    const pointPairs = pairs.slice().sort((a, b) => pointsOf(a, cfg) - pointsOf(b, cfg)
+      || strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti)).slice(0, requiredPairs)
+      .reduce((all, pair) => all.concat(pair), []);
+    const pointIds = new Set(pointPairs.map((c) => c.id));
+    pushPointSaving(pointPairs, avail.filter((c) => !pointIds.has(c.id)));
     return out;
   }
 
@@ -2556,6 +2571,24 @@ function followCandidates(state, playerIdx) {
     if (!trumpKeep.find((c) => c.id === s.id)) { tk++; trumpKeep.push(s); }
   }
   if (trumpKeep.length === n) push(trumpKeep);
+  // 保留各档将吃结构。只枚举最小主牌会漏掉本可超毙庄家的大主组合。
+  const leadPairs = lead.units.reduce((count, u) => count + (u.type === 'single' ? 0 : u.cards.length / 2), 0);
+  const trumpPairs = pairsOf(trumps, ti).sort((a, b) => strengthSortKey(a[0], ti) - strengthSortKey(b[0], ti));
+  const addRuff = (pairs, singles) => {
+    const chosen = pairs.slice(0, leadPairs).reduce((all, pair) => all.concat(pair), []);
+    const ids = new Set(chosen.map((c) => c.id));
+    push(chosen.concat(singles.filter((c) => !ids.has(c.id)).slice(0, n - chosen.length)));
+  };
+  if (trumpPairs.length >= leadPairs) {
+    addRuff(trumpPairs, tSorted);
+    addRuff(trumpPairs.slice().reverse(), tSorted.slice().reverse());
+    if (leadPairs === 0) {
+      for (let i = 0; i + n <= tSorted.length; i++) push(tSorted.slice(i, i + n));
+    } else {
+      // 对子槽优先比较；够大的主对仍可搭最小散主，不必一起烧最大主单。
+      for (let i = 0; i + leadPairs <= trumpPairs.length; i++) addRuff(trumpPairs.slice(i), tSorted);
+    }
+  }
   const all = hand.slice().sort((a, b) => strengthSortKey(a, ti) - strengthSortKey(b, ti));
   push(all.slice(0, n));
   const pointFirst = hand.slice().sort((a, b) => pointsOf([b], cfg) - pointsOf([a], cfg));
@@ -2571,6 +2604,7 @@ function followCandidates(state, playerIdx) {
   }
   if (pf.length === n) push(pf);
   pushKeepingPairs([], hand);
+  pushPointSaving([], hand);
   return out;
 }
 
@@ -4288,6 +4322,7 @@ const FEAT_PUBLIC_THROW = envFlag('AI_PUBLIC_THROW') !== '0';
 const FEAT_BOTTOM_BELIEF = envFlag('AI_BOTTOM_BELIEF') !== '0';
 const FEAT_LONG_PLAN = envFlag('AI_LONG_PLAN') !== '0';
 const FEAT_JOKER_RESERVE = envFlag('AI_JOKER_RESERVE') !== '0';
+const FEAT_THROW_DEFENSE = envFlag('AI_THROW_DEFENSE') !== '0';
 const TEAM_FOLLOW_SAMPLES = 24;
 const EARLY_PLAN_SAMPLES = 6;
 const EARLY_PLAN_EVENT_CAP = 220;
@@ -4722,15 +4757,18 @@ class GreedyStrategy {
   }
 
   /**
-   * 前期轻量接力：只模拟本墩后续席位，不模拟整局，不读取真实队友手牌。
+   * 前期单/对接力，以及甩牌被庄家毙后的保分：只模拟本墩后续席位，
+   * 不模拟整局，不读取真实队友手牌；末家直接使用确定的结墩结果。
    * 同一组公开信息约束的假设分布比较跑分、小垫、最小压庄/最大压庄。
    * 庄家未出时，未接稳的分牌另按失手概率计价，避免 10/K 一味吃喂分加成。
    */
   _chooseTeamFollow(state, playerIdx, ctx, candidates, pick) {
     const trick = state.currentTrick;
-    if (!trick || trick.plays.length === 0 || trick.plays.length === 3
-        || state.players[playerIdx].hand.length <= 10 || candidates.length < 2
-        || !['single', 'pair'].includes(trick.leadCombo.type)) return null;
+    const ruffedThrow = FEAT_THROW_DEFENSE && this._dealerRuffedThrow(state, ctx);
+    if (!trick || trick.plays.length === 0 || (trick.plays.length === 3 && !ruffedThrow)
+        || state.players[playerIdx].hand.length <= 2 || candidates.length < 2
+        || (!ruffedThrow && (state.players[playerIdx].hand.length <= 10
+          || !['single', 'pair'].includes(trick.leadCombo.type)))) return null;
     if (this._currentWinnerTeam(state, trick, state.trumpInfo, state.config) === 1
         && this._teamLocked(state, playerIdx, ctx, trick)) return null;
     const estimates = this._teamFollowEstimates(state, playerIdx, ctx, candidates, pick);
@@ -4753,7 +4791,9 @@ class GreedyStrategy {
         && (higher >= 4 || exposedRuff) && e.teamWin >= current.teamWin - 0.25
         && pointsOf(e.cards, state.config) <= pointsOf(current.cards, state.config);
       const handOff = FEAT_TEAM_HANDOFF && !dealerPending && e.mateWin === 1 && e.teamWin >= current.teamWin;
-      if ((protectPoints || handOff) && utility(e) > utility(best) + 1e-9) best = e;
+      // 庄家已经毙甩牌时，必须按剩余席位的公开持牌范围比较保分与接力。
+      // 不能沿用“庄家未出才防送分”或“复杂甩牌不评估”的门槛。
+      if ((protectPoints || handOff || ruffedThrow) && utility(e) > utility(best) + 1e-9) best = e;
     }
     return best !== current && utility(best) >= utility(current) + (dealerPending ? 4 : 2) ? best.cards : null;
   }
@@ -4767,9 +4807,70 @@ class GreedyStrategy {
       cost += dom === 'TRUMP' ? 2 + Math.max(0, strength - 914) / 15
         : Math.max(0, strength - 10) * 0.75;
     }
-    const exposure = dealerPending ? pointsOf(estimate.cards, state.config) * (1 - estimate.teamWin) * 2 : 0;
-    return estimate.signedPoints - cost - exposure
+    const ruffedThrow = FEAT_THROW_DEFENSE && this._dealerRuffedThrow(state, ctx);
+    if (ruffedThrow) cost = this._throwDiscardControlCost(state, playerIdx, estimate.cards, ctx);
+    const exposure = pointsOf(estimate.cards, state.config) * (1 - estimate.teamWin)
+      * (dealerPending ? 2 : ruffedThrow ? 1 : 0);
+    let critical = 0;
+    if (ruffedThrow) {
+      const pts = pointsOf(estimate.cards, state.config);
+      const trickPts = state.currentTrick.plays.reduce((n, p) => n + pointsOf(p.cards, state.config), 0);
+      const { sdy } = ctx;
+      if (FEAT_R1A && sdy.need > 0 && trickPts + pts >= sdy.need) {
+        critical += (10 + Math.min(sdy.need, 15)) * (1 - estimate.teamWin);
+      }
+      if (FEAT_SWEEP && ((sdy.need <= 0 && sdy.dealerPts >= 180) || sdy.trumpWatch)) {
+        critical += pts * 2 * (1 - estimate.teamWin);
+      }
+    }
+    return estimate.signedPoints - cost - exposure - critical
       - this._attackerPairCost(estimate.cards, state.players[playerIdx].hand, state.trumpInfo, ctx);
+  }
+
+  /** 当前最大确为庄家有效毙掉的副牌甩牌；以引擎争胜结果为准。 */
+  _dealerRuffedThrow(state, ctx) {
+    const trick = state.currentTrick;
+    if (!trick || !trick.leadCombo || trick.leadCombo.type !== 'throw' || trick.leadCombo.isTrump) return false;
+    if (ctx.ruffedThrow !== undefined) return ctx.ruffedThrow;
+    const winner = this._currentWinnerPlay(state, trick, state.trumpInfo, state.config);
+    ctx.ruffedThrow = !!winner && winner.playerIdx === ctx.sdy.dealerIdx
+      && winner.cards.every((c) => domainOf(c, state.trumpInfo) === 'TRUMP');
+    return ctx.ruffedThrow;
+  }
+
+  /**
+   * 已输甩牌时逐张计控制成本，主牌强度900不能直接和副牌牌面3~14作差。
+   * 小主可用于保分；最后一手控制主仍须考虑自己待跑的分和队友剩余接手能力。
+   * 队友仅用公开张数、缺主证据及联合持主估计，不读取真实手牌。
+   */
+  _throwDiscardControlCost(state, playerIdx, cards, ctx) {
+    const ti = state.trumpInfo, hand = state.players[playerIdx].hand;
+    const played = new Set(cards.map((c) => c.id));
+    const rest = hand.filter((c) => !played.has(c.id));
+    let cost = 0;
+    const trumps = cards.filter((c) => domainOf(c, ti) === 'TRUMP');
+    for (const c of cards) {
+      const strength = strengthInDomain(c, ti);
+      cost += domainOf(c, ti) === 'TRUMP' ? 1.5 + Math.max(0, strength - 914) / 6
+        : Math.max(0, strength - 10) * 0.75;
+    }
+    if (trumps.length && !rest.some((c) => domainOf(c, ti) === 'TRUMP') && rest.length) {
+      const k = ctx.knowledge;
+      let support = 0;
+      if (k) {
+        for (let seat = 0; seat < 4; seat++) {
+          if (seat === playerIdx || seat === ctx.sdy.dealerIdx) continue;
+          const mate = k.seats[seat];
+          support += mate.domains.get('TRUMP').count.expected / Math.max(1, mate.handCount)
+            * Math.min(1, mate.handCount / rest.length);
+        }
+      }
+      const strength = this._maxStrength(trumps, ti);
+      const control = 1 / (1 + this._unseenHigher(ctx.di, 'TRUMP', strength) / 2);
+      const pointsToSave = pointsOf(rest, state.config);
+      cost += Math.min(16, pointsToSave * 0.4) * control * (1 - Math.min(1, support) * 0.75);
+    }
+    return cost;
   }
 
   /** 庄家已缺门且尚未出：比较小毙和各档大主，连后位队友可能跟出的分一起保。 */
@@ -4816,6 +4917,18 @@ class GreedyStrategy {
     const trick = state.currentTrick;
     const n = trick.leadCombo.n;
     const h = state.players[playerIdx].hand.length;
+    // 末家无需猜暗牌，本墩归属和分值可直接由引擎精确裁决。
+    if (trick.plays.length === 3) {
+      const { resolveTrick } = __require('engine/trick');
+      return candidates.map((cards) => {
+        const probe = { ...trick, plays: trick.plays.concat([{ playerIdx, cards,
+          combo: parseCombo(cards, ti, cfg) }]) };
+        const result = resolveTrick(probe, ti, cfg);
+        const teamWin = result.winnerIdx === ctx.sdy.dealerIdx ? 0 : 1;
+        return { cards, teamWin, mateWin: teamWin && result.winnerIdx !== playerIdx ? 1 : 0,
+          signedPoints: result.points * (teamWin ? 1 : -1) };
+      });
+    }
     const seatVoids = this._r5SeatVoids(state);
     const trumpVoids = this._trumpVoidSeats(state);
     const groups = [];
@@ -4866,6 +4979,10 @@ class GreedyStrategy {
       if (cards && !evalSet.some((e) => key(e) === key(cards))) evalSet.push(cards);
     };
     add(pick);
+    if (FEAT_THROW_DEFENSE && this._dealerRuffedThrow(state, ctx)) {
+      add(candidates.slice().sort((a, b) => this._scoreFollowSdy(state, playerIdx, b, ctx)
+        - this._scoreFollowSdy(state, playerIdx, a, ctx))[0]);
+    }
     const cheap = candidates.slice().sort((a, b) => pointsOf(a, cfg) - pointsOf(b, cfg)
       || this._maxStrength(a, ti) - this._maxStrength(b, ti));
     add(cheap[0]);
@@ -5603,6 +5720,13 @@ class GreedyStrategy {
           }
         }
       } else {
+        if (FEAT_THROW_DEFENSE && !teamWinning && this._dealerRuffedThrow(state, ctx)) {
+          // 本墩已由庄家毙住：少送分与保留后手逐张权衡，混垫小主也只计一次成本。
+          // 后位队友的接手概率由_chooseTeamFollow继续比较；不因“闲家领出”误喂分。
+          return -pts * (2 + (deny ? 2 : 0) + (sweep ? 2 : 0))
+            - this._throwDiscardControlCost(state, playerIdx, cards_, ctx)
+            + this._discardKeep(cards_, hand, ti, ctx);
+        }
         // 缺门垫主 = 纯浪费（跟主牌领出被迫出主不算）
         if (allTrump && !lead.isTrump) score -= 20;
         if (teamWinning) {
