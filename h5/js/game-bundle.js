@@ -2509,6 +2509,20 @@ function followCandidates(state, playerIdx) {
   }
 
   // 缺门：任意 n 张合法。代表集：主牌结构对应（将吃）、最小垫、分牌垫
+  // 三家已公开无主、庄家仍清多张主时，各副牌门各保留一个长度候选。
+  // 普通跟牌不扩展，避免改变与这一防守场景无关的候选分布。
+  const dealer = state.sanDaYiTeams ? state.sanDaYiTeams.dealer : state.dealerIdx;
+  const noTrumpRound = domain === 'TRUMP' && n > 1 && cfg.gameMode === 'san_da_yi'
+    && state.currentTrick.leadPlayerIdx === dealer && (state.completedTricks || []).some((t) =>
+      t.leadCombo && t.leadCombo.isTrump && t.leadCombo.type !== 'eight' && t.plays.length === 4
+      && t.plays.filter((p) => p.playerIdx !== dealer).every((p) =>
+        p.cards.filter((c) => domainOf(c, ti) === 'TRUMP').length < t.leadCombo.n));
+  if (noTrumpRound) {
+    for (const suit of new Set(hand.map((c) => domainOf(c, ti)))) {
+      push(hand.slice().sort((a, b) => Number(domainOf(a, ti) === suit) - Number(domainOf(b, ti) === suit)
+        || pointValue(a, cfg) - pointValue(b, cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)).slice(0, n));
+    }
+  }
   const trumps = hand.filter((c) => domainOf(c, ti) === 'TRUMP');
   if (n === 1) {
     const seen = new Set();
@@ -6633,6 +6647,7 @@ __def("ai/strategy-shared", function (exports, __require, module) {
 
 const { GreedyStrategy } = __require('ai/strategy-greedy');
 const { domainOf, pointsOf, strengthInDomain } = __require('engine/combo');
+const { buildSuitDefense, suitDiscardCost } = __require('ai/suit-defense');
 
 function canShareHands(state, viewerIdx) {
   if (state.config.gameMode !== 'san_da_yi' || state.phase !== 'PLAYING') return false;
@@ -6665,6 +6680,7 @@ class SharedAttackStrategy extends GreedyStrategy {
     const progress = readingProgress(state);
     if (!progress.stage || !ctx.knowledge || !ctx.knowledge.consistent) return ctx;
     ctx.trumpTail = this._readTrumpTail(state, playerIdx, ctx, progress);
+    if (this.suitDefenseEnabled !== false) ctx.suitDefense = buildSuitDefense(state, playerIdx, ctx);
     const domains = [...progress.exposure].filter(([d, times]) => times >= 2).map(([d]) => d);
     if (!domains.length) return ctx;
     ctx.teamReadings = new Map();
@@ -6714,6 +6730,10 @@ class SharedAttackStrategy extends GreedyStrategy {
   }
 
   _chooseTeamFollow(state, playerIdx, ctx, candidates, pick) {
+    if (ctx.suitDefense) {
+      const score = (cards) => this._scoreFollow(state, playerIdx, cards, ctx);
+      return candidates.reduce((best, cards) => score(cards) > score(best) + 1e-9 ? cards : best, pick);
+    }
     if (!ctx.trumpTail) return super._chooseTeamFollow(state, playerIdx, ctx, candidates, pick);
     // 庄家已先出单主，后续只剩同阵营；若有后位可反压，本家垫分不会改变赢墩归属。
     const sign = ctx.trumpTail.canCash ? 1 : -1;
@@ -6725,8 +6745,13 @@ class SharedAttackStrategy extends GreedyStrategy {
 
   _solveEarlyPlan(state, playerIdx, ctx, candidates, pick) {
     // 两墩采样不能把已获得的接手情报丢掉，再用随机假设改成送分或错过跑分。
-    if (ctx.trumpTail) return null;
+    if (ctx.trumpTail || ctx.suitDefense) return null;
     return super._solveEarlyPlan(state, playerIdx, ctx, candidates, pick);
+  }
+
+  _discardKeep(cards, hand, ti, ctx) {
+    const keep = super._discardKeep(cards, hand, ti, ctx);
+    return ctx && ctx.suitDefense ? keep - suitDiscardCost(cards, hand, ti, ctx.suitDefense.suit) : keep;
   }
 
   _constrainPublicGroups(ctx, groups) {
@@ -6807,6 +6832,83 @@ function createAI(difficulty) {
 }
 
 module.exports = { createAI, STRATEGY_REGISTRY };
+
+});
+__def("ai/suit-defense", function (exports, __require, module) {
+/** 三家公开无主后交换守门意向。决策上下文只保留守门花色，不传递队友牌面。 */
+'use strict';
+const { domainOf, strengthInDomain } = __require('engine/combo');
+
+function anchorOf(state, attackers) {
+  const voids = new Set();
+  let anchor = -1;
+  (state.completedTricks || []).forEach((t, i) => {
+    const lead = t.leadCombo;
+    if (!lead || lead.type === 'eight') return;
+    if (lead.isTrump) for (const p of t.plays) {
+      if (p.playerIdx !== t.leadPlayerIdx && attackers.includes(p.playerIdx)
+          && p.cards.filter((c) => domainOf(c, state.trumpInfo) === 'TRUMP').length < lead.n) voids.add(p.playerIdx);
+    }
+    if (anchor < 0 && attackers.every((s) => voids.has(s))) anchor = i + 1;
+    // 副牌已实际展开过时重新协商；连续清主期间恢复同一个起点，避免逐张换门。
+    if (anchor >= 0 && !lead.isTrump) anchor = i + 1;
+  });
+  return anchor;
+}
+
+function buildSuitDefense(state, playerIdx, ctx) {
+  const trick = state.currentTrick, ti = state.trumpInfo;
+  if (!trick || !trick.leadCombo.isTrump
+      || trick.leadPlayerIdx !== ctx.sdy.dealerIdx || state.players[playerIdx].hand.length < 4) return null;
+  const attackers = state.playOrder.filter((s) => s !== ctx.sdy.dealerIdx);
+  // 庄家最后一张主已经亮在桌上时，未见主=0，仍须保住接下来抵抗副牌的长度。
+  if (!attackers.every((s) => ctx.knowledge.seats[s].domains.get('TRUMP').count.max === 0)) return null;
+  const anchor = anchorOf(state, attackers);
+  if (anchor < 0) return null;
+  const offers = attackers.map((seat) => {
+    const hand = state.players[seat].hand;
+    const original = hand.slice();
+    for (const t of state.completedTricks.slice(anchor).concat([trick])) {
+      for (const p of t.plays) if (p.playerIdx === seat) original.push(...p.cards);
+    }
+    // 各家用自己的牌产生粗略守门意向。外部只拿到最终角色，不获得张数、大牌或对子。
+    return ['S', 'H', 'C', 'D'].map((suit) => {
+      const cards = original.filter((c) => domainOf(c, ti) === suit);
+      if (!cards.length || !hand.some((c) => domainOf(c, ti) === suit)) return null;
+      const length = cards.length >= 7 ? 4 : cards.length >= 5 ? 3 : cards.length >= 3 ? 2 : cards.length >= 2 ? 1 : 0;
+      const top = Math.max(...cards.map((c) => strengthInDomain(c, ti)));
+      const control = top >= 13 ? 2 : top >= 11 ? 1 : 0;
+      return { suit, score: length * 4 + control * 2, long: cards.length >= 3 };
+    }).filter(Boolean);
+  });
+  if (offers.some((list) => !list.length)) return null;
+  let best = null, bestScore = -Infinity;
+  const choose = (i, selected, score) => {
+    if (i === attackers.length) {
+      const coverage = new Set(selected.filter((o) => o.long).map((o) => o.suit)).size;
+      const value = score + coverage * 12;
+      if (value > bestScore) { bestScore = value; best = selected.slice(); }
+      return;
+    }
+    for (const offer of offers[i]) { selected.push(offer); choose(i + 1, selected, score + offer.score); selected.pop(); }
+  };
+  choose(0, [], 0);
+  const roles = new Map(attackers.map((seat, i) => [seat, best[i].suit]));
+  const suit = roles.get(playerIdx);
+  if (state.players[playerIdx].hand.filter((c) => domainOf(c, ti) === suit).length < 2) return null;
+  return { suit, roles };
+}
+
+/** 小牌也有缓冲价值：先保住3～4张主守门，长度充裕时仍可正常垫其小牌。 */
+function suitDiscardCost(cards, hand, ti, suit) {
+  const before = hand.filter((c) => domainOf(c, ti) === suit).length;
+  const spent = cards.filter((c) => domainOf(c, ti) === suit).length;
+  let cost = 0;
+  for (let n = before; n > before - spent; n--) cost += n >= 6 ? 6 : n === 5 ? 12 : n === 4 ? 22 : n === 3 ? 32 : 28;
+  return cost;
+}
+
+module.exports = { buildSuitDefense, suitDiscardCost };
 
 });
 __def("services/game-service", function (exports, __require, module) {

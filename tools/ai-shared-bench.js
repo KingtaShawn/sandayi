@@ -7,12 +7,20 @@ const { GreedyStrategy } = require('../miniprogram/ai/strategy-greedy');
 const { SharedAttackStrategy } = require('../miniprogram/ai/strategy-shared');
 const { prepare, play, scenarios, dealerProfile, summarize } = require('./ai-arena');
 
-function run(count = 128, seedStart = 48001, compareTail = false) {
+function run(count = 128, seedStart = 48001, compareTail = false, baselineFile = null) {
   const file = path.resolve(__dirname, '../miniprogram/ai/strategy-greedy.js');
-  const publicAI = compareTail ? new SharedAttackStrategy() : new GreedyStrategy(), sharedAI = new SharedAttackStrategy();
-  const reference = compareTail ? 'previous' : 'public';
+  const publicAI = baselineFile ? new (require(path.resolve(baselineFile)).SharedAttackStrategy)()
+    : compareTail ? new SharedAttackStrategy() : new GreedyStrategy(), sharedAI = new SharedAttackStrategy();
+  const reference = compareTail || baselineFile ? 'previous' : 'public';
   if (compareTail) publicAI.trumpTailEnabled = false;
   const tailReadings = { canCash: 0, cannotCash: 0 };
+  let suitDefenseDecisions = 0;
+  const buildCtx = sharedAI._buildCtx;
+  sharedAI._buildCtx = function (...args) {
+    const ctx = buildCtx.apply(this, args);
+    if (ctx.suitDefense) suitDefenseDecisions++;
+    return ctx;
+  };
   const readTail = sharedAI._readTrumpTail;
   sharedAI._readTrumpTail = function (...args) {
     const result = readTail.apply(this, args);
@@ -31,18 +39,26 @@ function run(count = 128, seedStart = 48001, compareTail = false) {
     } });
     if (rows.length % 32 === 0) console.log(`progress=${rows.length}/${count}`);
   }
-  const sources = ['miniprogram/ai/strategy-greedy.js', 'miniprogram/ai/strategy-shared.js',
+  const summary = summarize(rows, [reference, 'shared'], reference);
+  for (const variant of [reference, 'shared']) {
+    summary.overall[variant].dealerSweeps = rows.filter((r) => r.results[variant].points === 0).length;
+  }
+  summary.sweepChanges = {
+    prevented: rows.filter((r) => r.results[reference].points === 0 && r.results.shared.points > 0).length,
+    introduced: rows.filter((r) => r.results[reference].points > 0 && r.results.shared.points === 0).length
+  };
+  const sources = ['miniprogram/ai/strategy-greedy.js', 'miniprogram/ai/strategy-shared.js', 'miniprogram/ai/suit-defense.js',
     'miniprogram/ai/public-knowledge.js', 'miniprogram/engine/validate.js'];
   return { seedStart, count, elapsedMs: Date.now() - started,
     hashes: Object.fromEntries(sources.map((f) => [f, crypto.createHash('sha256')
       .update(fs.readFileSync(path.resolve(__dirname, '..', f))).digest('hex')])),
     note: 'winRate为闲家胜率；庄家由四种固定AI风格代替真人，不代表真人胜率或最优策略。',
-    reference, tailReadings, summary: summarize(rows, [reference, 'shared'], reference), rows };
+    reference, baselineFile, tailReadings, suitDefenseDecisions, summary, rows };
 }
 
 if (require.main === module) {
   const args = process.argv.slice(2), get = (name, fallback) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
-  const result = run(Number(get('--count', 128)), Number(get('--seed-start', 48001)), args.includes('--compare-tail'));
+  const result = run(Number(get('--count', 128)), Number(get('--seed-start', 48001)), args.includes('--compare-tail'), get('--baseline-shared', null));
   fs.writeFileSync(path.resolve(get('--out', '/tmp/sandayi-shared-bench.json')), JSON.stringify(result, null, 2));
   console.log(JSON.stringify({ elapsedMs: result.elapsedMs, summary: result.summary }, null, 2));
 }

@@ -411,6 +411,20 @@ function followCandidates(state, playerIdx) {
   }
 
   // 缺门：任意 n 张合法。代表集：主牌结构对应（将吃）、最小垫、分牌垫
+  // 三家已公开无主、庄家仍清多张主时，各副牌门各保留一个长度候选。
+  // 普通跟牌不扩展，避免改变与这一防守场景无关的候选分布。
+  const dealer = state.sanDaYiTeams ? state.sanDaYiTeams.dealer : state.dealerIdx;
+  const noTrumpRound = domain === 'TRUMP' && n > 1 && cfg.gameMode === 'san_da_yi'
+    && state.currentTrick.leadPlayerIdx === dealer && (state.completedTricks || []).some((t) =>
+      t.leadCombo && t.leadCombo.isTrump && t.leadCombo.type !== 'eight' && t.plays.length === 4
+      && t.plays.filter((p) => p.playerIdx !== dealer).every((p) =>
+        p.cards.filter((c) => domainOf(c, ti) === 'TRUMP').length < t.leadCombo.n));
+  if (noTrumpRound) {
+    for (const suit of new Set(hand.map((c) => domainOf(c, ti)))) {
+      push(hand.slice().sort((a, b) => Number(domainOf(a, ti) === suit) - Number(domainOf(b, ti) === suit)
+        || pointValue(a, cfg) - pointValue(b, cfg) || strengthSortKey(a, ti) - strengthSortKey(b, ti)).slice(0, n));
+    }
+  }
   const trumps = hand.filter((c) => domainOf(c, ti) === 'TRUMP');
   if (n === 1) {
     const seen = new Set();

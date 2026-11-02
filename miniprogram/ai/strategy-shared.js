@@ -3,6 +3,7 @@
 
 const { GreedyStrategy } = require('./strategy-greedy');
 const { domainOf, pointsOf, strengthInDomain } = require('../engine/combo');
+const { buildSuitDefense, suitDiscardCost } = require('./suit-defense');
 
 function canShareHands(state, viewerIdx) {
   if (state.config.gameMode !== 'san_da_yi' || state.phase !== 'PLAYING') return false;
@@ -35,6 +36,7 @@ class SharedAttackStrategy extends GreedyStrategy {
     const progress = readingProgress(state);
     if (!progress.stage || !ctx.knowledge || !ctx.knowledge.consistent) return ctx;
     ctx.trumpTail = this._readTrumpTail(state, playerIdx, ctx, progress);
+    if (this.suitDefenseEnabled !== false) ctx.suitDefense = buildSuitDefense(state, playerIdx, ctx);
     const domains = [...progress.exposure].filter(([d, times]) => times >= 2).map(([d]) => d);
     if (!domains.length) return ctx;
     ctx.teamReadings = new Map();
@@ -84,6 +86,10 @@ class SharedAttackStrategy extends GreedyStrategy {
   }
 
   _chooseTeamFollow(state, playerIdx, ctx, candidates, pick) {
+    if (ctx.suitDefense) {
+      const score = (cards) => this._scoreFollow(state, playerIdx, cards, ctx);
+      return candidates.reduce((best, cards) => score(cards) > score(best) + 1e-9 ? cards : best, pick);
+    }
     if (!ctx.trumpTail) return super._chooseTeamFollow(state, playerIdx, ctx, candidates, pick);
     // 庄家已先出单主，后续只剩同阵营；若有后位可反压，本家垫分不会改变赢墩归属。
     const sign = ctx.trumpTail.canCash ? 1 : -1;
@@ -95,8 +101,13 @@ class SharedAttackStrategy extends GreedyStrategy {
 
   _solveEarlyPlan(state, playerIdx, ctx, candidates, pick) {
     // 两墩采样不能把已获得的接手情报丢掉，再用随机假设改成送分或错过跑分。
-    if (ctx.trumpTail) return null;
+    if (ctx.trumpTail || ctx.suitDefense) return null;
     return super._solveEarlyPlan(state, playerIdx, ctx, candidates, pick);
+  }
+
+  _discardKeep(cards, hand, ti, ctx) {
+    const keep = super._discardKeep(cards, hand, ti, ctx);
+    return ctx && ctx.suitDefense ? keep - suitDiscardCost(cards, hand, ti, ctx.suitDefense.suit) : keep;
   }
 
   _constrainPublicGroups(ctx, groups) {

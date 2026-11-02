@@ -1,0 +1,903 @@
+{
+  "baseline": "a5296cb",
+  "baselineHashes": {
+    "miniprogram/ai/strategy-shared.js": "33f63f1d5e2bdfb90e86fd97d948a351b29d3e87924edfcc0c64493481cc346a",
+    "miniprogram/ai/strategy-greedy.js": "7360ea369f19f605bbb51bdf20f1a06c0280362e076577bc6da59764319b4eef",
+    "miniprogram/engine/validate.js": "0222df37857ee32e8eaf02428893a3251c3ec0bc22e1b3477bea27c4362f59cc"
+  },
+  "tests": 451,
+  "controlledScenario": {
+    "fixture": "tests/fixtures/suit-defense.js",
+    "previousDealerPoints": 200,
+    "candidateDealerPoints": 175,
+    "directions": [
+      "clockwise",
+      "counterclockwise"
+    ]
+  },
+  "note": "普通评测的满分局很少，不能据此宣称降低整体满分率。角色只在三家已公开无主且庄家继续清主时协商。",
+  "train": {
+    "seedStart": 78001,
+    "count": 128,
+    "elapsedMs": 69460,
+    "hashes": {
+      "miniprogram/ai/strategy-greedy.js": "7360ea369f19f605bbb51bdf20f1a06c0280362e076577bc6da59764319b4eef",
+      "miniprogram/ai/strategy-shared.js": "4c65ff55e7a1e011342aa091d12d7233aacef885c547e1c87ef8c595ba6d8dc6",
+      "miniprogram/ai/suit-defense.js": "87b4584d71cff7ab72b9478f71b3a0cddf9653a54574193be4a72a7f33e4f912",
+      "miniprogram/ai/public-knowledge.js": "c860880d16582ed77bb111f5d1c49f77ab33deb7a1eb9cff986bea1ba19d166b",
+      "miniprogram/engine/validate.js": "ca6bbd0d01d845694dc875d1c25821b69514c31a4c5406fbd95e36ed82b24c66"
+    },
+    "note": "winRate为闲家胜率；庄家由四种固定AI风格代替真人，不代表真人胜率或最优策略。",
+    "reference": "previous",
+    "baselineFile": "/tmp/sandayi-suit-defense-baseline/miniprogram/ai/strategy-shared.js",
+    "tailReadings": {
+      "canCash": 55,
+      "cannotCash": 40
+    },
+    "suitDefenseDecisions": 9,
+    "summary": {
+      "overall": {
+        "previous": {
+          "win": 97,
+          "points": 15980,
+          "bottom": 60,
+          "bottomPoints": 1550,
+          "decisions": 6735,
+          "n": 128,
+          "winRate": 0.7578125,
+          "meanPoints": 124.84375,
+          "bottomRate": 0.46875,
+          "dealerSweeps": 1
+        },
+        "shared": {
+          "win": 98,
+          "points": 16050,
+          "bottom": 60,
+          "bottomPoints": 1550,
+          "decisions": 6744,
+          "n": 128,
+          "winRate": 0.765625,
+          "meanPoints": 125.390625,
+          "bottomRate": 0.46875,
+          "paired": {
+            "n": 128,
+            "win": {
+              "mean": 0.0078125,
+              "ci95": [
+                -0.0075,
+                0.023125
+              ]
+            },
+            "points": {
+              "mean": 0.546875,
+              "ci95": [
+                -0.45077660860915414,
+                1.544526608609154
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 1,
+            "lost": 0
+          },
+          "dealerSweeps": 1
+        }
+      },
+      "byProfile": {
+        "normal": {
+          "shared": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        },
+        "pressure": {
+          "shared": {
+            "n": 32,
+            "win": {
+              "mean": 0.03125,
+              "ci95": [
+                -0.03,
+                0.0925
+              ]
+            },
+            "points": {
+              "mean": 0.15625,
+              "ci95": [
+                -0.15000000000000002,
+                0.4625
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 1,
+            "lost": 0
+          }
+        },
+        "cash": {
+          "shared": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 2.03125,
+              "ci95": [
+                -1.9499999999999997,
+                6.012499999999999
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        },
+        "low-bottom": {
+          "shared": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        }
+      },
+      "coverage": {
+        "single": 4383,
+        "pair": 2112,
+        "tractor": 0,
+        "throw": 240,
+        "early": 3873,
+        "middle": 2343,
+        "end": 519,
+        "close": 378
+      },
+      "seats": {
+        "0": 36,
+        "1": 36,
+        "2": 29,
+        "3": 27
+      },
+      "contracts": {
+        "90": 88,
+        "100": 8,
+        "110": 32
+      },
+      "directions": {
+        "counterclockwise": 64,
+        "clockwise": 64
+      },
+      "sweepChanges": {
+        "prevented": 0,
+        "introduced": 0
+      }
+    },
+    "rows": [
+      {"scenario":{"seed":78001,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":75,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":75,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78002,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":78003,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":100,"results":{"previous":{"win":true,"points":115,"bottom":true,"bottomPoints":15},"shared":{"win":true,"points":115,"bottom":true,"bottomPoints":15}}},
+      {"scenario":{"seed":78004,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78005,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78006,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78007,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78008,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":155,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78009,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78010,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":110,"results":{"previous":{"win":false,"points":90,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":95,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":78011,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":195,"bottom":true,"bottomPoints":70},"shared":{"win":true,"points":195,"bottom":true,"bottomPoints":70}}},
+      {"scenario":{"seed":78012,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78013,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":78014,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78015,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":185,"bottom":true,"bottomPoints":55},"shared":{"win":true,"points":185,"bottom":true,"bottomPoints":55}}},
+      {"scenario":{"seed":78016,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":155,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78017,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":165,"bottom":true,"bottomPoints":60},"shared":{"win":true,"points":165,"bottom":true,"bottomPoints":60}}},
+      {"scenario":{"seed":78018,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78019,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":50,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":50,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78020,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78021,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78022,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":100,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":100,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78023,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":78024,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":1,"contract":100,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78025,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78026,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78027,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":78028,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78029,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":100,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":100,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78030,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":150,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":150,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":78031,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":75,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":75,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78032,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":1,"contract":100,"results":{"previous":{"win":true,"points":165,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":165,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78033,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":78034,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78035,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":80,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":80,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78036,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":165,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":165,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78037,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":180,"bottom":true,"bottomPoints":25},"shared":{"win":true,"points":180,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":78038,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78039,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":78040,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78041,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":65,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":65,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78042,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":150,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":150,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78043,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":25},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":78044,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":140,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78045,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78046,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":100,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":100,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78047,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":100,"results":{"previous":{"win":true,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78048,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78049,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78050,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":0,"contract":110,"results":{"previous":{"win":false,"points":90,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":90,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78051,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":115,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":78052,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78053,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":80,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":80,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78054,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78055,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":0,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":0,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78056,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":150,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":150,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78057,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78058,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":150,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":150,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":78059,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":78060,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78061,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78062,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":100,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":100,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78063,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":15},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":15}}},
+      {"scenario":{"seed":78064,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":135,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":135,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78065,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78066,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":125,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":125,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":78067,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78068,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78069,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":2,"contract":100,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":60},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":60}}},
+      {"scenario":{"seed":78070,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":78071,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":78072,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78073,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":125,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":78074,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":0,"contract":110,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78075,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":90,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":90,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78076,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":150,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":150,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78077,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78078,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":120,"bottom":true,"bottomPoints":25},"shared":{"win":true,"points":120,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":78079,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":120,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78080,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":180,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":180,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78081,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":78082,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":78083,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":15},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":15}}},
+      {"scenario":{"seed":78084,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78085,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":78086,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":125,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":125,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":78087,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":25},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":78088,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":90,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":90,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78089,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":55,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":55,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78090,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":180,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":180,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":78091,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78092,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78093,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":125,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":78094,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":130,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78095,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":80,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":80,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78096,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":75,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":75,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78097,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78098,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":110,"results":{"previous":{"win":false,"points":65,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":65,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78099,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":140,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78100,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78101,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":78102,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":78103,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":75,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":75,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78104,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":1,"contract":100,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78105,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":135,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":135,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78106,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":78107,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":120,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":78108,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78109,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":3,"contract":100,"results":{"previous":{"win":true,"points":120,"bottom":true,"bottomPoints":10},"shared":{"win":true,"points":120,"bottom":true,"bottomPoints":10}}},
+      {"scenario":{"seed":78110,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":78111,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":5},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":5}}},
+      {"scenario":{"seed":78112,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":120,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78113,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":120,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78114,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78115,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":120,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":78116,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":1,"contract":100,"results":{"previous":{"win":true,"points":105,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":105,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78117,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":180,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":180,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":78118,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":20},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":20}}},
+      {"scenario":{"seed":78119,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78120,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":105,"bottom":true,"bottomPoints":0},"shared":{"win":false,"points":105,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78121,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78122,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":110,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":110,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":78123,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":135,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":135,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78124,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":78125,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":20},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":20}}},
+      {"scenario":{"seed":78126,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":150,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":150,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78127,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":20,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":78128,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":0}}}
+    ]
+  },
+  "holdout": {
+    "seedStart": 81001,
+    "count": 256,
+    "hashes": {
+      "miniprogram/ai/strategy-greedy.js": "7360ea369f19f605bbb51bdf20f1a06c0280362e076577bc6da59764319b4eef",
+      "miniprogram/ai/strategy-shared.js": "4c65ff55e7a1e011342aa091d12d7233aacef885c547e1c87ef8c595ba6d8dc6",
+      "miniprogram/ai/suit-defense.js": "87b4584d71cff7ab72b9478f71b3a0cddf9653a54574193be4a72a7f33e4f912",
+      "miniprogram/ai/public-knowledge.js": "c860880d16582ed77bb111f5d1c49f77ab33deb7a1eb9cff986bea1ba19d166b",
+      "miniprogram/engine/validate.js": "ca6bbd0d01d845694dc875d1c25821b69514c31a4c5406fbd95e36ed82b24c66"
+    },
+    "suitDefenseDecisions": 12,
+    "summary": {
+      "overall": {
+        "previous": {
+          "win": 186,
+          "points": 32865,
+          "bottom": 122,
+          "bottomPoints": 3160,
+          "decisions": 13833,
+          "n": 256,
+          "winRate": 0.7265625,
+          "meanPoints": 128.37890625,
+          "bottomRate": 0.4765625,
+          "dealerSweeps": 0
+        },
+        "shared": {
+          "win": 189,
+          "points": 33010,
+          "bottom": 124,
+          "bottomPoints": 3200,
+          "decisions": 13836,
+          "n": 256,
+          "winRate": 0.73828125,
+          "meanPoints": 128.9453125,
+          "bottomRate": 0.484375,
+          "paired": {
+            "n": 256,
+            "win": {
+              "mean": 0.01171875,
+              "ci95": [
+                -0.0014901576485674,
+                0.0249276576485674
+              ]
+            },
+            "points": {
+              "mean": 0.56640625,
+              "ci95": [
+                -0.11727670986527328,
+                1.2500892098652732
+              ]
+            },
+            "bottom": {
+              "mean": 0.0078125,
+              "ci95": [
+                -0.002993821197272801,
+                0.018618821197272803
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0.15625,
+              "ci95": [
+                -0.15000000000000002,
+                0.4625
+              ]
+            },
+            "gained": 3,
+            "lost": 0
+          },
+          "dealerSweeps": 0
+        }
+      },
+      "byProfile": {
+        "normal": {
+          "shared": {
+            "n": 64,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        },
+        "pressure": {
+          "shared": {
+            "n": 64,
+            "win": {
+              "mean": 0.015625,
+              "ci95": [
+                -0.015,
+                0.04625
+              ]
+            },
+            "points": {
+              "mean": 1.09375,
+              "ci95": [
+                -1.0499999999999998,
+                3.2375
+              ]
+            },
+            "bottom": {
+              "mean": 0.015625,
+              "ci95": [
+                -0.015,
+                0.04625
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0.625,
+              "ci95": [
+                -0.6000000000000001,
+                1.85
+              ]
+            },
+            "gained": 1,
+            "lost": 0
+          }
+        },
+        "cash": {
+          "shared": {
+            "n": 64,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        },
+        "low-bottom": {
+          "shared": {
+            "n": 64,
+            "win": {
+              "mean": 0.03125,
+              "ci95": [
+                -0.01171518293274735,
+                0.07421518293274734
+              ]
+            },
+            "points": {
+              "mean": 1.171875,
+              "ci95": [
+                -0.5292100423128632,
+                2.8729600423128634
+              ]
+            },
+            "bottom": {
+              "mean": 0.015625,
+              "ci95": [
+                -0.015,
+                0.04625
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 2,
+            "lost": 0
+          }
+        }
+      },
+      "coverage": {
+        "single": 9258,
+        "pair": 4137,
+        "tractor": 0,
+        "throw": 438,
+        "early": 7992,
+        "middle": 4743,
+        "end": 1098,
+        "close": 525
+      },
+      "seats": {
+        "0": 65,
+        "1": 58,
+        "2": 64,
+        "3": 69
+      },
+      "contracts": {
+        "90": 172,
+        "100": 19,
+        "110": 65
+      },
+      "directions": {
+        "counterclockwise": 128,
+        "clockwise": 128
+      },
+      "sweepChanges": {
+        "prevented": 0,
+        "introduced": 0
+      }
+    },
+    "rows": [
+      {"scenario":{"seed":81001,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81002,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81003,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":3,"contract":100,"results":{"previous":{"win":true,"points":110,"bottom":true,"bottomPoints":15},"shared":{"win":true,"points":110,"bottom":true,"bottomPoints":15}}},
+      {"scenario":{"seed":81004,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":155,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81005,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81006,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":3,"contract":110,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81007,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81008,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":195,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":195,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81009,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":135,"bottom":true,"bottomPoints":10},"shared":{"win":true,"points":135,"bottom":true,"bottomPoints":10}}},
+      {"scenario":{"seed":81010,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81011,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":3,"contract":100,"results":{"previous":{"win":true,"points":105,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":105,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81012,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":165,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":165,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81013,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":50,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":50,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81014,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":180,"bottom":true,"bottomPoints":55},"shared":{"win":true,"points":180,"bottom":true,"bottomPoints":55}}},
+      {"scenario":{"seed":81015,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81016,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81017,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81018,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":60},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":60}}},
+      {"scenario":{"seed":81019,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":135,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":135,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81020,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81021,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":90,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":90,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81022,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":130,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81023,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":90,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":90,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81024,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81025,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":60},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":60}}},
+      {"scenario":{"seed":81026,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":150,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":150,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":81027,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":120,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81028,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":2,"contract":100,"results":{"previous":{"win":true,"points":120,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":120,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81029,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81030,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81031,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":180,"bottom":true,"bottomPoints":20},"shared":{"win":true,"points":180,"bottom":true,"bottomPoints":20}}},
+      {"scenario":{"seed":81032,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81033,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":81034,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":20},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":20}}},
+      {"scenario":{"seed":81035,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81036,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":155,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81037,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81038,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":2,"contract":110,"results":{"previous":{"win":false,"points":35,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":35,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81039,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":55,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":55,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81040,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":180,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":180,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81041,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":3,"contract":100,"results":{"previous":{"win":false,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81042,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":65},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":65}}},
+      {"scenario":{"seed":81043,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81044,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81045,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":81046,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":3,"contract":110,"results":{"previous":{"win":false,"points":80,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":80,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81047,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":100,"results":{"previous":{"win":false,"points":85,"bottom":true,"bottomPoints":25},"shared":{"win":false,"points":85,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":81048,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":75,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81049,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":80,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":80,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81050,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":150,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":150,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":81051,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":1,"contract":100,"results":{"previous":{"win":true,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81052,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81053,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":115,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":81054,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":120,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":120,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":81055,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":125,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":81056,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":170,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":170,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81057,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81058,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":55},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":55}}},
+      {"scenario":{"seed":81059,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":100,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":100,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81060,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81061,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":80,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":80,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81062,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":180,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":180,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":81063,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":135,"bottom":true,"bottomPoints":20},"shared":{"win":true,"points":135,"bottom":true,"bottomPoints":20}}},
+      {"scenario":{"seed":81064,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81065,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":20},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":20}}},
+      {"scenario":{"seed":81066,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":135,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":135,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":81067,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81068,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":80,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":80,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81069,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":120,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81070,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81071,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81072,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81073,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":3,"contract":100,"results":{"previous":{"win":false,"points":100,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":100,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81074,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":3,"contract":110,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81075,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":81076,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81077,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81078,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81079,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81080,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81081,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81082,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81083,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":81084,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81085,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":140,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81086,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":100,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":100,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81087,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":3,"contract":100,"results":{"previous":{"win":true,"points":165,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":165,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":81088,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":3,"contract":100,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81089,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81090,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":81091,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":100,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":100,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81092,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":190,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":190,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81093,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":165,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":165,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81094,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":5},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":5}}},
+      {"scenario":{"seed":81095,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":190,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":190,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":81096,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81097,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81098,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":10},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":10}}},
+      {"scenario":{"seed":81099,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":50,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":50,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81100,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":155,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81101,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81102,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":140,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":140,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81103,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81104,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":1,"contract":100,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81105,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81106,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81107,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81108,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":2,"contract":100,"results":{"previous":{"win":true,"points":150,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":150,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81109,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81110,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":81111,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":81112,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81113,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":true,"bottomPoints":25},"shared":{"win":true,"points":125,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":81114,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":81115,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":60},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":60}}},
+      {"scenario":{"seed":81116,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":135,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":135,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81117,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":150,"bottom":true,"bottomPoints":25},"shared":{"win":true,"points":150,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":81118,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":55},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":55}}},
+      {"scenario":{"seed":81119,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":20},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":20}}},
+      {"scenario":{"seed":81120,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81121,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":100,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":100,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81122,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":185,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":185,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":81123,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81124,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":190,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":190,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81125,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":true,"bottomPoints":25},"shared":{"win":true,"points":120,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":81126,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":81127,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":70,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":70,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81128,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":170,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":170,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81129,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":90,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":90,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81130,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":55},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":55}}},
+      {"scenario":{"seed":81131,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":100,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":100,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81132,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":185,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":185,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81133,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":81134,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81135,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":70},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":70}}},
+      {"scenario":{"seed":81136,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81137,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":81138,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81139,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":0,"contract":100,"results":{"previous":{"win":true,"points":110,"bottom":true,"bottomPoints":15},"shared":{"win":true,"points":110,"bottom":true,"bottomPoints":15}}},
+      {"scenario":{"seed":81140,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":90,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":90,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81141,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":90,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":90,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81142,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":110,"results":{"previous":{"win":false,"points":75,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":75,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81143,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":81144,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":135,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":135,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81145,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":0,"contract":100,"results":{"previous":{"win":true,"points":150,"bottom":true,"bottomPoints":60},"shared":{"win":true,"points":150,"bottom":true,"bottomPoints":60}}},
+      {"scenario":{"seed":81146,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":55},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":55}}},
+      {"scenario":{"seed":81147,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":50},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":50}}},
+      {"scenario":{"seed":81148,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81149,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81150,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81151,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81152,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81153,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":10},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":10}}},
+      {"scenario":{"seed":81154,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":110,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":110,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":81155,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":150,"bottom":true,"bottomPoints":25},"shared":{"win":true,"points":150,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":81156,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":135,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":135,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81157,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81158,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":110,"results":{"previous":{"win":false,"points":80,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":80,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81159,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":140,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81160,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":135,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":135,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81161,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81162,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":120,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":120,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81163,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":3,"contract":100,"results":{"previous":{"win":false,"points":100,"bottom":true,"bottomPoints":15},"shared":{"win":false,"points":100,"bottom":true,"bottomPoints":15}}},
+      {"scenario":{"seed":81164,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81165,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":1,"contract":100,"results":{"previous":{"win":false,"points":80,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":80,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81166,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81167,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":25},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":81168,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81169,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":3,"contract":100,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":81170,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":81171,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":65},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":65}}},
+      {"scenario":{"seed":81172,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81173,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":80,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":80,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81174,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":20},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":20}}},
+      {"scenario":{"seed":81175,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81176,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":190,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":190,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81177,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":75,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":75,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81178,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81179,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":true,"bottomPoints":10},"shared":{"win":true,"points":115,"bottom":true,"bottomPoints":10}}},
+      {"scenario":{"seed":81180,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81181,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81182,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81183,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":0,"contract":100,"results":{"previous":{"win":false,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81184,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":135,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81185,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":180,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":180,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":81186,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":115,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":115,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":81187,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":185,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":185,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81188,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81189,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81190,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81191,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":160,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81192,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":165,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":165,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81193,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81194,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":110,"results":{"previous":{"win":false,"points":65,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":65,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81195,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":true,"bottomPoints":40},"shared":{"win":false,"points":110,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81196,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81197,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":3,"contract":100,"results":{"previous":{"win":false,"points":75,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":75,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81198,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":175,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":175,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81199,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":120,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81200,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81201,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81202,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":135,"bottom":true,"bottomPoints":20},"shared":{"win":true,"points":135,"bottom":true,"bottomPoints":20}}},
+      {"scenario":{"seed":81203,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":160,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":160,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":81204,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":100,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":100,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81205,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81206,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":190,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":190,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":81207,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":155,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":155,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":81208,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":140,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81209,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":150,"bottom":true,"bottomPoints":35},"shared":{"win":true,"points":150,"bottom":true,"bottomPoints":35}}},
+      {"scenario":{"seed":81210,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81211,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81212,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":90,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":90,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81213,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":120,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81214,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81215,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81216,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81217,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81218,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":110,"results":{"previous":{"win":false,"points":90,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":90,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81219,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":true,"bottomPoints":10},"shared":{"win":false,"points":110,"bottom":true,"bottomPoints":10}}},
+      {"scenario":{"seed":81220,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":135,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":135,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81221,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81222,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":110,"results":{"previous":{"win":false,"points":85,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":85,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81223,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":25},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":81224,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":145,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81225,"profile":"normal","direction":"counterclockwise","firstBidder":0},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":180,"bottom":true,"bottomPoints":60},"shared":{"win":true,"points":180,"bottom":true,"bottomPoints":60}}},
+      {"scenario":{"seed":81226,"profile":"pressure","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":110,"results":{"previous":{"win":true,"points":135,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":135,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81227,"profile":"cash","direction":"counterclockwise","firstBidder":0},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":120,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81228,"profile":"low-bottom","direction":"counterclockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81229,"profile":"normal","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81230,"profile":"pressure","direction":"clockwise","firstBidder":0},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":165,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":165,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":81231,"profile":"cash","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":165,"bottom":true,"bottomPoints":20},"shared":{"win":true,"points":165,"bottom":true,"bottomPoints":20}}},
+      {"scenario":{"seed":81232,"profile":"low-bottom","direction":"clockwise","firstBidder":0},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81233,"profile":"normal","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":165,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":165,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":81234,"profile":"pressure","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81235,"profile":"cash","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81236,"profile":"low-bottom","direction":"counterclockwise","firstBidder":1},"dealerSeat":1,"contract":90,"results":{"previous":{"win":true,"points":140,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":140,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81237,"profile":"normal","direction":"clockwise","firstBidder":1},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":105,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":105,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81238,"profile":"pressure","direction":"clockwise","firstBidder":1},"dealerSeat":1,"contract":110,"results":{"previous":{"win":true,"points":165,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":165,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":81239,"profile":"cash","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":150,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":150,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81240,"profile":"low-bottom","direction":"clockwise","firstBidder":1},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":115,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":115,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81241,"profile":"normal","direction":"counterclockwise","firstBidder":2},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":120,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":120,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81242,"profile":"pressure","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81243,"profile":"cash","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81244,"profile":"low-bottom","direction":"counterclockwise","firstBidder":2},"dealerSeat":2,"contract":90,"results":{"previous":{"win":true,"points":130,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":130,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81245,"profile":"normal","direction":"clockwise","firstBidder":2},"dealerSeat":0,"contract":100,"results":{"previous":{"win":false,"points":95,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":95,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81246,"profile":"pressure","direction":"clockwise","firstBidder":2},"dealerSeat":1,"contract":110,"results":{"previous":{"win":false,"points":40,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":110,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81247,"profile":"cash","direction":"clockwise","firstBidder":2},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":145,"bottom":true,"bottomPoints":40},"shared":{"win":true,"points":145,"bottom":true,"bottomPoints":40}}},
+      {"scenario":{"seed":81248,"profile":"low-bottom","direction":"clockwise","firstBidder":2},"dealerSeat":0,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81249,"profile":"normal","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":false,"points":90,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":90,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81250,"profile":"pressure","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":110,"results":{"previous":{"win":true,"points":105,"bottom":true,"bottomPoints":25},"shared":{"win":true,"points":105,"bottom":true,"bottomPoints":25}}},
+      {"scenario":{"seed":81251,"profile":"cash","direction":"counterclockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":165,"bottom":true,"bottomPoints":30},"shared":{"win":true,"points":165,"bottom":true,"bottomPoints":30}}},
+      {"scenario":{"seed":81252,"profile":"low-bottom","direction":"counterclockwise","firstBidder":3},"dealerSeat":0,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":true,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":true,"bottomPoints":0}}},
+      {"scenario":{"seed":81253,"profile":"normal","direction":"clockwise","firstBidder":3},"dealerSeat":1,"contract":90,"results":{"previous":{"win":false,"points":110,"bottom":false,"bottomPoints":0},"shared":{"win":false,"points":110,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81254,"profile":"pressure","direction":"clockwise","firstBidder":3},"dealerSeat":2,"contract":110,"results":{"previous":{"win":true,"points":170,"bottom":true,"bottomPoints":45},"shared":{"win":true,"points":170,"bottom":true,"bottomPoints":45}}},
+      {"scenario":{"seed":81255,"profile":"cash","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":125,"bottom":false,"bottomPoints":0},"shared":{"win":true,"points":125,"bottom":false,"bottomPoints":0}}},
+      {"scenario":{"seed":81256,"profile":"low-bottom","direction":"clockwise","firstBidder":3},"dealerSeat":3,"contract":90,"results":{"previous":{"win":true,"points":150,"bottom":true,"bottomPoints":0},"shared":{"win":true,"points":150,"bottom":true,"bottomPoints":0}}}
+    ]
+  }
+}
