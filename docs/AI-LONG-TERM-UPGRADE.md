@@ -364,3 +364,27 @@ node tools/ai-shared-bench.js --compare-tail --count 256 --seed-start 65001 --ou
 git worktree add --detach /tmp/sandayi-suit-defense-baseline a5296cb
 node tools/ai-shared-bench.js --baseline-shared /tmp/sandayi-suit-defense-baseline/miniprogram/ai/strategy-shared.js --count 256 --seed-start 81001 --out /tmp/sandayi-suit-defense-validation.json
 ```
+
+## 15. 区分逼主与免费垫牌，及时兑现其他分门（2026-11-03）
+
+用户指出：庄家缺门却没交主时，闲家一直续出无分小牌，可能帮庄家把别的分门垫成缺门。回归 `free-void-discard-replay.json` 固定 seed 86005 第14墩的108张账目和公开历史：原策略领♥4，庄家在零分墩垫掉最后的♣J，下一墩用主2吃掉♣K的10分；先领♣Q时，庄家须跟♣J，队友的♣K收下10分。该回放使用“白墩优先垫短门、遇分尝试将吃”的模拟庄家。
+
+- 只调整闲家正常/困难出牌中原本要领的已知缺门空单。最近同门单张白墩没有换到主、庄家最近一次跟该门仍然全垫其他副牌，才寻找换门候选。过去用对子收分并不证明续单也能逼主；实际已消耗庄家主牌时，保留原逼主路线。
+- 确认庄家不能压住的分牌可直接优先兑现。只有短门迹象时，要求庄家曾多次从该门垫牌、公开估计较短、仍有较多潜在分值，且本家有足够大的无分单张作接力入口。垫过牌不当成确凿缺门，未知底牌也不当成队友必有分。
+- 若抢回10分就足以让庄家无法完成合同，主动争这个窗口；其余软线索只补进原有中盘/前期推演候选，仍比较控牌与扣底。保留原有候选宽度、搜索预算、残局求解及出牌校验，不新增暗牌读取。初版直接按短门迹象换门曾错过一些控牌和扣底机会，已收窄，不混用早期数据。
+
+新增6项回归，涵盖同牌正反对照、实际逼出主牌时保持攻法、不盲目领分、封锁其他手牌和底牌以及浏览器逻辑包一致性。457/457测试通过，H5构建通过。
+
+与独立原版源码树 `8c9225a` 作同牌、同庄家配对对照，以下为最终版新种子：
+
+| 样本 | 旧版/新版闲家胜局 | 旧版/新版平均闲家分 | 提议/最终选择换门 |
+| ---- | ---- | ---- | ---- |
+| 普通四类庄家，128场景（94001～94128） | 91 / 91 | 125.938 / 125.938 | 0 / 0 |
+| 叠加短门垫牌策略，256场景（97001～97256） | 182 / 182 | 123.906 / 123.887 | 22 / 3 |
+
+针对样本均分差-0.020，近似95%配对区间-0.086～+0.047；胜局数持平。触发少，不能宣称整体强度提高。明确效果是复现局能及时兑现梅花K的10分。全部对局正常结束、零非法、200分守恒。记录和源码哈希见 `AI-FREE-VOID-VALIDATION-2026-11-03.json`。
+
+```sh
+git worktree add --detach /tmp/sandayi-free-void-baseline 8c9225a
+node tools/ai-shared-bench.js --baseline-shared /tmp/sandayi-free-void-baseline/miniprogram/ai/strategy-shared.js --short-discard --count 256 --seed-start 97001 --out /tmp/sandayi-free-void-validation.json
+```

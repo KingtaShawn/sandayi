@@ -510,6 +510,17 @@ class GreedyStrategy {
     if (this.difficulty === 'easy' && rng && scored.length > 1 && rng.next() < 0.25) {
       pick = scored[Math.min(1, scored.length - 1)].cards; // 25% 次优
     }
+    if (isLead && ctx && !ctx.sdy.isDealer && this.difficulty !== 'easy') {
+      const switchSuit = this._switchAfterFreeDiscard(state, playerIdx, ctx, candidates, pick);
+      if (switchSuit) {
+        const remaining = this._remainingPoints(state, ctx), need = ctx.sdy.need;
+        // 有公开锁分证据，或及时拿10分便能否决合同，才直接抢窗口。
+        // 其余短门迹象只补进原推演的候选，保留对底牌与后续控牌的比较。
+        if (pointsOf(switchSuit, state.config) > 0 || (need > 0 && remaining >= need && remaining < need + 10)) {
+          pick = switchSuit;
+        } else ctx.freeDiscardLead = switchSuit;
+      }
+    }
     // R5 末墩精确求解：有真实选择权时替换贪心选择（预算超限/异常静默回退）
     if (ctx && FEAT_R5 && this.difficulty !== 'easy') {
       const r5 = this._solveEndgame(state, playerIdx, ctx);
@@ -550,6 +561,52 @@ class GreedyStrategy {
 
   _legalPlays(state, playerIdx, ctx) {
     return legalMoves(this._playView(state, playerIdx, ctx), playerIdx);
+  }
+
+  /** 空单上次没有换到庄家的主，且续出还可能让他垫短分门时，比较换门窗口。 */
+  _switchAfterFreeDiscard(state, playerIdx, ctx, candidates, pick) {
+    if (!ctx.knowledge || !ctx.knowledge.consistent || state.players[playerIdx].hand.length <= 2) return null;
+    const { config: cfg, trumpInfo: ti } = state;
+    const lead = parseCombo(pick, ti, cfg);
+    if (!lead || lead.isTrump || lead.type !== 'single' || pointsOf(pick, cfg) > 0
+        || !ctx.sdy.voids.dealer.has(lead.suit) || !this._dealerCanRuff(lead, ctx)) return null;
+    const dealer = ctx.sdy.dealerIdx;
+    const recent = (state.completedTricks || []).slice(-6).reverse().filter((t) => t.leadCombo
+      && t.leadCombo.type !== 'eight' && t.leadCombo.suit === lead.suit && t.leadPlayerIdx !== dealer);
+    const offSuits = (t) => {
+      const play = t && t.plays.find((p) => p.playerIdx === dealer);
+      const cards = play && play.cards;
+      if (!cards || !cards.length) return [];
+      const domains = cards.map((c) => domainOf(c, ti));
+      return domains.every((d) => d !== 'TRUMP' && d !== lead.suit) ? domains : [];
+    };
+    const single = recent.find((t) => t.leadCombo.type === 'single');
+    // 对子能兑现分不等于白单也能逼主；同门最近已消耗庄家主牌时保留原攻法。
+    if (!single || single.points !== 0 || !offSuits(single).length || !offSuits(recent[0]).length) return null;
+    const drops = new Map();
+    for (const t of recent) for (const suit of new Set(offSuits(t))) drops.set(suit, (drops.get(suit) || 0) + 1);
+
+    let best = null, bestValue = -Infinity;
+    const sourcePoints = ctx.knowledge.domains.get(lead.suit).remainingPoints;
+    for (const cards of candidates) {
+      const combo = parseCombo(cards, ti, cfg);
+      if (!combo || combo.isTrump || combo.suit === lead.suit || !['single', 'pair'].includes(combo.type)) continue;
+      const pts = pointsOf(cards, cfg);
+      const safe = pts > 0 && !this._dealerCanBeat(combo, ctx);
+      const target = ctx.knowledge.domains.get(combo.suit);
+      const range = ctx.knowledge.seats[dealer].domains.get(combo.suit).count;
+      const strength = combo.units[0].strength;
+      const higher = this._unseenHigher(ctx.di, combo.suit, strength);
+      // 未见分包含底牌。软判断只用无分控制单抢窗口，不把估计的短门当成确定持牌，
+      // 更不因为看见庄家垫了某门，就直接把自己的10/K领进去。
+      const soft = combo.type === 'single' && pts === 0 && strength >= 11 && higher <= 2
+        && (drops.get(combo.suit) || 0) >= 2 && range.max > 0 && range.expected <= 2.5
+        && target.remainingPoints >= sourcePoints + 10;
+      if (!safe && !soft) continue;
+      const value = (safe ? 30 + pts : strength - 2 * higher) + this._scoreLead(state, playerIdx, cards, ctx) / 4;
+      if (value > bestValue) { bestValue = value; best = cards; }
+    }
+    return best;
   }
 
   /**
@@ -2068,6 +2125,7 @@ class GreedyStrategy {
       const ordered = candidates.slice().sort((a, b) => score(b) - score(a));
       if (isLead) {
         add(ordered.find((cs) => !this._dealerCanBeat(parseCombo(cs, ti, cfg), ctx) && pointsOf(cs, cfg) > 0));
+        add(ctx.freeDiscardLead);
         add(ordered.find((cs) => {
           const co = parseCombo(cs, ti, cfg);
           return !co.isTrump && pointsOf(cs, cfg) === 0 && ctx.sdy.voids.dealer.has(co.suit);
@@ -2226,8 +2284,8 @@ class GreedyStrategy {
       const rootPruned = this._r5Prune(state, playerIdx, rootCands, isLeadDec ? null : trick, R3_K_ROOT);
       // 固定预算内替换末位：避免高分牌排序挤掉零分甩牌/小牌接力选项。
       if (!isDealerView) {
-        let alternative = null;
-        if (isLeadDec && FEAT_THROW_CHOICE) {
+        let alternative = isLeadDec ? ctx.freeDiscardLead : null;
+        if (!alternative && isLeadDec && FEAT_THROW_CHOICE) {
           alternative = rootCands.filter((cards) => {
             const combo = parseCombo(cards, ti, cfg);
             return combo && combo.type === 'throw' && !combo.isTrump;
