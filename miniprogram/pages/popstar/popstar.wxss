@@ -1,0 +1,8 @@
+@import '../match3/match3.wxss';
+page { background: #272b43; }
+.board { width: 668rpx; box-sizing: border-box; margin: 0 auto; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6rpx; padding: 7rpx; background: #35364e; }
+.cell { height: 60rpx; font-size: 40rpx; border-radius: 10rpx; }
+.star-0 { color: #a52e40; background: #ffb7c1; }.star-1 { color: #95600c; background: #ffe28a; }.star-2 { color: #246448; background: #a7e9bc; }.star-3 { color: #265e9b; background: #a8d9ff; }.star-4 { color: #6646a0; background: #d5befb; }
+.empty { background: #ffffff04; box-shadow: none; }
+.falling { animation: star-fall .42s cubic-bezier(.3,.05,.65,1); }
+@keyframes star-fall { from { transform: translate(var(--dx), var(--dy)); } 86% { transform: translateY(3rpx); } to { transform: translate(0,0); } }

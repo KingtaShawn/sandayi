@@ -26,3 +26,11 @@ button::after { border: 0; }
 .result-icon { font-size: 80rpx; }.result-title { font-size: 36rpx; font-weight: 700; margin: 20rpx 0; }.result-body { font-size: 23rpx; margin-bottom: 32rpx; color: #61715d; }
 .panel button { font-size: 28rpx; color: #496549; background: #e8eddb; border-radius: 20rpx; margin-top: 20rpx; }
 .panel .primary { background: #efd08c; color: #263e2f; }
+
+.falling { animation: fruit-fall .42s cubic-bezier(.3,.05,.65,1); }
+@keyframes fruit-fall { from { transform: translateY(var(--fall-y)); } 86% { transform: translateY(4rpx); } to { transform: translateY(0); } }
+
+.swap { animation: swap .18s ease-in-out forwards; z-index: 2; }
+.swap-back { animation: swap-back .36s ease-in-out; z-index: 2; }
+@keyframes swap { from { transform: translate(0,0); } to { transform: translate(var(--swap-x),var(--swap-y)); } }
+@keyframes swap-back { 0%,100% { transform: translate(0,0); } 50% { transform: translate(var(--swap-x),var(--swap-y)); } }

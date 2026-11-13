@@ -15,5 +15,6 @@
     <view class="desc"><view>交换水果，收获连锁惊喜。</view><view>动动指尖，让快乐多一点。</view></view>
     <view class="foot"><text>相邻交换 · 三个就消</text><text>去果园 ↗</text></view>
   </button>
+  <button class="entry stars" bindtap="onPopstar" aria-label="进入消灭星星"><view class="tag">新玩法 · 成片点消</view><view class="art">★ ✦ ★</view><view class="name">消灭星星</view><view class="desc"><view>轻点一片，点亮满天星光。</view><view>慢慢想，凑出更大的惊喜。</view></view><view class="foot"><text>同色相连 · 两颗就消</text><text>去摘星 ↗</text></view></button>
   <view class="footer">单人畅玩 · 随时切换</view>
 </view>

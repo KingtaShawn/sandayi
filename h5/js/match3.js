@@ -22,6 +22,7 @@ window.createMatch3UI = function ({ navigate, storage }) {
     board.appendChild(cell);
     return cell;
   });
+  const motion = window.createArcadeMotion(board, cells, 8);
 
   function renderBoard(values, options = {}) {
     cells.forEach((cell, i) => {
@@ -110,24 +111,33 @@ window.createMatch3UI = function ({ navigate, storage }) {
     const swapped = original.slice();
     [swapped[a], swapped[b]] = [swapped[b], swapped[a]];
     renderStats(result.accepted ? result.frames[0].score - result.frames[0].gained : session.state.score);
-    renderBoard(swapped);
-    await delay(170);
+    renderBoard(original);
+    motion.swap(a, b);
+    await delay(180);
     if (!valid()) return;
+    motion.clearMoves();
+    renderBoard(swapped);
     if (!result.accepted) {
+      motion.swap(a, b);
+      await delay(180);
+      if (!valid()) return;
+      motion.clearMoves();
       renderBoard(original, { invalid: [a, b] });
       $('match-status').textContent = '这次没有连成三个，不扣步数哦';
       await delay(260);
       if (!valid()) return;
     } else {
       for (const frame of result.frames) {
+        motion.burst(frame.matched, `${frame.combo > 1 ? frame.combo + ' 连消 ' : ''}+${frame.gained}`);
         renderBoard(frame.board, { matched: frame.matched });
         renderStats(frame.score);
         $('match-status').textContent = frame.combo > 1
           ? `${frame.combo} 连消！ +${frame.gained} 分` : `消除 ${frame.matched.length} 枚水果，+${frame.gained} 分`;
         await delay(200);
         if (!valid()) return;
-        renderBoard(frame.after, { drop: true });
-        await delay(240);
+        renderBoard(frame.after);
+        motion.fall(frame.sources);
+        await delay(430);
         if (!valid()) return;
       }
       if (result.reshuffled) $('match-status').textContent = '没有可用交换，已自动整理果园，不扣步数';
@@ -224,6 +234,6 @@ window.createMatch3UI = function ({ navigate, storage }) {
   renderStats();
   return {
     open() { active = true; selected = null; busy = false; renderBoard(session.state.board); renderStats(); resultDialog(); },
-    close() { active = false; generation++; busy = false; selected = null; pointer = null; closeDialog(); renderStats(); }
+    close() { active = false; generation++; motion.cancel(); busy = false; selected = null; pointer = null; closeDialog(); renderStats(); }
   };
 };

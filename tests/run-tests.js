@@ -9,6 +9,7 @@ const fs = require('fs');
 
 const TEST_FILES = [
   'test-match3.js',
+  'test-popstar.js',
   'test-match3-mp.js',
   'test-config.js',
   'test-deck.js',

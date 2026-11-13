@@ -142,3 +142,45 @@ html.arcade-mode #app { position: static; width: 100%; height: 100%; max-width: 
   .arcade *, .arcade *::before { animation: none !important; transition: none !important; }
   .fruit--hint { outline: 3px solid #547641; }
 }
+
+/* Movement follows actual source/destination cells; overlays never intercept input. */
+.match-board { position: relative; isolation: isolate; overflow: hidden; }
+.arcade-spark, .arcade-float { position: absolute; pointer-events: none; z-index: 6; color: #fff7bc; text-shadow: 0 2px 5px #163522; font-size: 18px; }
+.arcade-float { font-size: 23px; font-weight: 850; white-space: nowrap; }
+.fruit--pop { transition: transform .2s cubic-bezier(.55,-.3,.85,.35), opacity .2s; transform: scale(.1) rotate(28deg); }
+.game-entries { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.game-entry__body { padding-left: 22px; padding-right: 22px; }
+.game-entry__bottom { font-size: 11px; }
+.game-entry--stars { background: #e8e2f7; color: #42365e; }
+.entry-art--stars { color: #d89d39; font-size: 125px; text-shadow: 0 7px 0 #b77b2925; transform: rotate(-13deg); }
+.entry-art--stars i { font-size: 65px; color: #9380be; position: absolute; right: 35px; top: 20px; }
+.entry-art--stars b { font-size: 60px; color: #e7b951; position: absolute; left: 35px; bottom: 3px; }
+.stars { background: radial-gradient(ellipse at 65% 45%, #493f68, #272b43 75%); }
+.stars .match-board { grid-template-columns: repeat(10, minmax(0, 1fr)); background: #35364e; border-color: #70718e; box-shadow: 0 16px 45px #121c3345; gap: 4px; }
+.stars .star-piece { font-size: clamp(20px, 2.5vw, 31px); border-radius: 8px; text-shadow: 0 2px 0 #ffffff50; }
+.star-piece[data-fruit="0"] { color: #a52e40; background: #ffb7c1; }
+.star-piece[data-fruit="1"] { color: #95600c; background: #ffe28a; }
+.star-piece[data-fruit="2"] { color: #246448; background: #a7e9bc; }
+.star-piece[data-fruit="3"] { color: #265e9b; background: #a8d9ff; }
+.star-piece[data-fruit="4"] { color: #6646a0; background: #d5befb; }
+.stars .star-piece--empty { background: #ffffff04; box-shadow: none; pointer-events: none; }
+.stars .match-moves strong { color: #d8c2ff; }
+.stars .fruit--hint { outline-color: #fff4c4; }
+@media (max-width: 850px) and (min-width: 681px) {
+  .game-entry__body { padding: 16px; }
+  .game-entry__title { font-size: 22px; }
+  .game-entry__bottom { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 680px) {
+  .game-entries { grid-template-columns: 1fr; }
+  .game-entry__body { padding-left: 20px; padding-right: 20px; }
+  .entry-art--stars { font-size: 90px; right: 14px; top: 28px; }
+  .entry-art--stars i { font-size: 36px; right: -6px; top: 0; }
+  .entry-art--stars b { font-size: 35px; left: -4px; bottom: 0; }
+  .stars .match-board { gap: 3px; padding: 6px; }
+  .stars .star-piece { font-size: clamp(17px, 5vw, 26px); border-radius: 5px; }
+  .arcade-float { font-size: 19px; }
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .stars .star-piece { font-size: clamp(12px, 4dvh, 22px); }
+}

@@ -102,6 +102,21 @@ function collapse(board, matched, rng = Math.random) {
   return next;
 }
 
+// Destination -> source index, including virtual rows above the board for new fruit.
+function fallSources(matched) {
+  const sources = Array(64);
+  const removed = new Set(matched);
+  for (let col = 0; col < SIZE; col++) {
+    let write = SIZE - 1;
+    for (let row = SIZE - 1; row >= 0; row--) {
+      if (!removed.has(row * SIZE + col)) sources[write-- * SIZE + col] = row * SIZE + col;
+    }
+    const count = write + 1;
+    while (write >= 0) { sources[write * SIZE + col] = (write - count) * SIZE + col; write--; }
+  }
+  return sources;
+}
+
 function createGame(level = 1, rng = Math.random) {
   const config = LEVELS[level - 1];
   if (!config) throw new RangeError('未知关卡');
@@ -120,7 +135,7 @@ function trySwap(state, a, b, rng = Math.random) {
     const gained = matched.length * 10 * Math.min(combo, 5);
     score += gained;
     const after = collapse(board, matched, rng);
-    frames.push({ board, matched, after, gained, combo, score });
+    frames.push({ board, matched, after, sources: fallSources(matched), gained, combo, score });
     board = after;
     matched = findMatches(board);
   }
@@ -144,4 +159,4 @@ function restoreGame(value, rng = Math.random) {
   return state;
 }
 
-module.exports = { SIZE, TYPES, FRUITS, NAMES, LEVELS, adjacent, findMatches, findMove, createBoard, shuffleBoard, collapse, createGame, trySwap, restoreGame };
+module.exports = { SIZE, TYPES, FRUITS, NAMES, LEVELS, adjacent, findMatches, findMove, createBoard, shuffleBoard, collapse, fallSources, createGame, trySwap, restoreGame };

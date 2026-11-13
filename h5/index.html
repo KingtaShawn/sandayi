@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="format-detection" content="telephone=no">
-<title>游戏小院 · 三打一与消消乐</title>
+<title>游戏小院 · 三打一、消消乐与消灭星星</title>
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/arcade.css">
 </head>
@@ -31,10 +31,15 @@
           <span class="entry-art entry-art--fruit" aria-hidden="true"><span>🍎</span><span>🍋</span><span>🍇</span><span>🥝</span><span>🍎</span><span>🍊</span><span>🫐</span><span>🍎</span><span>🍋</span></span>
           <span class="game-entry__body"><span class="game-entry__title">果园消消乐</span><span class="game-entry__desc">交换水果，收获连锁惊喜。<br>动动指尖，让快乐多一点。</span><span class="game-entry__bottom"><span id="lobby-match-progress">相邻交换 · 三个就消</span><span class="entry-go">去果园 <b>↗</b></span></span></span>
         </button>
+        <button id="btn-enter-popstar" class="game-entry game-entry--stars" aria-label="进入消灭星星">
+          <span class="game-entry__tag">新玩法 · 成片点消</span>
+          <span class="entry-art entry-art--stars" aria-hidden="true">★<i>✦</i><b>★</b></span>
+          <span class="game-entry__body"><span class="game-entry__title">消灭星星</span><span class="game-entry__desc">轻点一片，点亮满天星光。<br>慢慢想，凑出更大的惊喜。</span><span class="game-entry__bottom"><span id="lobby-star-progress">同色相连 · 两颗就消</span><span class="entry-go">去摘星 <b>↗</b></span></span></span>
+        </button>
       </div>
       <p class="lobby-foot">不赶时间，选一个喜欢的就开始吧。</p>
     </main>
-    <footer class="arcade-footer"><span>三打一 & 果园消消乐</span><span>单人畅玩 · 随时切换</span></footer>
+    <footer class="arcade-footer"><span>三打一 · 果园消消乐 · 消灭星星</span><span>单人畅玩 · 随时切换</span></footer>
   </section>
 
   <section id="view-match3" class="arcade match view" aria-label="果园消消乐" hidden>
@@ -56,6 +61,28 @@
     </main>
     <div id="match-dialog" class="arcade-dialog" role="dialog" aria-modal="true" aria-labelledby="match-dialog-title" hidden>
       <div class="arcade-dialog__panel"><span id="match-dialog-icon" class="arcade-dialog__icon" aria-hidden="true">✿</span><h2 id="match-dialog-title"></h2><p id="match-dialog-body"></p><div class="arcade-dialog__actions"><button id="match-dialog-primary" class="arcade-button"></button><button id="match-dialog-secondary" class="arcade-button arcade-button--light"></button></div></div>
+    </div>
+  </section>
+
+  <section id="view-popstar" class="arcade match stars view" aria-label="消灭星星" hidden>
+    <header class="arcade-nav"><button id="btn-star-home" class="arcade-back">← 游戏大厅</button><span class="arcade-brand">消灭星星 <span aria-hidden="true">✿</span></span><button id="btn-star-rules" class="arcade-link">玩法</button></header>
+    <main class="match-layout">
+      <aside class="match-info">
+        <div class="match-heading"><span class="arcade-eyebrow" id="star-level">第 1 关</span><h1>星光成片，<br>快乐加倍。</h1></div>
+        <div class="match-stats"><div class="match-score"><span>累计得分</span><strong id="star-score">0</strong></div><div class="match-moves"><span>剩余星星</span><strong id="star-moves">100</strong></div></div>
+        <div class="match-goal"><div><span>目标 <b id="star-target">1000</b> 分</span><span id="star-percent">0%</span></div><progress id="star-progress" max="1000" value="0" aria-label="目标完成进度"></progress></div>
+        <div class="match-best">历史最高 <b id="star-best">0</b></div>
+        <p class="match-instruction">点击至少两颗相连同色星星<br>一片消得越多，得分越高</p>
+      </aside>
+      <div class="match-play">
+        <div id="star-status" class="match-status" role="status" aria-live="polite">点击同色星星，收集整片星光</div>
+        <div id="star-board" class="match-board" role="group" aria-label="10 行 10 列星星棋盘"></div>
+        <div class="match-tools"><button id="btn-star-hint" class="arcade-button arcade-button--light">✧ 寻找大片</button><button id="btn-star-restart" class="arcade-button arcade-button--light">↻ 重玩本关</button></div>
+        <p class="match-save">进度保存在本机，可随时回来继续</p>
+      </div>
+    </main>
+    <div id="star-dialog" class="arcade-dialog" role="dialog" aria-modal="true" aria-labelledby="star-dialog-title" hidden>
+      <div class="arcade-dialog__panel"><span id="star-dialog-icon" class="arcade-dialog__icon" aria-hidden="true">✿</span><h2 id="star-dialog-title"></h2><p id="star-dialog-body"></p><div class="arcade-dialog__actions"><button id="star-dialog-primary" class="arcade-button"></button><button id="star-dialog-secondary" class="arcade-button arcade-button--light"></button></div></div>
     </div>
   </section>
 
@@ -219,6 +246,8 @@
 <script src="js/game-bundle.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/cloud.js"></script>
+<script src="js/arcade-motion.js"></script>
+<script src="js/popstar.js"></script>
 <script src="js/match3.js"></script>
 <script src="js/app.js"></script>
 </body>

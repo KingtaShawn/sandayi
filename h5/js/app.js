@@ -68,13 +68,16 @@
 
   /* ========== 视图切换 ========== */
   let match3UI = null;
+  let popstarUI = null;
   function showView(name) {
     if (match3UI) match3UI.close();
-    ['lobby', 'match3', 'home', 'rules', 'table'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
-    const arcade = name === 'lobby' || name === 'match3';
+    if (popstarUI) popstarUI.close();
+    ['lobby', 'match3', 'popstar', 'home', 'rules', 'table'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
+    const arcade = name === 'lobby' || name === 'match3' || name === 'popstar';
     document.documentElement.classList.toggle('arcade-mode', arcade);
     if (Sfx.setActive) Sfx.setActive(!arcade);
     if (name === 'match3' && match3UI) match3UI.open();
+    if (name === 'popstar' && popstarUI) popstarUI.open();
   }
 
   /* ========== 卡牌 DOM ========== */
@@ -1451,6 +1454,7 @@
     showView('lobby');
   }
   $('btn-enter-sandayi').addEventListener('click', () => { renderHome(); showView('home'); });
+  $('btn-enter-popstar').addEventListener('click', () => showView('popstar'));
   $('btn-enter-match3').addEventListener('click', () => showView('match3'));
   $('btn-home-lobby').addEventListener('click', returnToLobby);
   $('btn-table-lobby').addEventListener('click', returnToLobby);
@@ -1568,6 +1572,7 @@
   window.__probe = () => G.service && G.service.getState();
 
   match3UI = window.createMatch3UI({ navigate: showView, storage });
+  popstarUI = window.createPopstarUI({ navigate: showView, storage });
   showView('lobby');
   renderHome();
   // 云端启动：恢复/无感建档 + 拉远端档案（远端更新落地后 onSync 刷新首页战绩）

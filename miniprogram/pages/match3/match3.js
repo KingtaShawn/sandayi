@@ -17,12 +17,12 @@ Page({
     this.timer = null;
   },
 
-  paint(values, hits = [], hint = []) {
+  paint(values, hits = [], hint = [], sources) {
     if (!this.active || !this.session) return;
     const state = this.session.state;
     const target = E.LEVELS[state.level - 1].target;
     this.setData({
-      cells: (values || state.board).map((fruit, i) => ({ id: i, fruit, emoji: E.FRUITS[fruit], name: E.NAMES[fruit], selected: this.selected === i, pop: hits.includes(i), hint: hint.includes(i) })),
+      cells: (values || state.board).map((fruit, i) => ({ id: i, fruit, emoji: E.FRUITS[fruit], name: E.NAMES[fruit], selected: this.selected === i, pop: hits.includes(i), hint: hint.includes(i), falling: sources && sources[i] !== i, shift: sources ? `--fall-y: ${(Math.floor(sources[i] / 8) - Math.floor(i / 8)) * 80}rpx;` : '' })),
       level: state.level, score: state.score, moves: state.moves, target,
       percent: Math.min(100, Math.floor(state.score / target * 100)),
       best: this.session.best[state.level] || 0, busy: this.busy, status: state.status, lastLevel: state.level === E.LEVELS.length
@@ -36,10 +36,12 @@ Page({
     else if (this.selected !== null && E.adjacent(this.selected, i)) {
       const a = this.selected;
       this.selected = null;
+      const original = this.session.state.board.slice();
+      const originalScore = this.session.state.score;
       const result = this.session.move(a, i);
       if (!result.accepted) {
-        this.setData({ message: '没有连成三个，不扣步数哦' });
-        this.paint(); return;
+        this.generation++;
+        this.animateSwap(original, a, i, () => { this.busy = false; this.paint(); this.setData({ message: '没有连成三个，不扣步数哦' }); }, false); return;
       }
       this.busy = true;
       const run = ++this.generation;
@@ -55,14 +57,27 @@ Page({
         this.setData({ score: frame.score, percent: Math.min(100, Math.floor(frame.score / E.LEVELS[this.session.state.level - 1].target * 100)), message: `${frame.combo > 1 ? frame.combo + ' 连消！' : '消除 ' + frame.matched.length + ' 枚水果'} +${frame.gained} 分` });
         this.timer = setTimeout(() => {
           if (!this.active || run !== this.generation) return;
-          this.paint(frame.after);
-          this.setData({ score: frame.score });
-          this.timer = setTimeout(() => step(index + 1), 220);
+          this.paint(frame.after, [], [], frame.sources);
+          this.setData({ score: frame.score, percent: Math.min(100, Math.floor(frame.score / E.LEVELS[this.session.state.level - 1].target * 100)) });
+          this.timer = setTimeout(() => step(index + 1), 420);
         }, 220);
       };
-      step(0); return;
+      this.animateSwap(original, a, i, () => step(0), true, originalScore); return;
     } else this.selected = i;
     this.paint();
+  },
+
+  animateSwap(values, a, b, done, accepted, displayScore = this.session.state.score) {
+    this.busy = true; this.paint(values);
+    const run = this.generation;
+    const cells = this.data.cells.map((cell) => {
+      if (cell.id !== a && cell.id !== b) return cell;
+      const to = cell.id === a ? b : a;
+      const dx = to % 8 - cell.id % 8, dy = Math.floor(to / 8) - Math.floor(cell.id / 8);
+      return { ...cell, swapping: accepted ? 'swap' : 'swap-back', shift: `--swap-x: ${dx > 0 ? 'calc(100% + 8rpx)' : dx < 0 ? 'calc(-100% - 8rpx)' : '0rpx'}; --swap-y: ${dy * 80}rpx;` };
+    });
+    this.setData({ cells, score: displayScore, percent: Math.min(100, Math.floor(displayScore / E.LEVELS[this.session.state.level - 1].target * 100)) });
+    this.timer = setTimeout(() => { if (this.active && run === this.generation) done(); }, accepted ? 180 : 360);
   },
 
   onHint() {

@@ -5,7 +5,7 @@
   <view class="progress"><view style="width: {{percent}}%"></view></view>
   <view class="message">{{message}}</view>
   <view class="board">
-    <button wx:for="{{cells}}" wx:key="id" class="cell fruit-{{item.fruit}} {{item.selected ? 'selected' : ''}} {{item.pop ? 'pop' : ''}} {{item.hint ? 'hint' : ''}}" data-index="{{item.id}}" bindtap="onCell" aria-label="{{item.name}}">{{item.emoji}}</button>
+    <button wx:for="{{cells}}" wx:key="id" class="cell fruit-{{item.fruit}} {{item.selected ? 'selected' : ''}} {{item.pop ? 'pop' : ''}} {{item.hint ? 'hint' : ''}} {{item.falling ? 'falling' : ''}} {{item.swapping || ''}}" style="{{item.shift}}" data-index="{{item.id}}" bindtap="onCell" aria-label="{{item.name}}">{{item.emoji}}</button>
   </view>
   <view class="tools"><button bindtap="onHint" disabled="{{busy || status !== 'playing'}}">✧ 给我提示</button><button bindtap="onRestart" disabled="{{busy}}">↻ 重玩本关</button></view>
   <view class="save">进度保存在本机，可随时回来继续</view>

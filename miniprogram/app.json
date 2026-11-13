@@ -3,6 +3,7 @@
     "pages/lobby/lobby",
     "pages/home/home",
     "pages/match3/match3",
+    "pages/popstar/popstar",
     "pages/table/table",
     "pages/rules/rules"
   ],

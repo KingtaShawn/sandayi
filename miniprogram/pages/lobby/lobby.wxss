@@ -13,3 +13,5 @@ page { background: #123d32; }
 .desc { font-size: 23rpx; color: #53695c; line-height: 1.8; max-width: 380rpx; }
 .foot { display: flex; justify-content: space-between; border-top: 1rpx solid #344f3530; margin-top: 28rpx; padding-top: 22rpx; font-size: 23rpx; }
 .footer { color: #acc5b7; font-size: 22rpx; text-align: center; margin-top: 45rpx; }
+
+.stars { background: #e8e2f7; color: #42365e; }

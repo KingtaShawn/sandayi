@@ -14,7 +14,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..', 'miniprogram');
 const OUT = path.resolve(__dirname, '..', 'h5', 'js', 'game-bundle.js');
 /** 参与打包的目录（= 依赖铁律保护的纯逻辑层） */
-const DIRS = ['engine', 'core', 'ai', 'services', 'utils', 'storage', 'match3'];
+const DIRS = ['engine', 'core', 'ai', 'services', 'utils', 'storage', 'match3', 'popstar'];
 /** 根级单文件模块 */
 const ROOT_FILES = ['rule-config'];
 
@@ -101,6 +101,8 @@ function main() {
   // 导出窗口全局 GameCore：{ GameService, createConfig, DEFAULT_CONFIG, getHint, fmt, storage, STORAGE_KEYS, stats, createRng, ruleConfig, scoreBidOptions }
   lines.push(`
 var out = {
+  Popstar: __req('root', 'popstar/engine'),
+  PopstarSession: __req('root', 'popstar/session').PopstarSession,
   Match3: __req('root', 'match3/engine'),
   Match3Session: __req('root', 'match3/session').Match3Session,
   GameService: __req('root', 'services/game-service').GameService,

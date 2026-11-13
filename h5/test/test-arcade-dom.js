@@ -13,13 +13,13 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 test('H5 发布产物：所有本地 CSS/JS/manifest 引用存在且使用同一版本', () => {
   const html = fs.readFileSync(path.join(H5, 'dist/index.html'), 'utf8');
   const refs = Array.from(html.matchAll(/(?:src|href)="((?:css|js)\/[^"?]+|manifest\.webmanifest)\?v=([^"]+)"/g));
-  assert.equal(refs.length, 8);
+  assert.equal(refs.length, 10);
   assert.equal(new Set(refs.map((ref) => ref[2])).size, 1);
   refs.forEach((ref) => assert.ok(fs.existsSync(path.join(H5, 'dist', ref[1])), ref[1]));
   assert.match(html, /id="btn-enter-match3"/);
 });
 
-function boot(saved, { normalMotion = false } = {}) {
+function boot(saved, { normalMotion = false, starSaved } = {}) {
   const errors = [];
   const console = new VirtualConsole();
   console.on('jsdomError', (error) => errors.push(error));
@@ -36,8 +36,9 @@ function boot(saved, { normalMotion = false } = {}) {
   const timeout = w.setTimeout.bind(w), interval = w.setInterval.bind(w);
   w.setTimeout = (fn, ms, ...args) => timeout(fn, ms >= 500 ? 10 : ms, ...args);
   w.setInterval = (fn, ms, ...args) => interval(fn, Math.min(ms, 2), ...args);
+  if (starSaved) w.localStorage.setItem('popstar:progress:v1', starSaved);
   if (saved) w.localStorage.setItem(KEY, saved);
-  for (const script of ['game-bundle.js', 'match3.js', 'app.js']) w.eval(fs.readFileSync(path.join(H5, 'js', script), 'utf8'));
+  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'app.js']) w.eval(fs.readFileSync(path.join(H5, 'js', script), 'utf8'));
   const $ = (id) => w.document.getElementById(id);
   const click = (id) => $(id).click();
   const state = () => JSON.parse(JSON.stringify(w.GameCore.storage.get(KEY).current));
@@ -181,4 +182,71 @@ test('H5：恢复失败和最终关胜利均有完整出口，弹窗键盘焦点
       assert.equal(p.$('view-lobby').hidden, false);
     } finally { p.close(); }
   }
+});
+
+test('动画：交换保留终点直到渲染新盘面，落距与来源相符，取消后不残留', async () => {
+  const p = boot();
+  try {
+    p.w.matchMedia = () => ({ matches: false });
+    const cells = Array.from(p.$('match-board').children), calls = [];
+    cells.forEach((cell, i) => {
+      cell.getBoundingClientRect = () => ({ left: i % 8 * 42, top: Math.floor(i / 8) * 42, width: 38, height: 38 });
+      cell.animate = (frames, options) => {
+        const a = { finished: Promise.resolve(), cancel() { this.cancelled = true; } };
+        calls.push({ i, frames, options, a }); return a;
+      };
+    });
+    const motion = p.w.createArcadeMotion(p.$('match-board'), cells, 8);
+    motion.swap(0,1); await Promise.resolve(); await Promise.resolve();
+    assert.equal(calls[0].frames[1].transform,'translate(42px,0px)');
+    assert.equal(calls[1].frames[1].transform,'translate(-42px,0px)');
+    motion.clearMoves(); assert.ok(calls.every(c=>c.a.cancelled),'已完成的 forwards 动画也必须取消');
+    calls.length=0; motion.fall(E.fallSources([16,32]));
+    assert.equal(calls.find(c=>c.i===16).frames[0].transform,'translate(0px,-84px)');
+    assert.equal(calls.find(c=>c.i===0).frames[0].opacity,0);
+    assert.equal(calls.some(c=>c.i===1),false,'未移动的格子不播放下落');
+    motion.cancel();assert.ok(calls.every(c=>c.a.cancelled));
+  } finally { p.close(); }
+});
+
+test('H5 消灭星星：三个入口、提示、完整盘面终局、下一关/重玩、存档隔离', async () => {
+  const Star = require('../../miniprogram/popstar/engine');
+  const p=boot(); let saved;
+  const current=()=>JSON.parse(JSON.stringify(p.w.GameCore.storage.get('popstar:progress:v1').current));
+  async function settleStar() {
+    for(let i=0;i<300&&p.$('star-board').getAttribute('aria-busy')==='true';i++)await sleep(5);
+    assert.equal(p.$('star-board').getAttribute('aria-busy'),'false');
+  }
+  try {
+    assert.equal(p.w.document.querySelectorAll('.game-entry').length,3);
+    const fruitSaved=p.w.localStorage.getItem(KEY);
+    p.click('btn-enter-popstar');assert.equal(p.$('view-popstar').hidden,false);
+    assert.equal(p.$('star-board').children.length,100);
+    p.click('btn-star-hint');assert.ok(p.w.document.querySelectorAll('#star-board .fruit--hint').length>=2);
+    for(let step=0;step<50&&current().status==='playing';step++) {
+      p.$('star-board').children[Star.hint(current().board)[0]].click(); await settleStar();
+    }
+    assert.notEqual(current().status,'playing');assert.equal(p.$('star-dialog').hidden,false);
+    saved=p.w.localStorage.getItem('popstar:progress:v1');
+    assert.equal(p.w.localStorage.getItem(KEY),fruitSaved);
+    const finished=current();p.click('star-dialog-primary');
+    assert.equal(current().status,'playing');
+    assert.equal(current().score,finished.status==='won'?finished.score:0);
+    p.click('btn-star-home');p.click('btn-enter-match3');assert.equal(p.$('view-match3').hidden,false);
+  } finally { p.close(); }
+  const q=boot(undefined,{starSaved:saved});
+  try { q.click('btn-enter-popstar'); assert.equal(q.$('star-dialog').hidden,false); q.click('star-dialog-secondary');assert.equal(q.$('view-lobby').hidden,false); } finally { q.close(); }
+});
+
+test('H5 消灭星星：动画中退出保留稳定结果，旧动画不能改写恢复页面', async () => {
+  const Star=require('../../miniprogram/popstar/engine'); const p=boot(undefined,{normalMotion:true});
+  try {
+    p.click('btn-enter-popstar');
+    const read=()=>JSON.parse(JSON.stringify(p.w.GameCore.storage.get('popstar:progress:v1').current));
+    p.$('star-board').children[Star.hint(read().board)[0]].click();
+    const saved=read();p.click('btn-star-home');await sleep(240);p.click('btn-enter-popstar');
+    assert.deepEqual(read(),saved);assert.equal(p.$('star-board').getAttribute('aria-busy'),'false');
+    assert.deepEqual(Array.from(p.$('star-board').querySelectorAll('[data-index]'),c=>c.dataset.fruit==='null'?null:Number(c.dataset.fruit)),saved.board);
+    assert.equal(p.w.document.querySelectorAll('#star-board .arcade-spark').length,0);
+  } finally {p.close();}
 });
