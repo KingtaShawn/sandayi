@@ -8,6 +8,8 @@ const path = require('path');
 const fs = require('fs');
 
 const TEST_FILES = [
+  'test-match3.js',
+  'test-match3-mp.js',
   'test-config.js',
   'test-deck.js',
   'test-trump.js',

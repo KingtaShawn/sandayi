@@ -25,6 +25,8 @@ jobs:
           node-version: 22
       - run: npm test
       - run: npm run build:h5
+      - run: npm ci --ignore-scripts
+      - run: npm run test:h5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: h5/dist

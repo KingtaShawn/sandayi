@@ -67,8 +67,14 @@
   const SEAT_LABELS = ['南', '东', '北', '西'];
 
   /* ========== 视图切换 ========== */
+  let match3UI = null;
   function showView(name) {
-    ['home', 'rules', 'table'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
+    if (match3UI) match3UI.close();
+    ['lobby', 'match3', 'home', 'rules', 'table'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
+    const arcade = name === 'lobby' || name === 'match3';
+    document.documentElement.classList.toggle('arcade-mode', arcade);
+    if (Sfx.setActive) Sfx.setActive(!arcade);
+    if (name === 'match3' && match3UI) match3UI.open();
   }
 
   /* ========== 卡牌 DOM ========== */
@@ -243,6 +249,7 @@
     G._handRelayoutArmed = true;
     let tries = 0;
     const tick = () => {
+      if ($('view-table').hidden) { G._handRelayoutArmed = false; return; }
       const row = $('hand-row');
       if (row && row.clientWidth) {
         G._handRelayoutArmed = false;
@@ -883,6 +890,7 @@
     G._watchdog = setTimeout(() => {
       G._watchdog = null;
       try {
+        if ($('view-table').hidden) return;
         const st = G.service && G.service.getState();
         if (!st || st.phase === 'GAME_OVER' || st.phase === 'SCORING') return;
         if (G._dealAnimating || G._grabAnimating) return;
@@ -946,6 +954,7 @@
   /* ---------- AI 驱动（移植 driveAI） ---------- */
   function driveAI() {
     if (G._aiTimer) clearTimeout(G._aiTimer);
+    if ($('view-table').hidden) return;
     if (G._dealAnimating) return;
     if (G._grabAnimating) return;
     const st = G.service.getState();
@@ -957,6 +966,7 @@
     const delay = isNewTrick ? base * 1.25 : base * 0.75;
     G._aiTimer = setTimeout(() => {
       G._aiTimer = null;
+      if ($('view-table').hidden) return;
       const cur = G.service.getState();
       if (!cur || cur.phase === 'GAME_OVER') return;
       const r = G.service.tick();
@@ -1110,6 +1120,7 @@
   }
 
   function onPlay() {
+    if ($('view-table').hidden) return;
     const st = G.service.getState();
     const cards = G.selectedIds.map((id) => st.players[0].hand.find((c) => c.id === id)).filter(Boolean);
     const n = (st.currentTrick && st.currentTrick.leadCombo) ? st.currentTrick.leadCombo.n : cards.length;
@@ -1245,7 +1256,13 @@
   }
 
   /* ---------- 首页/规则页 ---------- */
+  function canResumeGame() {
+    const st = G.service && G.service.getState();
+    return !!st && st.phase !== 'GAME_OVER' && (st.phase !== 'SCORING' || G.settlePause);
+  }
+
   function renderHome() {
+    $('btn-start').textContent = canResumeGame() ? '继续对局' : '开始对局';
     const isSDY = ruleConfig.gameMode === 'san_da_yi';
     $('home-title').textContent = isSDY ? '三打一' : '升级';
     $('home-subtitle').textContent = isSDY ? '1 庄 vs 3 家 · 报分 90 起' : '80 分 · 升级';
@@ -1418,7 +1435,29 @@
   }
 
   /* ---------- 绑定 ---------- */
+  function returnToLobby() {
+    // Complete only visual transitions; the card state is already authoritative.
+    ['_aiTimer', '_watchdog', '_dealTimer', '_dealWatchdog', '_grabTimer', '_grabHlTimer', '_settleBtnTimer'].forEach((key) => {
+      if (G[key]) { clearTimeout(G[key]); clearInterval(G[key]); G[key] = null; }
+    });
+    G._dealAnimating = false;
+    G._grabAnimating = false;
+    G.dealAnim.active = false;
+    G.grabBottom.active = false;
+    G.handVisibleCount = 999;
+    G.lastHandKey = '';
+    if (G.settlePause) G.settleBtnReady = true;
+    if (G.service) { accountSettle(); persist(); }
+    showView('lobby');
+  }
+  $('btn-enter-sandayi').addEventListener('click', () => { renderHome(); showView('home'); });
+  $('btn-enter-match3').addEventListener('click', () => showView('match3'));
+  $('btn-home-lobby').addEventListener('click', returnToLobby);
+  $('btn-table-lobby').addEventListener('click', returnToLobby);
   $('btn-start').addEventListener('click', () => {
+    if (canResumeGame()) {
+      showView('table'); G.lastHandKey = ''; render(); driveAI(); return;
+    }
     storage.remove(STORAGE_KEYS.CURRENT_GAME);
     startGame();
   });
@@ -1457,7 +1496,9 @@
   updateMusicBtn();
   // 音效解锁：每次手势都试（running 前内部重试 resume，低电量模式被拒后下次手势还有机会）；
   // click 兜底键盘触发（Enter/Space 无 pointerdown）
-  ['pointerdown', 'touchstart', 'click'].forEach((evt) => document.addEventListener(evt, () => Sfx.unlock(), { passive: true }));
+  ['pointerdown', 'touchstart', 'click'].forEach((evt) => document.addEventListener(evt, () => {
+    if (!document.documentElement.classList.contains('arcade-mode')) Sfx.unlock();
+  }, { passive: true }));
   $('btn-history-close').addEventListener('click', () => { $('history-modal').hidden = true; });
   $('history-mask').addEventListener('click', () => { $('history-modal').hidden = true; });
   // 云账号弹层
@@ -1526,6 +1567,8 @@
   // 测试钩子：e2e 读对局状态驱动真人侧（__probe + GameCore.getHint），生产无副作用
   window.__probe = () => G.service && G.service.getState();
 
+  match3UI = window.createMatch3UI({ navigate: showView, storage });
+  showView('lobby');
   renderHome();
   // 云端启动：恢复/无感建档 + 拉远端档案（远端更新落地后 onSync 刷新首页战绩）
   if (window.Cloud) Cloud.init({ onSync: () => renderHome() });

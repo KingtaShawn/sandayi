@@ -1,0 +1,15 @@
+<view class="match">
+  <view class="nav"><button bindtap="onHome">← 游戏大厅</button><text>第 {{level}} / 12 关</text><button bindtap="onRules">玩法</button></view>
+  <view class="stats"><view><text class="label">本关得分</text><text class="number">{{score}}</text></view><view><text class="label">剩余步数</text><text class="number gold">{{moves}}</text></view><view><text class="label">本关最佳</text><text class="number">{{best}}</text></view></view>
+  <view class="goal">目标 {{target}} 分 <text>{{percent}}%</text></view>
+  <view class="progress"><view style="width: {{percent}}%"></view></view>
+  <view class="message">{{message}}</view>
+  <view class="board">
+    <button wx:for="{{cells}}" wx:key="id" class="cell fruit-{{item.fruit}} {{item.selected ? 'selected' : ''}} {{item.pop ? 'pop' : ''}} {{item.hint ? 'hint' : ''}}" data-index="{{item.id}}" bindtap="onCell" aria-label="{{item.name}}">{{item.emoji}}</button>
+  </view>
+  <view class="tools"><button bindtap="onHint" disabled="{{busy || status !== 'playing'}}">✧ 给我提示</button><button bindtap="onRestart" disabled="{{busy}}">↻ 重玩本关</button></view>
+  <view class="save">进度保存在本机，可随时回来继续</view>
+  <view class="result" wx:if="{{!busy && status !== 'playing'}}">
+    <view class="panel"><view class="result-icon">{{status === 'won' ? '🌻' : '🌱'}}</view><view class="result-title">{{status === 'won' ? (lastLevel ? '果园全部通关！' : '这一关，收获满满！') : '再试一次，就差一点'}}</view><view class="result-body">得分 {{score}} / 目标 {{target}} · 剩余 {{moves}} 步</view><button class="primary" bindtap="onContinue">{{status === 'won' && !lastLevel ? '下一关 →' : '再玩本关'}}</button><button bindtap="onHome">回游戏大厅</button></view>
+  </view>
+</view>

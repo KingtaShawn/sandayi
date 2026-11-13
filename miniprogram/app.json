@@ -1,6 +1,8 @@
 {
   "pages": [
+    "pages/lobby/lobby",
     "pages/home/home",
+    "pages/match3/match3",
     "pages/table/table",
     "pages/rules/rules"
   ],

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="arcade-mode">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -9,14 +9,59 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="format-detection" content="telephone=no">
-<title>三打一</title>
+<title>游戏小院 · 三打一与消消乐</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/arcade.css">
 </head>
 <body>
 <div id="app">
 
+  <section id="view-lobby" class="arcade lobby view" aria-label="游戏大厅">
+    <header class="arcade-nav"><span class="arcade-brand"><span aria-hidden="true">✦</span> 游戏小院</span><span class="arcade-nav__note">随时来，玩一会儿</span></header>
+    <main class="lobby-main">
+      <div class="lobby-heading"><span class="arcade-eyebrow">给自己一点轻松时间</span><h1>今天，玩点什么？</h1><p>一桌好牌，一园好心情。</p></div>
+      <div class="game-entries">
+        <button id="btn-enter-sandayi" class="game-entry game-entry--cards" aria-label="进入三打一">
+          <span class="game-entry__tag">经典牌局</span>
+          <span class="entry-art entry-art--cards" aria-hidden="true"><span class="art-card art-card--left">A<small>♠</small></span><span class="art-card art-card--right">K<small>♥</small></span><span class="art-card art-card--front">2<small>♠</small></span></span>
+          <span class="game-entry__body"><span class="game-entry__title">三打一</span><span class="game-entry__desc">一人坐庄，三家默契配合。<br>和老朋友一样熟悉的牌桌。</span><span class="game-entry__bottom"><span>1 真人 + 3 AI</span><span class="entry-go">去牌桌 <b>↗</b></span></span></span>
+        </button>
+        <button id="btn-enter-match3" class="game-entry game-entry--fruit" aria-label="进入果园消消乐">
+          <span class="game-entry__tag">新游戏 · 12 关挑战</span>
+          <span class="entry-art entry-art--fruit" aria-hidden="true"><span>🍎</span><span>🍋</span><span>🍇</span><span>🥝</span><span>🍎</span><span>🍊</span><span>🫐</span><span>🍎</span><span>🍋</span></span>
+          <span class="game-entry__body"><span class="game-entry__title">果园消消乐</span><span class="game-entry__desc">交换水果，收获连锁惊喜。<br>动动指尖，让快乐多一点。</span><span class="game-entry__bottom"><span id="lobby-match-progress">相邻交换 · 三个就消</span><span class="entry-go">去果园 <b>↗</b></span></span></span>
+        </button>
+      </div>
+      <p class="lobby-foot">不赶时间，选一个喜欢的就开始吧。</p>
+    </main>
+    <footer class="arcade-footer"><span>三打一 & 果园消消乐</span><span>单人畅玩 · 随时切换</span></footer>
+  </section>
+
+  <section id="view-match3" class="arcade match view" aria-label="果园消消乐" hidden>
+    <header class="arcade-nav"><button id="btn-match-home" class="arcade-back">← 游戏大厅</button><span class="arcade-brand">果园消消乐 <span aria-hidden="true">✿</span></span><button id="btn-match-rules" class="arcade-link">玩法</button></header>
+    <main class="match-layout">
+      <aside class="match-info">
+        <div class="match-heading"><span class="arcade-eyebrow" id="match-level">第 1 / 12 关</span><h1>好心情，<br>一消就有。</h1></div>
+        <div class="match-stats"><div class="match-score"><span>本关得分</span><strong id="match-score">0</strong></div><div class="match-moves"><span>剩余步数</span><strong id="match-moves">30</strong></div></div>
+        <div class="match-goal"><div><span>目标 <b id="match-target">900</b> 分</span><span id="match-percent">0%</span></div><progress id="match-progress" max="900" value="0" aria-label="目标完成进度"></progress></div>
+        <div class="match-best">本关最佳 <b id="match-best">0</b></div>
+        <p class="match-instruction">点击相邻水果交换<br>横竖连成 3 个，就能消除</p>
+      </aside>
+      <div class="match-play">
+        <div id="match-status" class="match-status" role="status" aria-live="polite">让三个相同的水果排成一行吧</div>
+        <div id="match-board" class="match-board" role="group" aria-label="8 行 8 列水果棋盘"></div>
+        <div class="match-tools"><button id="btn-match-hint" class="arcade-button arcade-button--light">✧ 给我提示</button><button id="btn-match-restart" class="arcade-button arcade-button--light">↻ 重玩本关</button></div>
+        <p class="match-save">进度保存在本机，可随时回来继续</p>
+      </div>
+    </main>
+    <div id="match-dialog" class="arcade-dialog" role="dialog" aria-modal="true" aria-labelledby="match-dialog-title" hidden>
+      <div class="arcade-dialog__panel"><span id="match-dialog-icon" class="arcade-dialog__icon" aria-hidden="true">✿</span><h2 id="match-dialog-title"></h2><p id="match-dialog-body"></p><div class="arcade-dialog__actions"><button id="match-dialog-primary" class="arcade-button"></button><button id="match-dialog-secondary" class="arcade-button arcade-button--light"></button></div></div>
+    </div>
+  </section>
+
   <!-- ===== 首页 ===== -->
-  <section id="view-home" class="home view">
+  <section id="view-home" class="home view" hidden>
+    <button class="btn btn--ghost home__lobby" id="btn-home-lobby">← 游戏大厅</button>
     <div class="home__logo">
       <div class="home__title" id="home-title">三打一</div>
       <div class="home__subtitle" id="home-subtitle">1 庄 vs 3 家 · 报分 90 起</div>
@@ -86,6 +131,7 @@
 
     <!-- 工具条 -->
     <div class="table__tools">
+      <button class="btn btn--ghost table__tool-btn" id="btn-table-lobby">大厅</button>
       <button class="btn btn--ghost table__tool-btn" id="btn-redeal">重发</button>
       <div class="table__trump-chip" id="trump-chip"></div>
       <button class="btn btn--ghost table__tool-btn table__tool-btn--sound" id="btn-sound" aria-label="音效开关">🔊</button>
@@ -173,6 +219,7 @@
 <script src="js/game-bundle.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/cloud.js"></script>
+<script src="js/match3.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

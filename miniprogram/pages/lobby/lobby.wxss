@@ -1,0 +1,15 @@
+page { background: #123d32; }
+.lobby { padding: 36rpx 40rpx 60rpx; color: #f7f3e7; }
+.brand { font-size: 30rpx; letter-spacing: 3rpx; margin-bottom: 60rpx; }
+.eyebrow { color: #d9bd7e; font-size: 22rpx; letter-spacing: 4rpx; }
+.title { font-size: 55rpx; font-weight: 800; margin: 20rpx 0 14rpx; }
+.subtitle { color: #bbd0c4; font-size: 27rpx; margin-bottom: 45rpx; }
+.entry { position: relative; text-align: left; border-radius: 32rpx; background: #f2ebd9; padding: 32rpx 34rpx; color: #233f35; line-height: 1.5; margin-bottom: 30rpx; }
+.entry::after { border: 0; }
+.fruit { background: #e7efcf; }
+.tag { font-size: 20rpx; color: #53695c; }
+.art { position: absolute; right: 30rpx; top: 95rpx; font-size: 44rpx; transform: rotate(-10deg); }
+.name { font-size: 44rpx; font-weight: 800; margin: 25rpx 0 12rpx; }
+.desc { font-size: 23rpx; color: #53695c; line-height: 1.8; max-width: 380rpx; }
+.foot { display: flex; justify-content: space-between; border-top: 1rpx solid #344f3530; margin-top: 28rpx; padding-top: 22rpx; font-size: 23rpx; }
+.footer { color: #acc5b7; font-size: 22rpx; text-align: center; margin-top: 45rpx; }

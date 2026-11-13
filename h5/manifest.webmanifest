@@ -1,12 +1,12 @@
 {
-  "name": "三打一",
-  "short_name": "三打一",
-  "description": "扑克单机对战：1 庄家 vs 3 闲家，报分 90 起",
+  "name": "游戏小院 · 三打一与消消乐",
+  "short_name": "游戏小院",
+  "description": "三打一与果园消消乐，随时来玩一会儿",
   "lang": "zh-CN",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
-  "orientation": "landscape",
+  "orientation": "any",
   "background_color": "#07452a",
   "theme_color": "#07452a",
   "icons": [

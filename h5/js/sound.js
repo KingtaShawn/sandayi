@@ -20,6 +20,7 @@
   let unlocked = false;
   let enabled = true;  // 音效开关
   let musicOn = true;  // 背景音乐开关
+  let active = true;   // Only the card game owns this audio channel.
   let noiseBuf = null; // 白噪声缓冲（0.5s 预生成复用）
   let mediaEl = null;  // 静音 <audio>（iOS 静音拨片/微信 webview 的会话解锁）
   let bgmEl = null;    // 背景音乐 <audio>（流式循环，不整段解码占内存）
@@ -218,7 +219,7 @@
   }
 
   function startBgm() {
-    if (!musicOn || !unlocked) return; // 手势解锁前播必被自动播放策略拦
+    if (!active || !musicOn || !unlocked || document.hidden) return; // 手势解锁前播必被自动播放策略拦
     const a = ensureBgm();
     if (!a || !a.paused) return;
     const p = a.play();
@@ -235,6 +236,7 @@
   });
 
   window.SoundFx = {
+    setActive(value) { active = !!value; if (active) startBgm(); else stopBgm(); },
     isEnabled: () => enabled,
     /** 音频通道状态（开关按钮回调做「被系统拦下」提示用） */
     state() {
@@ -273,7 +275,7 @@
     },
     /** 播放音效：play('play', { count: 3 }) —— count 供出牌多张错峰 */
     play(name, opts) {
-      if (!enabled || !unlocked) return;
+      if (!active || !enabled || !unlocked) return;
       if (!ensureCtx()) return;
       const fn = FX[name];
       if (!fn) return;
