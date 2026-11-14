@@ -2,7 +2,7 @@
 'use strict';
 
 const { GreedyStrategy } = require('./strategy-greedy');
-const { domainOf, pointsOf, strengthInDomain } = require('../engine/combo');
+const { domainOf, pointsOf, strengthInDomain, parseCombo } = require('../engine/combo');
 const { buildSuitDefense, suitDiscardCost } = require('./suit-defense');
 
 function canShareHands(state, viewerIdx) {
@@ -86,7 +86,7 @@ class SharedAttackStrategy extends GreedyStrategy {
   }
 
   _chooseTeamFollow(state, playerIdx, ctx, candidates, pick) {
-    if (ctx.suitDefense) {
+    if (ctx.suitDefense && this._hasSweepRisk(state, ctx)) {
       const score = (cards) => this._scoreFollow(state, playerIdx, cards, ctx);
       return candidates.reduce((best, cards) => score(cards) > score(best) + 1e-9 ? cards : best, pick);
     }
@@ -101,8 +101,45 @@ class SharedAttackStrategy extends GreedyStrategy {
 
   _solveEarlyPlan(state, playerIdx, ctx, candidates, pick) {
     // 两墩采样不能把已获得的接手情报丢掉，再用随机假设改成送分或错过跑分。
-    if (ctx.trumpTail || ctx.suitDefense) return null;
+    if (ctx.trumpTail || (ctx.suitDefense && this._hasSweepRisk(state, ctx))) return null;
     return super._solveEarlyPlan(state, playerIdx, ctx, candidates, pick);
+  }
+
+  _hasSweepRisk(state, ctx) {
+    return ctx.sdy.dealerPts + this._remainingPoints(state, ctx) >= ctx.mem.totalPoints;
+  }
+
+  /** 所有局部打分/推演之后执行：实际跑分优先；跑不了分时，守门底线高于囤分。 */
+  _finalizeAttackerPlay(state, playerIdx, ctx, candidates, pick) {
+    const trick = state.currentTrick, role = ctx.suitDefense;
+    if (!role || !trick || !trick.plays.length || !this._hasSweepRisk(state, ctx)) return pick;
+    const ti = state.trumpInfo, cfg = state.config, hand = state.players[playerIdx].hand;
+    const pts = trick.plays.reduce((n, p) => n + pointsOf(p.cards, cfg), 0);
+    const dealerPlayed = trick.plays.some((p) => p.playerIdx === ctx.sdy.dealerIdx);
+    const teamLocked = this._currentWinnerTeam(state, trick, ti, cfg) === 1
+      && this._teamLocked(state, playerIdx, ctx, trick);
+    const cash = candidates.filter((cards) => {
+      if (pts + pointsOf(cards, cfg) === 0) return false;
+      if (teamLocked) return true;
+      const combo = parseCombo(cards, ti, cfg);
+      return this._wouldWin(state, trick, playerIdx, cards, combo)
+        && (dealerPlayed || (['single', 'pair'].includes(trick.leadCombo.type) && !this._dealerCanBeat(combo, ctx)));
+    });
+    const score = (cards) => this._scoreFollow(state, playerIdx, cards, ctx);
+    if (cash.length) return cash.reduce((best, cards) => pointsOf(cards, cfg) > pointsOf(best, cfg)
+      || (pointsOf(cards, cfg) === pointsOf(best, cfg) && score(cards) > score(best)) ? cards : best);
+    // 必须跟门/反压时沿用跟牌决策；这里只约束真正可以自由垫牌的选择。
+    if (hand.some((c) => domainOf(c, ti) === trick.leadCombo.suit)) return pick;
+    const before = hand.filter((c) => domainOf(c, ti) === role.suit).length;
+    const pairs = ctx.knowledge.seats[ctx.sdy.dealerIdx].domains.get(role.suit).pairs.max;
+    const target = Math.min(before, pairs >= 2 ? 6 : pairs > 0 ? 4 : 3);
+    const loss = (cards) => Math.max(0, target - before
+      + cards.filter((c) => domainOf(c, ti) === role.suit).length);
+    const minLoss = Math.min(...candidates.map(loss));
+    const protectedMoves = candidates.filter((cards) => loss(cards) === minLoss);
+    // 同样保住守门长度时，再按赢墩、控牌、分牌成本选择；没有可避开的消耗就合法跟出。
+    return protectedMoves.reduce((best, cards) => score(cards) > score(best) + 1e-9 ? cards : best,
+      loss(pick) === minLoss ? pick : protectedMoves[0]);
   }
 
   _discardKeep(cards, hand, ti, ctx) {

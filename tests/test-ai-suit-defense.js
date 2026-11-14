@@ -17,6 +17,80 @@ function playTrick(state, ai) {
   return st;
 }
 
+function finishSweep(ai, direction) {
+  let st = sweepPosition(direction, false, false, true);
+  const play = (cards) => {
+    assert.equal(validatePlay(st, st.turnIdx, cards).ok, true);
+    st = transition(st, { type: 'PLAY', playerIdx: st.turnIdx, cards, ts: 0 });
+  };
+  for (let round = 0; round < 7; round++) {
+    if (round) play([st.players[0].hand.find((c) => domainOf(c, st.trumpInfo) === 'TRUMP')]);
+    for (let i = 0; i < 3; i++) play(ai.decidePlay(st, st.turnIdx));
+  }
+  const kept = st.players[st.playOrder[1]].hand.map((c) => c.suit + c.rank);
+  for (const rank of ['A', 'K']) {
+    play([st.players[0].hand.find((c) => c.suit === 'S' && c.rank === rank)]);
+    for (let i = 0; i < 3; i++) play(ai.decidePlay(st, st.turnIdx));
+  }
+  while (st.phase === 'PLAYING') play(ai.decidePlay(st, st.turnIdx));
+  return { kept, settle: st.lastSettle };
+}
+
+for (const direction of ['clockwise', 'counterclockwise']) test(`防满分守门高于囤分/${direction}：留三张10会输200，保SA/Q/J能跑25分`, () => {
+  const old = new SharedAttackStrategy();
+  old._finalizeAttackerPlay = (state, seat, ctx, candidates, pick) => pick;
+  const before = finishSweep(old, direction), after = finishSweep(new SharedAttackStrategy(), direction);
+  assert.deepEqual(before.kept, ['C10', 'C10', 'D10']);
+  assert.equal(before.settle.dealerPoints, 200);
+  assert.deepEqual(after.kept, ['SA', 'SQ', 'SJ']);
+  assert.equal(after.settle.attackerPoints, 25);
+  assert.equal(after.settle.dealerPoints + after.settle.attackerPoints, 200);
+});
+
+test('后续局部策略不能把垫牌重新改回拆守门小牌', () => {
+  class BadLatePick extends SharedAttackStrategy {
+    _chooseThrowSupport(state, seat, ctx, candidates, pick) {
+      return candidates.find((cs) => cs.every((c) => c.suit === ctx.suitDefense.suit)) || pick;
+    }
+  }
+  const st = sweepPosition('counterclockwise', false, false, true), ai = new BadLatePick();
+  const seat = st.turnIdx, ctx = ai._buildCtx(st, seat), before = structuredClone(st);
+  assert.equal(ai._hasSweepRisk(st, ctx), true);
+  assert.ok(ai.decidePlay(st, seat).every((c) => c.suit !== ctx.suitDefense.suit));
+  assert.deepEqual(st, before);
+});
+
+test('本轮可确定跑分时先收分或喂分，不能为守门放弃当前窗口', () => {
+  const ai = new SharedAttackStrategy();
+  for (const feed of [false, true]) {
+    let st = sweepPosition('counterclockwise', false, false, true);
+    // 从同一副完整牌局改为庄家先领S8/SK，所有牌仍恰好出现一次。
+    st.players[0].hand.push(...st.currentTrick.plays[0].cards);
+    st.currentTrick = null; st.turnIdx = 0;
+    st = transition(st, { type: 'PLAY', playerIdx: 0,
+      cards: [st.players[0].hand.find((c) => c.suit === 'S' && c.rank === (feed ? '8' : 'K'))], ts: 0 });
+    if (feed) st = transition(st, { type: 'PLAY', playerIdx: st.turnIdx,
+      cards: [st.players[st.turnIdx].hand.find((c) => c.suit === 'S' && c.rank === 'A')], ts: 0 });
+    const seat = st.turnIdx, ctx = ai._buildCtx(st, seat), candidates = legalMoves(st, seat);
+    assert.ok(ctx.suitDefense && ai._hasSweepRisk(st, ctx));
+    const small = candidates.find((cs) => cs[0].rank === (feed ? '3' : '4'));
+    assert.ok(small);
+    const pick = ai._finalizeAttackerPlay(st, seat, ctx, candidates, small);
+    assert.equal(pick[0].rank, feed ? 'K' : 'A');
+    assert.equal(validatePlay(st, seat, pick).ok, true);
+  }
+});
+
+test('已有实际跑分、庄家已不可能满分时，不强制按守门底线覆盖原选择', () => {
+  const st = sweepPosition('counterclockwise', false, false, true), ai = new SharedAttackStrategy();
+  const paid = st.completedTricks.find((t) => t.points > 0);
+  paid.winnerIdx = st.playOrder[1];
+  const seat = st.turnIdx, ctx = ai._buildCtx(st, seat), candidates = legalMoves(st, seat);
+  assert.equal(ai._hasSweepRisk(st, ctx), false);
+  const small = candidates.find((cs) => cs.every((c) => c.suit === ctx.suitDefense.suit));
+  assert.equal(ai._finalizeAttackerPlay(st, seat, ctx, candidates, small), small);
+});
+
 for (const direction of ['clockwise', 'counterclockwise']) test(`庄家连续AA/KK后，守门家保留小对缓冲并以QQ吃JJ/${direction}`, () => {
   let st = sweepPosition(direction, false, true);
   const ai = new SharedAttackStrategy(), guard = st.playOrder[1];
@@ -158,4 +232,7 @@ test('H5无process环境也保持三门守牌，并和源码完整对局逐手�
   }
   while (st.phase === 'PLAYING') same();
   assert.ok(st.lastSettle.dealerPoints < 200);
+  const guarded = finishSweep(web, 'counterclockwise');
+  assert.deepEqual(guarded.kept, ['SA', 'SQ', 'SJ']);
+  assert.equal(guarded.settle.attackerPoints, 25);
 });

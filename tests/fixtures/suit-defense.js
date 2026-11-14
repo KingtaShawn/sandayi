@@ -7,7 +7,7 @@ const { resolveTrick } = require('../../miniprogram/engine/trick');
 const { createInitialState } = require('../../miniprogram/core/state');
 
 /** 108张完整、合法历史：三家已公开无主，庄家还留六张顶主及副牌A/K/8。 */
-function sweepPosition(direction = 'counterclockwise', crowded = false, pairThreat = false) {
+function sweepPosition(direction = 'counterclockwise', crowded = false, pairThreat = false, hoardPoints = false) {
   const cfg = createConfig({ gameMode: 'san_da_yi', playDirection: direction, throwPenalty: 'penalty_smallest' });
   const state = createInitialState(cfg), pool = buildDeck(cfg);
   const { buildTrumpInfo } = require('../../miniprogram/engine/trump');
@@ -34,6 +34,7 @@ function sweepPosition(direction = 'counterclockwise', crowded = false, pairThre
     ['CA', 'CQ', 'CJ', 'C9', 'C7', 'C4', 'SK', 'DK', 'S3', 'D4'],
     ['DA', 'DQ', 'DJ', 'D9', 'D7', 'D4', 'CK', 'SQ', 'S4', 'C3']
   ];
+  if (hoardPoints) specs[0] = ['SA', 'SQ', 'SJ', 'S9', 'S7', 'S4', 'C10', 'C10', 'D10', 'D10'];
   state.players[0].hand = human;
   attackers.forEach((seat, i) => { state.players[seat].hand = specs[i].map(take); });
   const trumps = pool.filter((c) => domainOf(c, state.trumpInfo) === 'TRUMP')

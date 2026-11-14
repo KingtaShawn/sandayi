@@ -556,11 +556,18 @@ class GreedyStrategy {
       // 小样本推演可能把未知主对当成庄家必毙，重新选回白门；有受约束的跑分窗口时再核对一次。
       pick = this._switchAfterFreeDiscard(state, playerIdx, ctx, candidates, pick) || pick;
     }
+    if (ctx && !ctx.sdy.isDealer && this.difficulty !== 'easy') {
+      pick = this._finalizeAttackerPlay(state, playerIdx, ctx, candidates, pick);
+    }
     // 铁律：二次校验；失败回退首个候选
     const check = validatePlay(view, playerIdx, pick);
     if (!check.ok) {
       pick = candidates[0];
     }
+    return pick;
+  }
+
+  _finalizeAttackerPlay(state, playerIdx, ctx, candidates, pick) {
     return pick;
   }
 
