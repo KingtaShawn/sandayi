@@ -19,6 +19,10 @@
           <text class="result-modal__score-label">合同分</text>
           <text class="result-modal__score-value result-modal__score-value--gold">{{contractScore}}</text>
         </view>
+        <view class="result-modal__score-item">
+          <text class="result-modal__score-label">本局积分{{rewardDouble ? '（双倍奖惩）' : ''}}</text>
+          <text class="result-modal__score-value">{{rewardText}}</text>
+        </view>
         <view class="result-modal__score-item" wx:if="{{bottomGained > 0}}">
           <text class="result-modal__score-label">收底 +{{bottomGained}}</text>
           <text class="result-modal__score-value result-modal__score-value--gold">×1</text>

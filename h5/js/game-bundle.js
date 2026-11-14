@@ -4249,6 +4249,8 @@ const { parseCombo, domainOf, pointsOf, strengthInDomain } = __require('engine/c
 const { pointValue, sortHand } = __require('engine/card');
 const { buildMemory } = __require('ai/memory');
 const { buildPublicKnowledge } = __require('ai/public-knowledge');
+const { buildThrowCooperation, clearanceValue } = __require('ai/throw-cooperation');
+const { buildSuitControl, suitControlCost } = __require('ai/suit-control');
 const { playKey, handUnits, cashPlan, handTempo, publicPlayView, controlValue } = __require('ai/hand-plan');
 const { createRng } = __require('utils/random');
 
@@ -4764,12 +4766,40 @@ class GreedyStrategy {
       const protectedRuff = this._chooseRuffProtection(state, playerIdx, ctx, candidates, pick);
       if (protectedRuff) pick = protectedRuff;
     }
+    if (ctx && !ctx.sdy.isDealer && !isLead && this.difficulty !== 'easy') {
+      pick = this._chooseThrowSupport(state, playerIdx, ctx, candidates, pick);
+    }
     // 铁律：二次校验；失败回退首个候选
     const check = validatePlay(view, playerIdx, pick);
     if (!check.ok) {
       pick = candidates[0];
     }
     return pick;
+  }
+
+  /** 只在不降低夺墩概率、不减少本墩预期得分时清障；被庄家毙住也不追加分牌。 */
+  _chooseThrowSupport(state, playerIdx, ctx, candidates, pick) {
+    if (!ctx.throwCooperation || !ctx.throwCooperation.size) return pick;
+    const hand = state.players[playerIdx].hand, ti = state.trumpInfo;
+    const value = (cards) => clearanceValue(cards, hand, ti, ctx.throwCooperation);
+    const baseValue = value(pick);
+    const baseIds = new Set(pick.map((c) => c.id));
+    // 只替换清障门里的牌，不借清障之名额外花掉其他门的控制牌或大主。
+    const alternatives = candidates.filter((cards) => value(cards) > baseValue
+      && cards.every((c) => ctx.throwCooperation.has(domainOf(c, ti)) || baseIds.has(c.id)));
+    if (!alternatives.length) return pick;
+    const extra = alternatives.slice().sort((a, b) => value(b) - value(a)).slice(0, 4);
+    const estimates = this._teamFollowEstimates(state, playerIdx, ctx, alternatives.concat([pick]), pick, extra);
+    if (!estimates) return pick;
+    const current = estimates.find((e) => playKey(e.cards) === playKey(pick));
+    if (!current) return pick;
+    let best = current;
+    for (const e of estimates) {
+      if (e.teamWin + 1e-9 < current.teamWin || e.signedPoints + 1e-9 < current.signedPoints) continue;
+      if (e.teamWin < 0.95 && pointsOf(e.cards, state.config) > pointsOf(pick, state.config)) continue;
+      if (value(e.cards) > value(best.cards)) best = e;
+    }
+    return best.cards;
   }
 
   _playView(state, playerIdx, ctx) {
@@ -4895,6 +4925,8 @@ class GreedyStrategy {
       }
     }
     return estimate.signedPoints - cost - exposure - critical
+      - (estimate.teamWin === 1 && estimate.signedPoints > 0 ? 0
+        : suitControlCost(estimate.cards, state.players[playerIdx].hand, state.trumpInfo, ctx))
       - this._attackerPairCost(estimate.cards, state.players[playerIdx].hand, state.trumpInfo, ctx);
   }
 
@@ -4982,7 +5014,7 @@ class GreedyStrategy {
   }
 
   /** 单墩接力概率（含后位队友接手率），只使用自己手牌、已出牌和各席位缺门。 */
-  _teamFollowEstimates(state, playerIdx, ctx, candidates, pick) {
+  _teamFollowEstimates(state, playerIdx, ctx, candidates, pick, extraCandidates) {
     const ti = state.trumpInfo;
     const cfg = state.config;
     const trick = state.currentTrick;
@@ -5050,6 +5082,7 @@ class GreedyStrategy {
       if (cards && !evalSet.some((e) => key(e) === key(cards))) evalSet.push(cards);
     };
     add(pick);
+    (extraCandidates || []).forEach(add);
     if (FEAT_THROW_DEFENSE && this._dealerRuffedThrow(state, ctx)) {
       add(candidates.slice().sort((a, b) => this._scoreFollowSdy(state, playerIdx, b, ctx)
         - this._scoreFollowSdy(state, playerIdx, a, ctx))[0]);
@@ -5204,6 +5237,13 @@ class GreedyStrategy {
     }
     if (ctx && !ctx.sdy.isDealer && FEAT_POINT_PLAN) {
       score += this._attackerLeadPlan(state, playerIdx, cards_, combo, ctx);
+      if (!combo.isTrump && ctx.sdy.voids.dealer.has(combo.suit)) {
+        // 风险/送分成本仍由上方计入；短门先清大牌，长门的合法甩牌按消耗张数加权。
+        score += clearanceValue(cards_, hand, ti, ctx.throwCooperation);
+        if (combo.type === 'throw' && hand.filter((c) => domainOf(c, ti) === combo.suit).length >= 4) {
+          score += Math.min(12, (combo.n - 1) * 2);
+        }
+      }
     }
     return score;
   }
@@ -5358,7 +5398,13 @@ class GreedyStrategy {
         ? knowledge.seats[sdy.dealerIdx].domains.get('TRUMP').count.max > 0
           && mates.every((s) => knowledge.seats[s].domains.get('TRUMP').count.max === 0)
         : mates.every((s) => tv[s]));
-    return { mem, di, sdy, knowledge, pointValues: state.config.pointValues };
+    const ctx = { mem, di, sdy, knowledge, pointValues: state.config.pointValues };
+    ctx.throwCooperation = buildThrowCooperation(state, playerIdx, ctx);
+    ctx.suitControl = buildSuitControl(state, playerIdx, ctx);
+    ctx.suitControlSafeFeed = !!(state.currentTrick && state.currentTrick.plays.length
+      && !sdy.isDealer && this._currentWinnerTeam(state, state.currentTrick, ti, state.config) === 1
+      && this._teamLocked(state, playerIdx, ctx, state.currentTrick));
+    return ctx;
   }
 
   /**
@@ -5890,7 +5936,7 @@ class GreedyStrategy {
       });
       return s;
     }
-    let s = -this._attackerPairCost(cards_, hand, ti, ctx);
+    let s = -this._attackerPairCost(cards_, hand, ti, ctx) - suitControlCost(cards_, hand, ti, ctx);
     // 沿用既有 AI_PAIR 下的副牌大单保护，避免把单张价值调整混入本次保对改动。
     if (!FEAT_PAIR && !sweepKeep) return s;
     cards_.forEach((c) => {
@@ -6268,7 +6314,8 @@ class GreedyStrategy {
     const last = ss.tricks[ss.tricks.length - 1];
     if (last && last.winnerIdx === ss.dealerIdx) dPts += ss.bottomPts;
     const margin = dPts - ss.contractScore;
-    return ss.winObjective ? (margin >= 0 ? 100 : -100) + margin * 0.1 : margin;
+    const doubleReward = dPts >= 200 ? 100 : dPts === 0 ? -100 : 0;
+    return (ss.winObjective ? (margin >= 0 ? 100 : -100) + margin * 0.1 : margin) + doubleReward;
   }
 
   _useWinObjective(ctx, h, remainingPts) {
@@ -6809,7 +6856,8 @@ class SharedAttackStrategy extends GreedyStrategy {
 
   _discardKeep(cards, hand, ti, ctx) {
     const keep = super._discardKeep(cards, hand, ti, ctx);
-    return ctx && ctx.suitDefense ? keep - suitDiscardCost(cards, hand, ti, ctx.suitDefense.suit) : keep;
+    const cashing = ctx && ctx.suitControlSafeFeed && pointsOf(cards, { pointValues: ctx.pointValues }) > 0;
+    return ctx && ctx.suitDefense && !cashing ? keep - suitDiscardCost(cards, hand, ti, ctx.suitDefense.suit) : keep;
   }
 
   _constrainPublicGroups(ctx, groups) {
@@ -6892,8 +6940,56 @@ function createAI(difficulty) {
 module.exports = { createAI, STRATEGY_REGISTRY };
 
 });
+__def("ai/suit-control", function (exports, __require, module) {
+/** 有公开持牌证据的副牌门：保留反压牌及承受庄家对子消耗所需的长度。 */
+'use strict';
+const { domainOf, strengthInDomain, pointsOf } = __require('engine/combo');
+
+function buildSuitControl(state, playerIdx, ctx) {
+  const roles = new Map(), k = ctx.knowledge;
+  if (ctx.sdy.isDealer || !k || !k.consistent) return roles;
+  const ti = state.trumpInfo, hand = state.players[playerIdx].hand;
+  const tricks = (state.completedTricks || []).concat(state.currentTrick ? [state.currentTrick] : []);
+  for (const suit of ['S', 'H', 'C', 'D']) {
+    if (ctx.sdy.voids.dealer.has(suit)) continue;
+    const range = k.seats[ctx.sdy.dealerIdx].domains.get(suit);
+    const domain = k.domains.get(suit);
+    if (!range.count.max || !domain.remainingPoints) continue;
+    // 曾经出过不等于现在必有；作为保牌线索，确凿缺门与容量上界始终优先。
+    const shown = tricks.some((t) => t.plays.some((p) => p.playerIdx === ctx.sdy.dealerIdx
+      && p.cards.some((c) => domainOf(c, ti) === suit)));
+    if (!shown && range.count.min === 0) continue;
+    const mine = hand.filter((c) => domainOf(c, ti) === suit);
+    if (!mine.length) continue;
+    const top = Math.max(...mine.map((c) => strengthInDomain(c, ti)));
+    const higher = domain.entries.reduce((n, e) => n + (e.strength > top ? e.n : 0), 0);
+    if (top < 12 || higher > 2) continue;
+    roles.set(suit, { target: range.pairs.max > 0 ? 5 : 3, top });
+  }
+  return roles;
+}
+
+function suitControlCost(cards, hand, ti, ctx) {
+  if (!ctx || !ctx.suitControl || !ctx.suitControl.size || ctx.suitDefense) return 0;
+  // 已锁进我方的分先入袋，不为了虚构的后续机会拒绝跑分。
+  if (ctx.suitControlSafeFeed && pointsOf(cards, { pointValues: ctx.pointValues }) > 0) return 0;
+  let cost = 0;
+  for (const [suit, role] of ctx.suitControl) {
+    const mine = hand.filter((c) => domainOf(c, ti) === suit);
+    const spent = cards.filter((c) => domainOf(c, ti) === suit);
+    for (let n = mine.length; n > mine.length - spent.length; n--) {
+      cost += n > role.target ? 2 : n >= 3 ? 16 : 20;
+    }
+    if (spent.some((c) => strengthInDomain(c, ti) === role.top)) cost += 8;
+  }
+  return cost;
+}
+
+module.exports = { buildSuitControl, suitControlCost };
+
+});
 __def("ai/suit-defense", function (exports, __require, module) {
-/** 三家公开无主后交换守门意向。决策上下文只保留守门花色，不传递队友牌面。 */
+/** 三家公开无主后交换守门意向；清主和副牌展开期间均保留守门长度。 */
 'use strict';
 const { domainOf, strengthInDomain } = __require('engine/combo');
 
@@ -6916,8 +7012,7 @@ function anchorOf(state, attackers) {
 
 function buildSuitDefense(state, playerIdx, ctx) {
   const trick = state.currentTrick, ti = state.trumpInfo;
-  if (!trick || !trick.leadCombo.isTrump
-      || trick.leadPlayerIdx !== ctx.sdy.dealerIdx || state.players[playerIdx].hand.length < 4) return null;
+  if (!trick || state.players[playerIdx].hand.length < 4) return null;
   const attackers = state.playOrder.filter((s) => s !== ctx.sdy.dealerIdx);
   // 庄家最后一张主已经亮在桌上时，未见主=0，仍须保住接下来抵抗副牌的长度。
   if (!attackers.every((s) => ctx.knowledge.seats[s].domains.get('TRUMP').count.max === 0)) return null;
@@ -6931,20 +7026,25 @@ function buildSuitDefense(state, playerIdx, ctx) {
     }
     // 各家用自己的牌产生粗略守门意向。外部只拿到最终角色，不获得张数、大牌或对子。
     return ['S', 'H', 'C', 'D'].map((suit) => {
+      if (ctx.knowledge.seats[ctx.sdy.dealerIdx].domains.get(suit).count.max === 0) return null;
       const cards = original.filter((c) => domainOf(c, ti) === suit);
       if (!cards.length || !hand.some((c) => domainOf(c, ti) === suit)) return null;
       const length = cards.length >= 7 ? 4 : cards.length >= 5 ? 3 : cards.length >= 3 ? 2 : cards.length >= 2 ? 1 : 0;
       const top = Math.max(...cards.map((c) => strengthInDomain(c, ti)));
       const control = top >= 13 ? 2 : top >= 11 ? 1 : 0;
-      return { suit, score: length * 4 + control * 2, long: cards.length >= 3 };
+      const groups = new Map();
+      cards.forEach((c) => groups.set(c.rank, (groups.get(c.rank) || 0) + 1));
+      const pairs = [...groups.values()].reduce((n, count) => n + Math.floor(count / 2), 0);
+      return { suit, score: length * 4 + control * 2 + Math.min(2, pairs) * 3, long: cards.length >= 3 };
     }).filter(Boolean);
   });
-  if (offers.some((list) => !list.length)) return null;
+  // 某家已无可守的活门时不拖垮另外两家的分工。
+  offers.forEach((list) => { if (!list.length) list.push({ suit: null, score: 0, long: false }); });
   let best = null, bestScore = -Infinity;
   const choose = (i, selected, score) => {
     if (i === attackers.length) {
       const coverage = new Set(selected.filter((o) => o.long).map((o) => o.suit)).size;
-      const value = score + coverage * 12;
+      const value = score + coverage * 100;
       if (value > bestScore) { bestScore = value; best = selected.slice(); }
       return;
     }
@@ -6967,6 +7067,50 @@ function suitDiscardCost(cards, hand, ti, suit) {
 }
 
 module.exports = { buildSuitDefense, suitDiscardCost };
+
+});
+__def("ai/throw-cooperation", function (exports, __require, module) {
+/** 庄家公开绝门后，短门闲家清理拦牌，为长门队友准备甩牌。只用本家牌和公开范围。 */
+'use strict';
+
+const { domainOf, strengthInDomain } = __require('engine/combo');
+
+function buildThrowCooperation(state, playerIdx, ctx) {
+  const roles = new Map(), k = ctx.knowledge;
+  if (ctx.sdy.isDealer || !k || !k.consistent) return roles;
+  const hand = state.players[playerIdx].hand, ti = state.trumpInfo;
+  for (const suit of ['S', 'H', 'C', 'D']) {
+    if (!ctx.sdy.voids.dealer.has(suit)) continue;
+    const mine = hand.filter((c) => domainOf(c, ti) === suit);
+    // 只有公开估计显示队友比自己更长时才让路；不把可能持牌上界当成真实长度。
+    if (!mine.length || hand.length <= 4
+        || !mine.some((c) => strengthInDomain(c, ti) >= 11)) continue;
+    const mates = [0, 1, 2, 3].filter((s) => s !== playerIdx && s !== ctx.sdy.dealerIdx)
+      .map((seat) => ({ seat, range: k.seats[seat].domains.get(suit) }))
+      .filter(({ range }) => range.count.expected >= Math.max(3, mine.length + 1))
+      .sort((a, b) => (b.range.count.expected + 2 * b.range.pairs.expected)
+        - (a.range.count.expected + 2 * a.range.pairs.expected) || a.seat - b.seat);
+    if (mates.length) roles.set(suit, mates[0].seat);
+  }
+  return roles;
+}
+
+function clearanceValue(cards, hand, ti, roles) {
+  if (!roles || !roles.size) return 0;
+  const played = new Set(cards.map((c) => c.id));
+  let value = 0;
+  for (const c of cards) {
+    if (!roles.has(domainOf(c, ti))) continue;
+    const strength = strengthInDomain(c, ti);
+    if (strength < 11) continue;
+    value += (strength - 10) * 2;
+    // 拆开大对仍留下拦牌；整对清掉才真正腾出同门对子甩牌的空间。
+    if (hand.some((h) => h.suit === c.suit && h.rank === c.rank && !played.has(h.id))) value -= 10;
+  }
+  return Math.max(0, Math.min(16, value));
+}
+
+module.exports = { buildThrowCooperation, clearanceValue };
 
 });
 __def("services/game-service", function (exports, __require, module) {
@@ -7271,6 +7415,7 @@ function summarize(records) {
     ? Math.min(...passARecords.map((r) => r.roundNo || 0))
     : null;
   const totalTricks = list.reduce((s, r) => s + (r.tricksCount || 0), 0);
+  const lastReward = list.slice().reverse().find((r) => Number.isSafeInteger(r.rewardTotal));
   return {
     totalRounds: total,
     wins,
@@ -7278,7 +7423,9 @@ function summarize(records) {
     winRate: total ? +(wins / total).toFixed(3) : 0,
     passACount: passARecords.length,
     fastestPassA,
-    avgTricks: total ? +(totalTricks / total).toFixed(1) : 0
+    avgTricks: total ? +(totalTricks / total).toFixed(1) : 0,
+    // 累计余额随每局记录保存，历史裁剪到200局时也不会丢掉以前的积分。
+    rewardPoints: lastReward ? lastReward.rewardTotal : 0
   };
 }
 
@@ -7297,7 +7444,17 @@ function appendRecord(records, record, cap) {
   return list;
 }
 
-module.exports = { summarize, appendRecord };
+/** 奖惩积分与牌面200分分开：普通胜负±1，满分获胜/零分落败翻倍。旧局不回填。 */
+function rewardForSettlement(settle, playerIdx = 0) {
+  if (!settle || settle.mode !== 'san_da_yi') return { points: 0, multiplier: 1 };
+  const dealer = settle.dealerIdx === playerIdx;
+  const won = settle.winnerTeam === (dealer ? 'dealer' : 'attackers');
+  const points = Number(dealer ? settle.dealerPoints : settle.attackerPoints);
+  const multiplier = (won && points >= 200) || (!won && points === 0) ? 2 : 1;
+  return { points: (won ? 1 : -1) * multiplier, multiplier };
+}
+
+module.exports = { summarize, appendRecord, rewardForSettlement };
 
 });
 __def("utils/cloud", function (exports, __require, module) {

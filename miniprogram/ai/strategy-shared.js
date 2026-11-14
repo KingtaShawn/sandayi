@@ -107,7 +107,8 @@ class SharedAttackStrategy extends GreedyStrategy {
 
   _discardKeep(cards, hand, ti, ctx) {
     const keep = super._discardKeep(cards, hand, ti, ctx);
-    return ctx && ctx.suitDefense ? keep - suitDiscardCost(cards, hand, ti, ctx.suitDefense.suit) : keep;
+    const cashing = ctx && ctx.suitControlSafeFeed && pointsOf(cards, { pointValues: ctx.pointValues }) > 0;
+    return ctx && ctx.suitDefense && !cashing ? keep - suitDiscardCost(cards, hand, ti, ctx.suitDefense.suit) : keep;
   }
 
   _constrainPublicGroups(ctx, groups) {

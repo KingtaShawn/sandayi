@@ -40,6 +40,7 @@ test('200分结算面板出现即落账并上传，不依赖再点下一局或�
   show();
   assert.equal(records.get('tractor:maxBids'), '1');
   assert.equal(records.get('stats').length, 1);
+  assert.equal(stats.summarize(records.get('stats')).rewardPoints, 2);
   assert.equal(counters.get('flush'), 1);
 });
 
@@ -52,9 +53,38 @@ test('结算重复渲染、出口再记账、恢复已结算局都不能重复�
   resumed.show(); resumed.ctx.accountSettle();
   assert.equal(first.records.get('tractor:maxBids'), '1');
   assert.equal(first.records.get('stats').length, 1);
+  assert.equal(stats.summarize(first.records.get('stats')).rewardPoints, 2);
   const next = presenter(settled({ roundNo: 2 }), first.records);
   next.show();
   assert.equal(first.records.get('tractor:maxBids'), '2');
+  assert.equal(stats.summarize(first.records.get('stats')).rewardPoints, 4);
+});
+
+test('真人闲家被零封只扣一次2积分，恢复结算不会重复惩罚', () => {
+  const state = settled({ dealerIdx: 1 }), first = presenter(state);
+  first.show(); first.show();
+  const resumed = presenter(structuredClone(state), first.records); resumed.show();
+  assert.equal(stats.summarize(first.records.get('stats')).rewardPoints, -2);
+  assert.equal(first.records.get('tractor:maxBids'), undefined);
+});
+
+test('小程序与H5同口径记入双倍奖惩，重复结算和恢复都不重复落账', () => {
+  const miniSource = fs.readFileSync(path.join(__dirname, '../miniprogram/pages/table/table.js'), 'utf8');
+  const method = miniSource.slice(miniSource.indexOf('  accountSettle() {'), miniSource.indexOf('  onNextRound() {'));
+  for (const [dealerIdx, expected] of [[0, 2], [1, -2]]) {
+    const state = settled({ dealerIdx }), records = new Map();
+    const ctx = { summarize: stats.summarize, appendRecord: stats.appendRecord,
+      rewardForSettlement: stats.rewardForSettlement, STORAGE_KEYS: { STATS: 'stats' },
+      storage: { get: k => records.get(k), set: (k, value) => records.set(k, value) },
+      wx: { getStorageSync: k => records.get(k), setStorageSync: (k, value) => records.set(k, value), showToast() {} },
+      Cloud: { notifyLocal() {}, flush() {} } };
+    vm.createContext(ctx); vm.runInContext('var page = ({' + method + '});', ctx);
+    const page = ctx.page; page.service = { getState: () => state }; page.accountedRoundNo = -1;
+    page.accountSettle(); page.accountSettle(); page.accountedRoundNo = -1; page.accountSettle();
+    assert.equal(records.get('stats').length, 1);
+    assert.equal(stats.summarize(records.get('stats')).rewardPoints, expected);
+    assert.equal(Number(records.get('tractor:maxBids') || 0), dealerIdx === 0 ? 1 : 0);
+  }
 });
 
 test('庄家不足200分、或者真人不是庄家时都不增加满分坐庄次数', () => {

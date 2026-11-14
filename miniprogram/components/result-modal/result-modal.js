@@ -4,6 +4,8 @@
 
 'use strict';
 
+const { rewardForSettlement } = require('../../services/stats');
+
 Component({
   properties: {
     visible: { type: Boolean, value: false },
@@ -16,6 +18,8 @@ Component({
     attackerPoints: { type: Number, value: 0 },
     contractScore: { type: Number, value: 0 },
     penaltyTotal: { type: Number, value: 0 },
+    dealerIdx: { type: Number, value: 0 },
+    winnerTeam: { type: String, value: '' },
     /** 升级模式 */
     attackPoints: { type: Number, value: 0 },
     bottomGained: { type: Number, value: 0 },
@@ -25,6 +29,14 @@ Component({
     enemyLevel: { type: String, value: '2' },
     bottomCards: { type: Array, value: [] },
     gameOver: { type: Boolean, value: false }
+  },
+
+  observers: {
+    'mode,dealerIdx,winnerTeam,dealerPoints,attackerPoints': function (mode, dealerIdx, winnerTeam, dealerPoints, attackerPoints) {
+      const reward = rewardForSettlement({ mode, dealerIdx, winnerTeam, dealerPoints, attackerPoints });
+      this.setData({ rewardText: (reward.points > 0 ? '+' : '') + reward.points,
+        rewardDouble: reward.multiplier === 2 });
+    }
   },
 
   methods: {

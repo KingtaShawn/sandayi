@@ -156,6 +156,8 @@
 
   <!-- 结算弹层 -->
   <result-modal
+    dealer-idx="{{settle.dealerIdx}}"
+    winner-team="{{settle.winnerTeam}}"
     visible="{{phase === 'SCORING' || phase === 'GAME_OVER'}}"
     banner="{{settleBanner}}"
     is-win="{{settleIsWin}}"

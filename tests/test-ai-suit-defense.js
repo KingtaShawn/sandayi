@@ -17,6 +17,29 @@ function playTrick(state, ai) {
   return st;
 }
 
+for (const direction of ['clockwise', 'counterclockwise']) test(`庄家连续AA/KK后，守门家保留小对缓冲并以QQ吃JJ/${direction}`, () => {
+  let st = sweepPosition(direction, false, true);
+  const ai = new SharedAttackStrategy(), guard = st.playOrder[1];
+  st = playTrick(st, ai);
+  const kings = st.players[0].hand.filter((c) => c.rank === 'BJ');
+  st = transition(st, { type: 'PLAY', playerIdx: 0, cards: kings, ts: 0 });
+  st = playTrick(st, ai);
+  assert.ok(st.players[guard].hand.filter((c) => c.suit === 'S').length >= 6);
+  for (const rank of ['A', 'K', 'J']) {
+    st = transition(st, { type: 'PLAY', playerIdx: 0,
+      cards: st.players[0].hand.filter((c) => c.suit === 'S' && c.rank === rank), ts: 0 });
+    const ctx = ai._buildCtx(st, st.turnIdx);
+    if (rank !== 'J') assert.ok(ctx.suitDefense, '庄家副牌展开后仍继续分工守门');
+    st = playTrick(st, ai);
+  }
+  assert.equal(st.completedTricks.at(-1).winnerIdx, guard);
+  while (st.phase === 'PLAYING') st = transition(st, { type: 'PLAY', playerIdx: st.turnIdx,
+    cards: ai.decidePlay(st, st.turnIdx), ts: 0 });
+  assert.ok(st.lastSettle.dealerPoints < 200);
+  assert.ok(st.lastSettle.attackerPoints > 0, 'QQ接回领出权后应当实际跑分或收底，而不只是赢白墩');
+  assert.equal(st.lastSettle.dealerPoints + st.lastSettle.attackerPoints, 200);
+});
+
 for (const direction of ['clockwise', 'counterclockwise']) test(`无主后三家各留一门/${direction}：连续清主后保住长门，A领后仍能用A吃K破满分`, () => {
   const ai = new SharedAttackStrategy();
   let st = sweepPosition(direction);

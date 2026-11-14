@@ -29,7 +29,7 @@ const storage = require('../../storage/adapter');
 const { STORAGE_KEYS } = require('../../storage/keys');
 const { createRng } = require('../../utils/random');
 const fmt = require('../../utils/format');
-const { summarize, appendRecord } = require('../../services/stats');
+const { summarize, appendRecord, rewardForSettlement } = require('../../services/stats');
 const { cardKey, SUIT_SYMBOLS } = require('../../engine/card');
 const Cloud = require('../../utils/cloud');
 
@@ -331,6 +331,7 @@ Page({
       this.accountSettle(); // 结算已完成即入账，不再依赖离开结算页。
       const sl = st.lastSettle;
       view.settle = {
+        dealerIdx: sl.dealerIdx,
         attackPoints: sl.attackPoints,
         dealerPoints: sl.dealerPoints,
         attackerPoints: sl.attackerPoints,
@@ -1045,10 +1046,14 @@ Page({
     const sdyWon = wasSDY
       ? (prev.winnerTeam === 'dealer' ? prev.dealerIdx === 0 : prev.dealerIdx !== 0)
       : prev.winnerTeam === 0;
+    const reward = rewardForSettlement(prev);
     storage.set(STORAGE_KEYS.STATS, appendRecord(records, {
       settleId,
       roundNo: st.roundNo,
       myTeamWon: sdyWon,
+      rewardPoints: reward.points,
+      rewardMultiplier: reward.multiplier,
+      rewardTotal: summarize(records).rewardPoints + reward.points,
       passedA: prev.passedA,
       attackPoints: prev.attackPoints,
       tricksCount: st.completedTricks.length

@@ -18,6 +18,7 @@ function summarize(records) {
     ? Math.min(...passARecords.map((r) => r.roundNo || 0))
     : null;
   const totalTricks = list.reduce((s, r) => s + (r.tricksCount || 0), 0);
+  const lastReward = list.slice().reverse().find((r) => Number.isSafeInteger(r.rewardTotal));
   return {
     totalRounds: total,
     wins,
@@ -25,7 +26,9 @@ function summarize(records) {
     winRate: total ? +(wins / total).toFixed(3) : 0,
     passACount: passARecords.length,
     fastestPassA,
-    avgTricks: total ? +(totalTricks / total).toFixed(1) : 0
+    avgTricks: total ? +(totalTricks / total).toFixed(1) : 0,
+    // 累计余额随每局记录保存，历史裁剪到200局时也不会丢掉以前的积分。
+    rewardPoints: lastReward ? lastReward.rewardTotal : 0
   };
 }
 
@@ -44,4 +47,14 @@ function appendRecord(records, record, cap) {
   return list;
 }
 
-module.exports = { summarize, appendRecord };
+/** 奖惩积分与牌面200分分开：普通胜负±1，满分获胜/零分落败翻倍。旧局不回填。 */
+function rewardForSettlement(settle, playerIdx = 0) {
+  if (!settle || settle.mode !== 'san_da_yi') return { points: 0, multiplier: 1 };
+  const dealer = settle.dealerIdx === playerIdx;
+  const won = settle.winnerTeam === (dealer ? 'dealer' : 'attackers');
+  const points = Number(dealer ? settle.dealerPoints : settle.attackerPoints);
+  const multiplier = (won && points >= 200) || (!won && points === 0) ? 2 : 1;
+  return { points: (won ? 1 : -1) * multiplier, multiplier };
+}
+
+module.exports = { summarize, appendRecord, rewardForSettlement };

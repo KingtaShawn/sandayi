@@ -53,7 +53,7 @@ Page({
       myLevel,
       enemyLevel,
       statsText: stats.totalRounds
-        ? `战绩 ${stats.wins}胜 ${stats.losses}负 · 胜率 ${(stats.winRate * 100).toFixed(0)}%`
+        ? `战绩 ${stats.wins}胜 ${stats.losses}负 · 胜率 ${(stats.winRate * 100).toFixed(0)}% · 积分 ${stats.rewardPoints}`
         : ''
     });
     this.updateCloudLine();

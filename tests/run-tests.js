@@ -23,6 +23,7 @@ const TEST_FILES = [
   'test-statemachine.js',
   'test-ai-legal.js',
   'test-ai-team-follow.js',
+  'test-ai-throw-cooperation.js',
   'test-ai-ruff-protect.js',
   'test-ai-trump-discard.js',
   'test-ai-throw-defense.js',
@@ -35,6 +36,7 @@ const TEST_FILES = [
   'test-ai-shared-hands.js',
   'test-ai-trump-tail-feed.js',
   'test-ai-suit-defense.js',
+  'test-ai-suit-control.js',
   'test-ai-free-void-discard.js',
   'test-qa-tractor.js',
   'test-qa-follow-trump.js',
@@ -46,6 +48,7 @@ const TEST_FILES = [
   'test-cloud-api.js',
   'test-cloud-h5.js',
   'test-settle-accounting.js',
+  'test-reward-points.js',
   'test-cloud-mp.js'
 ];
 

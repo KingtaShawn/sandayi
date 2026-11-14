@@ -31,6 +31,8 @@ const { parseCombo, domainOf, pointsOf, strengthInDomain } = require('../engine/
 const { pointValue, sortHand } = require('../engine/card');
 const { buildMemory } = require('./memory');
 const { buildPublicKnowledge } = require('./public-knowledge');
+const { buildThrowCooperation, clearanceValue } = require('./throw-cooperation');
+const { buildSuitControl, suitControlCost } = require('./suit-control');
 const { playKey, handUnits, cashPlan, handTempo, publicPlayView, controlValue } = require('./hand-plan');
 const { createRng } = require('../utils/random');
 
@@ -546,12 +548,40 @@ class GreedyStrategy {
       const protectedRuff = this._chooseRuffProtection(state, playerIdx, ctx, candidates, pick);
       if (protectedRuff) pick = protectedRuff;
     }
+    if (ctx && !ctx.sdy.isDealer && !isLead && this.difficulty !== 'easy') {
+      pick = this._chooseThrowSupport(state, playerIdx, ctx, candidates, pick);
+    }
     // 铁律：二次校验；失败回退首个候选
     const check = validatePlay(view, playerIdx, pick);
     if (!check.ok) {
       pick = candidates[0];
     }
     return pick;
+  }
+
+  /** 只在不降低夺墩概率、不减少本墩预期得分时清障；被庄家毙住也不追加分牌。 */
+  _chooseThrowSupport(state, playerIdx, ctx, candidates, pick) {
+    if (!ctx.throwCooperation || !ctx.throwCooperation.size) return pick;
+    const hand = state.players[playerIdx].hand, ti = state.trumpInfo;
+    const value = (cards) => clearanceValue(cards, hand, ti, ctx.throwCooperation);
+    const baseValue = value(pick);
+    const baseIds = new Set(pick.map((c) => c.id));
+    // 只替换清障门里的牌，不借清障之名额外花掉其他门的控制牌或大主。
+    const alternatives = candidates.filter((cards) => value(cards) > baseValue
+      && cards.every((c) => ctx.throwCooperation.has(domainOf(c, ti)) || baseIds.has(c.id)));
+    if (!alternatives.length) return pick;
+    const extra = alternatives.slice().sort((a, b) => value(b) - value(a)).slice(0, 4);
+    const estimates = this._teamFollowEstimates(state, playerIdx, ctx, alternatives.concat([pick]), pick, extra);
+    if (!estimates) return pick;
+    const current = estimates.find((e) => playKey(e.cards) === playKey(pick));
+    if (!current) return pick;
+    let best = current;
+    for (const e of estimates) {
+      if (e.teamWin + 1e-9 < current.teamWin || e.signedPoints + 1e-9 < current.signedPoints) continue;
+      if (e.teamWin < 0.95 && pointsOf(e.cards, state.config) > pointsOf(pick, state.config)) continue;
+      if (value(e.cards) > value(best.cards)) best = e;
+    }
+    return best.cards;
   }
 
   _playView(state, playerIdx, ctx) {
@@ -677,6 +707,8 @@ class GreedyStrategy {
       }
     }
     return estimate.signedPoints - cost - exposure - critical
+      - (estimate.teamWin === 1 && estimate.signedPoints > 0 ? 0
+        : suitControlCost(estimate.cards, state.players[playerIdx].hand, state.trumpInfo, ctx))
       - this._attackerPairCost(estimate.cards, state.players[playerIdx].hand, state.trumpInfo, ctx);
   }
 
@@ -764,7 +796,7 @@ class GreedyStrategy {
   }
 
   /** 单墩接力概率（含后位队友接手率），只使用自己手牌、已出牌和各席位缺门。 */
-  _teamFollowEstimates(state, playerIdx, ctx, candidates, pick) {
+  _teamFollowEstimates(state, playerIdx, ctx, candidates, pick, extraCandidates) {
     const ti = state.trumpInfo;
     const cfg = state.config;
     const trick = state.currentTrick;
@@ -832,6 +864,7 @@ class GreedyStrategy {
       if (cards && !evalSet.some((e) => key(e) === key(cards))) evalSet.push(cards);
     };
     add(pick);
+    (extraCandidates || []).forEach(add);
     if (FEAT_THROW_DEFENSE && this._dealerRuffedThrow(state, ctx)) {
       add(candidates.slice().sort((a, b) => this._scoreFollowSdy(state, playerIdx, b, ctx)
         - this._scoreFollowSdy(state, playerIdx, a, ctx))[0]);
@@ -986,6 +1019,13 @@ class GreedyStrategy {
     }
     if (ctx && !ctx.sdy.isDealer && FEAT_POINT_PLAN) {
       score += this._attackerLeadPlan(state, playerIdx, cards_, combo, ctx);
+      if (!combo.isTrump && ctx.sdy.voids.dealer.has(combo.suit)) {
+        // 风险/送分成本仍由上方计入；短门先清大牌，长门的合法甩牌按消耗张数加权。
+        score += clearanceValue(cards_, hand, ti, ctx.throwCooperation);
+        if (combo.type === 'throw' && hand.filter((c) => domainOf(c, ti) === combo.suit).length >= 4) {
+          score += Math.min(12, (combo.n - 1) * 2);
+        }
+      }
     }
     return score;
   }
@@ -1140,7 +1180,13 @@ class GreedyStrategy {
         ? knowledge.seats[sdy.dealerIdx].domains.get('TRUMP').count.max > 0
           && mates.every((s) => knowledge.seats[s].domains.get('TRUMP').count.max === 0)
         : mates.every((s) => tv[s]));
-    return { mem, di, sdy, knowledge, pointValues: state.config.pointValues };
+    const ctx = { mem, di, sdy, knowledge, pointValues: state.config.pointValues };
+    ctx.throwCooperation = buildThrowCooperation(state, playerIdx, ctx);
+    ctx.suitControl = buildSuitControl(state, playerIdx, ctx);
+    ctx.suitControlSafeFeed = !!(state.currentTrick && state.currentTrick.plays.length
+      && !sdy.isDealer && this._currentWinnerTeam(state, state.currentTrick, ti, state.config) === 1
+      && this._teamLocked(state, playerIdx, ctx, state.currentTrick));
+    return ctx;
   }
 
   /**
@@ -1672,7 +1718,7 @@ class GreedyStrategy {
       });
       return s;
     }
-    let s = -this._attackerPairCost(cards_, hand, ti, ctx);
+    let s = -this._attackerPairCost(cards_, hand, ti, ctx) - suitControlCost(cards_, hand, ti, ctx);
     // 沿用既有 AI_PAIR 下的副牌大单保护，避免把单张价值调整混入本次保对改动。
     if (!FEAT_PAIR && !sweepKeep) return s;
     cards_.forEach((c) => {
@@ -2050,7 +2096,8 @@ class GreedyStrategy {
     const last = ss.tricks[ss.tricks.length - 1];
     if (last && last.winnerIdx === ss.dealerIdx) dPts += ss.bottomPts;
     const margin = dPts - ss.contractScore;
-    return ss.winObjective ? (margin >= 0 ? 100 : -100) + margin * 0.1 : margin;
+    const doubleReward = dPts >= 200 ? 100 : dPts === 0 ? -100 : 0;
+    return (ss.winObjective ? (margin >= 0 ? 100 : -100) + margin * 0.1 : margin) + doubleReward;
   }
 
   _useWinObjective(ctx, h, remainingPts) {

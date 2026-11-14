@@ -564,6 +564,12 @@
     addItem('合同分', view.settle.contractScore, true);
     if (view.settle.bottomGained > 0) addItem('收底 +' + view.settle.bottomGained, '×1', true);
     if (view.settle.penaltyTotal > 0) addItem('罚分', view.settle.penaltyTotal);
+    if (view.settle.mode === 'san_da_yi') {
+      const reward = stats.rewardForSettlement(view.settle);
+      addItem(reward.multiplier === 2 ? '本局积分（双倍奖惩）' : '本局积分',
+        (reward.points > 0 ? '+' : '') + reward.points, reward.points > 0);
+      addItem('累计积分', stats.summarize(storage.get(STORAGE_KEYS.STATS) || []).rewardPoints);
+    }
     // 底牌翻开
     const bottomWrap = $('result-bottom');
     const bc = st.bottomCards || [];
@@ -691,6 +697,9 @@
     if (st.lastSettle && (st.phase === 'SCORING' || st.phase === 'GAME_OVER')) {
       const sl = st.lastSettle;
       settleView.settle = {
+        mode: sl.mode,
+        dealerIdx: sl.dealerIdx,
+        winnerTeam: sl.winnerTeam,
         dealerPoints: sl.dealerPoints,
         attackerPoints: sl.attackerPoints,
         contractScore: sl.contractScore,
@@ -1204,10 +1213,14 @@
     const sdyWon = wasSDY
       ? (prev.winnerTeam === 'dealer' ? prev.dealerIdx === 0 : prev.dealerIdx !== 0)
       : prev.winnerTeam === 0;
+    const reward = stats.rewardForSettlement(prev);
     storage.set(STORAGE_KEYS.STATS, stats.appendRecord(records, {
       settleId,
       roundNo: st.roundNo,
       myTeamWon: sdyWon,
+      rewardPoints: reward.points,
+      rewardMultiplier: reward.multiplier,
+      rewardTotal: stats.summarize(records).rewardPoints + reward.points,
       passedA: prev.passedA,
       attackPoints: prev.attackPoints,
       tricksCount: st.completedTricks.length
@@ -1272,7 +1285,7 @@
     const records = storage.get(STORAGE_KEYS.STATS) || [];
     const s = stats.summarize(records);
     $('home-stats').textContent = s.totalRounds
-      ? `战绩 ${s.wins}胜 ${s.losses}负 · 胜率 ${(s.winRate * 100).toFixed(0)}%`
+      ? `战绩 ${s.wins}胜 ${s.losses}负 · 胜率 ${(s.winRate * 100).toFixed(0)}% · 积分 ${s.rewardPoints}`
       : '';
     updateCloudLine();
   }

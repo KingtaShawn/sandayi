@@ -7,7 +7,7 @@ const { resolveTrick } = require('../../miniprogram/engine/trick');
 const { createInitialState } = require('../../miniprogram/core/state');
 
 /** 108张完整、合法历史：三家已公开无主，庄家还留六张顶主及副牌A/K/8。 */
-function sweepPosition(direction = 'counterclockwise', crowded = false) {
+function sweepPosition(direction = 'counterclockwise', crowded = false, pairThreat = false) {
   const cfg = createConfig({ gameMode: 'san_da_yi', playDirection: direction, throwPenalty: 'penalty_smallest' });
   const state = createInitialState(cfg), pool = buildDeck(cfg);
   const { buildTrumpInfo } = require('../../miniprogram/engine/trump');
@@ -17,9 +17,15 @@ function sweepPosition(direction = 'counterclockwise', crowded = false) {
     const i = pool.findIndex((c) => c.suit + c.rank === name);
     assert.ok(i >= 0, name); return pool.splice(i, 1)[0];
   };
-  const human = ['JOKERBJ', 'JOKERBJ', 'JOKERRJ', 'JOKERRJ', 'H2', 'H2', 'SA', 'SK', 'S8'].map(take);
+  const human = (pairThreat
+    ? ['JOKERBJ', 'JOKERBJ', 'SA', 'SA', 'SK', 'SK', 'SJ', 'SJ', 'S8']
+    : ['JOKERBJ', 'JOKERBJ', 'JOKERRJ', 'JOKERRJ', 'H2', 'H2', 'SA', 'SK', 'S8']).map(take);
   const led = take('H3');
-  const specs = crowded ? [
+  const specs = pairThreat ? [
+    ['SQ', 'SQ', 'S9', 'S9', 'S4', 'S4', 'S8', 'CA', 'DA', 'C3'],
+    ['CA', 'CQ', 'CJ', 'C9', 'C7', 'C4', 'S6', 'DK', 'S3', 'D4'],
+    ['DA', 'DQ', 'DJ', 'D9', 'D7', 'D4', 'CK', 'S7', 'S5', 'C3']
+  ] : crowded ? [
     ['SA', 'SQ', 'SJ', 'S9', 'S7', 'S4', 'CA', 'C3', 'DA', 'D3'],
     ['SK', 'SQ', 'SJ', 'S9', 'S7', 'CA', 'CQ', 'CJ', 'C4', 'D4'],
     ['S6', 'S6', 'S5', 'S5', 'S4', 'DA', 'DQ', 'DJ', 'D4', 'C5']
@@ -32,7 +38,7 @@ function sweepPosition(direction = 'counterclockwise', crowded = false) {
   attackers.forEach((seat, i) => { state.players[seat].hand = specs[i].map(take); });
   const trumps = pool.filter((c) => domainOf(c, state.trumpInfo) === 'TRUMP')
     .sort((a, b) => strengthInDomain(b, state.trumpInfo) - strengthInDomain(a, state.trumpInfo));
-  assert.equal(trumps.length, 29);
+  assert.equal(trumps.length, pairThreat ? 33 : 29);
   const remove = (c) => pool.splice(pool.findIndex((p) => p.id === c.id), 1)[0];
   const record = (cards) => {
     const plays = order.map((playerIdx, i) => ({ playerIdx, cards: [cards[i]],
@@ -41,7 +47,7 @@ function sweepPosition(direction = 'counterclockwise', crowded = false) {
     resolveTrick(trick, state.trumpInfo, cfg); assert.equal(trick.winnerIdx, 0);
     state.completedTricks.push(trick);
   };
-  for (let round = 0; round < 8; round++) {
+  for (let round = 0; round < (pairThreat ? 9 : 8); round++) {
     const cards = [remove(trumps.shift())];
     for (let i = 0; i < 3; i++) cards.push(trumps.length > 1 || round < 6
       ? remove(trumps.pop()) : pool.splice(pool.findIndex((c) => domainOf(c, state.trumpInfo) !== 'TRUMP'), 1)[0]);
