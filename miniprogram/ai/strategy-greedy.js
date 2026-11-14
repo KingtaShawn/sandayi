@@ -551,6 +551,11 @@ class GreedyStrategy {
     if (ctx && !ctx.sdy.isDealer && !isLead && this.difficulty !== 'easy') {
       pick = this._chooseThrowSupport(state, playerIdx, ctx, candidates, pick);
     }
+    if (ctx && !ctx.sdy.isDealer && isLead && this.difficulty !== 'easy'
+        && this._unproductiveVoidLead(state, playerIdx, parseCombo(pick, state.trumpInfo, state.config), ctx)) {
+      // 小样本推演可能把未知主对当成庄家必毙，重新选回白门；有受约束的跑分窗口时再核对一次。
+      pick = this._switchAfterFreeDiscard(state, playerIdx, ctx, candidates, pick) || pick;
+    }
     // 铁律：二次校验；失败回退首个候选
     const check = validatePlay(view, playerIdx, pick);
     if (!check.ok) {
@@ -593,12 +598,32 @@ class GreedyStrategy {
     return legalMoves(this._playView(state, playerIdx, ctx), playerIdx);
   }
 
+  /** 已无分的绝门不是天然逼主口；庄家还能垫其他分门时，应计入跑分窗口损失。 */
+  _unproductiveVoidLead(state, playerIdx, combo, ctx) {
+    const k = ctx && ctx.knowledge;
+    if (!k || !k.consistent || ctx.sdy.isDealer || combo.isTrump || combo.type === 'eight'
+        || !ctx.sdy.voids.dealer.has(combo.suit) || k.domains.get(combo.suit).remainingPoints !== 0
+        || state.players[playerIdx].hand.length <= Math.max(2, combo.n) || !this._dealerCanRuff(combo, ctx)) return false;
+    const dealer = ctx.sdy.dealerIdx;
+    const window = ['S', 'H', 'C', 'D'].some((s) => s !== combo.suit
+      && k.domains.get(s).remainingPoints > 0 && k.seats[dealer].domains.get(s).count.max > 0);
+    if (!window) return false;
+    const last = (state.completedTricks || []).slice(-6).reverse().find((t) => t.leadCombo
+      && t.leadCombo.suit === combo.suit && t.leadPlayerIdx !== dealer);
+    const spent = last && last.plays.find((p) => p.playerIdx === dealer);
+    // 只有同结构白墩实际消耗主牌才保留逼主收益；对子/带分墩的将吃不能外推到白单。
+    return !(last && last.points === 0 && last.leadCombo.type === combo.type && last.leadCombo.n === combo.n
+      && spent && spent.cards.some((c) => domainOf(c, state.trumpInfo) === 'TRUMP'));
+  }
+
   /** 空单上次没有换到庄家的主，且续出还可能让他垫短分门时，比较换门窗口。 */
   _switchAfterFreeDiscard(state, playerIdx, ctx, candidates, pick) {
     if (!ctx.knowledge || !ctx.knowledge.consistent || state.players[playerIdx].hand.length <= 2) return null;
     const { config: cfg, trumpInfo: ti } = state;
     const lead = parseCombo(pick, ti, cfg);
-    if (!lead || lead.isTrump || lead.type !== 'single' || pointsOf(pick, cfg) > 0
+    if (!lead) return null;
+    const dry = this._unproductiveVoidLead(state, playerIdx, lead, ctx);
+    if (lead.isTrump || (!dry && lead.type !== 'single') || pointsOf(pick, cfg) > 0
         || !ctx.sdy.voids.dealer.has(lead.suit) || !this._dealerCanRuff(lead, ctx)) return null;
     const dealer = ctx.sdy.dealerIdx;
     const recent = (state.completedTricks || []).slice(-6).reverse().filter((t) => t.leadCombo
@@ -612,7 +637,7 @@ class GreedyStrategy {
     };
     const single = recent.find((t) => t.leadCombo.type === 'single');
     // 对子能兑现分不等于白单也能逼主；同门最近已消耗庄家主牌时保留原攻法。
-    if (!single || single.points !== 0 || !offSuits(single).length || !offSuits(recent[0]).length) return null;
+    if (!dry && (!single || single.points !== 0 || !offSuits(single).length || !offSuits(recent[0]).length)) return null;
     const drops = new Map();
     for (const t of recent) for (const suit of new Set(offSuits(t))) drops.set(suit, (drops.get(suit) || 0) + 1);
 
@@ -627,10 +652,13 @@ class GreedyStrategy {
       const range = ctx.knowledge.seats[dealer].domains.get(combo.suit).count;
       const strength = combo.units[0].strength;
       const higher = this._unseenHigher(ctx.di, combo.suit, strength);
+      const shown = (state.completedTricks || []).slice(-6).some((t) => t.plays.some((p) => p.playerIdx === dealer
+        && p.cards.some((c) => domainOf(c, ti) === combo.suit)));
       // 未见分包含底牌。软判断只用无分控制单抢窗口，不把估计的短门当成确定持牌，
       // 更不因为看见庄家垫了某门，就直接把自己的10/K领进去。
       const soft = combo.type === 'single' && pts === 0 && strength >= 11 && higher <= 2
-        && (drops.get(combo.suit) || 0) >= 2 && range.max > 0 && range.expected <= 2.5
+        && ((drops.get(combo.suit) || 0) >= 2 || (dry && (range.min > 0 || shown)))
+        && range.max > 0 && range.expected <= 2.5
         && target.remainingPoints >= sourcePoints + 10;
       if (!safe && !soft) continue;
       const value = (safe ? 30 + pts : strength - 2 * higher) + this._scoreLead(state, playerIdx, cards, ctx) / 4;
@@ -939,6 +967,7 @@ class GreedyStrategy {
 
     // 末墩抠底意识：剩最后一墩（手牌=领出张数）且攻方 → 最大牌
     const isLastTrick = hand.length === cards_.length;
+    const freeDiscard = ctx && this._unproductiveVoidLead(state, playerIdx, combo, ctx);
     if (isLastTrick && !isDealerTeam) {
       score += 50 + this._maxStrength(cards_, ti) / 100;
     }
@@ -953,11 +982,10 @@ class GreedyStrategy {
       // （三家主牌总量碾压一家，庄主耗尽即攻方收割；400 局同种子 A/B
       // 对比「避让缺门 58.8% → 逼烧主 43.0% 庄胜率」，方向相反收益巨大）；
       // 领分仍罚——被将吃等于白送庄家分。
-      // 缺门空甩张数加成已试删（v6.2 负结果：100 局仅 5 次攻方选甩，
-      // 逐张小单逼烧主牌效更优，a-new 无变化）。
+      // 已无分且庄家能垫其他分门时撤去逼主加成；能杀不等于愿意杀。
       if (!combo.isTrump && ctx.sdy.voids && ctx.sdy.voids.dealer.has(combo.suit)
           && (!FEAT_POINT_PLAN || this._dealerCanRuff(combo, ctx))) {
-        score += 6 - pointsOf(cards_, cfg) * 1.5;
+        score += (freeDiscard ? 0 : 6) - pointsOf(cards_, cfg) * 1.5;
       }
       // （v6.3 负结果存档：主牌战已输时「大牌走墩」领出加成 +8 实测
       // a-new 40.0→41.8——大牌对子自带 10~20 分进隐性缺门将吃白送庄家，
@@ -1019,13 +1047,14 @@ class GreedyStrategy {
     }
     if (ctx && !ctx.sdy.isDealer && FEAT_POINT_PLAN) {
       score += this._attackerLeadPlan(state, playerIdx, cards_, combo, ctx);
-      if (!combo.isTrump && ctx.sdy.voids.dealer.has(combo.suit)) {
+      if (!combo.isTrump && ctx.sdy.voids.dealer.has(combo.suit) && !freeDiscard) {
         // 风险/送分成本仍由上方计入；短门先清大牌，长门的合法甩牌按消耗张数加权。
         score += clearanceValue(cards_, hand, ti, ctx.throwCooperation);
         if (combo.type === 'throw' && hand.filter((c) => domainOf(c, ti) === combo.suit).length >= 4) {
           score += Math.min(12, (combo.n - 1) * 2);
         }
       }
+      if (freeDiscard) score -= 8 + Math.min(8, (combo.n - 1) * 4);
     }
     return score;
   }
@@ -2011,6 +2040,8 @@ class GreedyStrategy {
       dealerIdx: ctx.sdy.dealerIdx,
       sanDaYiTeams: state.sanDaYiTeams || null, // rollout 贪心打分需判阵营
       bankDealerPts: ctx.sdy.dealerPts,
+      emptyVoidSuits: new Set(ctx.knowledge && ctx.knowledge.consistent
+        ? [...ctx.sdy.voids.dealer].filter((d) => d !== 'TRUMP' && ctx.knowledge.domains.get(d).remainingPoints === 0) : []),
       bottomPts,
       contractScore: state.contractScore
     };
@@ -2204,6 +2235,7 @@ class GreedyStrategy {
               const s = ss.currentTrick ? this._scoreFollow(ss, seat, c, local) : this._scoreLead(ss, seat, c, local);
               if (s > max) { max = s; move = c; }
             }
+            move = this._freeDiscardInSimulation(ss, seat, legal) || move;
             this._r5Apply(ss, seat, move, parseCombo(move, ti, cfg));
             seat = ss.currentTrick ? this._nextSeat(ss, seat) : ss.tricks[ss.tricks.length - 1].winnerIdx;
           }
@@ -2413,6 +2445,8 @@ class GreedyStrategy {
     const cands = legalMoves(ss, seat);
     if (cands.length === 0) throw { r3Abort: true };
     if (cands.length <= 1) return cands[0];
+    const freeDiscard = this._freeDiscardInSimulation(ss, seat, cands);
+    if (freeDiscard) return freeDiscard;
     const capped = cands.length > R3_ROLLOUT_K ? cands.slice(0, R3_ROLLOUT_K) : cands;
     const isLead = !ss.currentTrick || ss.currentTrick.plays.length === 0;
     let best = capped[0];
@@ -2422,6 +2456,22 @@ class GreedyStrategy {
       if (s > bestS) { bestS = s; best = c; }
     }
     return best;
+  }
+
+  /** 在假设牌局中模拟庄家白墩垫短门，避免推演把“能毙”误算成“必定耗主”。 */
+  _freeDiscardInSimulation(ss, seat, candidates) {
+    const t = ss.currentTrick, ti = ss.trumpInfo;
+    if (seat !== ss.dealerIdx || !t || !ss.emptyVoidSuits || !ss.emptyVoidSuits.has(t.leadCombo.suit)
+        || t.plays.some((p) => pointsOf(p.cards, ss.config) > 0)) return null;
+    const hand = ss.players[seat].hand;
+    if (hand.length <= t.leadCombo.n || hand.some((c) => domainOf(c, ti) === t.leadCombo.suit)) return null;
+    const off = candidates.filter((cs) => pointsOf(cs, ss.config) === 0
+      && cs.every((c) => domainOf(c, ti) !== 'TRUMP'));
+    const lengths = new Map();
+    hand.forEach((c) => { const d = domainOf(c, ti); lengths.set(d, (lengths.get(d) || 0) + 1); });
+    const shed = (cs) => cs.reduce((n, c) => n + 1 / lengths.get(domainOf(c, ti)), 0);
+    off.sort((a, b) => shed(b) - shed(a));
+    return off[0] || null;
   }
 
   /* ------------------------- 辅助 ------------------------- */
