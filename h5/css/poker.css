@@ -1,0 +1,119 @@
+.poker {
+  min-height: 100dvh;
+  background: #edf3ec;
+  color: #193d31;
+  overflow: auto;
+}
+.poker-main {
+  max-width: 1000px;
+  margin: auto;
+  padding: 20px;
+}
+.poker-seats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.poker-seat {
+  padding: 14px;
+  background: white;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.poker-seat small {
+  display: block;
+  margin-top: 8px;
+  font-size: 22px;
+}
+.poker-seat.active {
+  border-color: #c28d34;
+  background: #fff8e6;
+}
+.poker-felt {
+  background: #155843;
+  color: white;
+  border: 8px solid #775638;
+  border-radius: 70px;
+  padding: 25px 10px;
+  text-align: center;
+  margin: 18px 0;
+}
+.poker-cards {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  min-height: 75px;
+  padding: 10px;
+}
+.poker-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 65px;
+  background: #fff;
+  color: #162b25;
+  border-radius: 8px;
+  box-shadow: 0 3px 8px #0003;
+  font-size: 24px;
+  font-weight: 700;
+}
+.poker-card.red {
+  color: #ba343c;
+}
+.poker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+.poker-actions button {
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 8px;
+  background: #205c48;
+  color: #fff;
+  font-size: 16px;
+}
+.poker-actions button:disabled {
+  opacity: 0.35;
+}
+.poker-actions input {
+  width: 95px;
+  padding: 10px;
+  font-size: 16px;
+}
+.poker details {
+  line-height: 1.7;
+}
+.poker ol {
+  font-size: 14px;
+  line-height: 1.8;
+}
+#poker-error {
+  color: #a32c27;
+  text-align: center;
+}
+@media (max-width: 600px) {
+  .poker-seats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .poker-main {
+    padding: 12px;
+  }
+  .poker-card {
+    min-width: 40px;
+    font-size: 21px;
+  }
+  .poker-felt {
+    border-radius: 35px;
+  }
+  .poker .arcade-nav {
+    gap: 8px;
+    font-size: 13px;
+  }
+}
+.poker .arcade-back { color: #205c48; }

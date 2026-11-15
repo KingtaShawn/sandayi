@@ -42,6 +42,8 @@ function main() {
   // 1. 保证 bundle 与引擎同步（build-bundle.js 是副作用脚本，子进程直跑）
   execFileSync(process.execPath, [path.join(__dirname, 'build-bundle.js')], { stdio: 'inherit' });
 
+  fs.copyFileSync(path.join(ROOT, 'miniprogram/poker/engine.js'), path.join(H5, 'js/poker-engine.js'));
+
   // 2. 全新 dist，避免删掉的文件残留
   fs.rmSync(DIST, { recursive: true, force: true });
 

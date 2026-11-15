@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 
 const TEST_FILES = [
+  'test-poker.js',
   'test-match3.js',
   'test-popstar.js',
   'test-match3-mp.js',

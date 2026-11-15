@@ -5,7 +5,8 @@
     "pages/match3/match3",
     "pages/popstar/popstar",
     "pages/table/table",
-    "pages/rules/rules"
+    "pages/rules/rules",
+    "pages/poker/poker"
   ],
   "window": {
     "navigationBarBackgroundColor": "#0b6b3a",

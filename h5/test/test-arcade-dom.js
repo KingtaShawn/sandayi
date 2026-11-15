@@ -13,7 +13,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 test('H5 发布产物：所有本地 CSS/JS/manifest 引用存在且使用同一版本', () => {
   const html = fs.readFileSync(path.join(H5, 'dist/index.html'), 'utf8');
   const refs = Array.from(html.matchAll(/(?:src|href)="((?:css|js)\/[^"?]+|manifest\.webmanifest)\?v=([^"]+)"/g));
-  assert.equal(refs.length, 10);
+  assert.equal(refs.length, 13);
   assert.equal(new Set(refs.map((ref) => ref[2])).size, 1);
   refs.forEach((ref) => assert.ok(fs.existsSync(path.join(H5, 'dist', ref[1])), ref[1]));
   assert.match(html, /id="btn-enter-match3"/);
@@ -38,7 +38,7 @@ function boot(saved, { normalMotion = false, starSaved } = {}) {
   w.setInterval = (fn, ms, ...args) => interval(fn, Math.min(ms, 2), ...args);
   if (starSaved) w.localStorage.setItem('popstar:progress:v1', starSaved);
   if (saved) w.localStorage.setItem(KEY, saved);
-  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'app.js']) w.eval(fs.readFileSync(path.join(H5, 'js', script), 'utf8'));
+  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'poker-engine.js', 'poker.js', 'app.js']) w.eval(fs.readFileSync(path.join(H5, 'js', script), 'utf8'));
   const $ = (id) => w.document.getElementById(id);
   const click = (id) => $(id).click();
   const state = () => JSON.parse(JSON.stringify(w.GameCore.storage.get(KEY).current));
@@ -209,7 +209,7 @@ test('动画：交换保留终点直到渲染新盘面，落距与来源相符�
   } finally { p.close(); }
 });
 
-test('H5 消灭星星：三个入口、提示、完整盘面终局、下一关/重玩、存档隔离', async () => {
+test('H5 消灭星星：四个入口、提示、完整盘面终局、下一关/重玩、存档隔离', async () => {
   const Star = require('../../miniprogram/popstar/engine');
   const p=boot(); let saved;
   const current=()=>JSON.parse(JSON.stringify(p.w.GameCore.storage.get('popstar:progress:v1').current));
@@ -218,7 +218,7 @@ test('H5 消灭星星：三个入口、提示、完整盘面终局、下一关/�
     assert.equal(p.$('star-board').getAttribute('aria-busy'),'false');
   }
   try {
-    assert.equal(p.w.document.querySelectorAll('.game-entry').length,3);
+    assert.equal(p.w.document.querySelectorAll('.game-entry').length,4);
     const fruitSaved=p.w.localStorage.getItem(KEY);
     p.click('btn-enter-popstar');assert.equal(p.$('view-popstar').hidden,false);
     assert.equal(p.$('star-board').children.length,100);
@@ -250,3 +250,5 @@ test('H5 消灭星星：动画中退出保留稳定结果，旧动画不能改�
     assert.equal(p.w.document.querySelectorAll('#star-board .arcade-spark').length,0);
   } finally {p.close();}
 });
+
+test('H5 德州入口、合法行动、暂停恢复与人数重置',async()=>{const p=boot();try{p.click('btn-enter-poker');assert.equal(p.$('view-poker').hidden,false);p.click('poker-next');assert.equal(p.$('poker-seats').children.length,6);assert.equal(p.$('poker-hand').children.length,2);p.click('poker-home');const log=p.$('poker-log').textContent;await sleep(550);assert.equal(p.$('poker-log').textContent,log);p.click('btn-enter-poker');await sleep(1600);assert.equal(p.$('poker-call').disabled,false);p.click('poker-call');assert.equal(p.$('poker-error').textContent,'');p.w.confirm=()=>true;p.$('poker-count').value='2';p.click('poker-reset');assert.equal(p.$('poker-seats').children.length,3);assert.equal(p.$('poker-next').disabled,false);}finally{p.close();}});

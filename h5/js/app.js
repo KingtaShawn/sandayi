@@ -69,15 +69,18 @@
   /* ========== 视图切换 ========== */
   let match3UI = null;
   let popstarUI = null;
+  let pokerUI = null;
   function showView(name) {
     if (match3UI) match3UI.close();
     if (popstarUI) popstarUI.close();
-    ['lobby', 'match3', 'popstar', 'home', 'rules', 'table'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
-    const arcade = name === 'lobby' || name === 'match3' || name === 'popstar';
+    if (pokerUI) pokerUI.close();
+    ['lobby', 'match3', 'popstar', 'poker', 'home', 'rules', 'table'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
+    const arcade = name === 'poker' || name === 'lobby' || name === 'match3' || name === 'popstar';
     document.documentElement.classList.toggle('arcade-mode', arcade);
     if (Sfx.setActive) Sfx.setActive(!arcade);
     if (name === 'match3' && match3UI) match3UI.open();
     if (name === 'popstar' && popstarUI) popstarUI.open();
+    if (name === 'poker' && pokerUI) pokerUI.open();
   }
 
   /* ========== 卡牌 DOM ========== */
@@ -1585,6 +1588,7 @@
   window.__probe = () => G.service && G.service.getState();
 
   match3UI = window.createMatch3UI({ navigate: showView, storage });
+  pokerUI = window.createPokerUI({ navigate: showView });
   popstarUI = window.createPopstarUI({ navigate: showView, storage });
   showView('lobby');
   renderHome();
