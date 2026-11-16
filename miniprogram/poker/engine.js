@@ -1,7 +1,7 @@
 "use strict";
 // Shared no-limit hold'em engine. Chips are integers; bots receive only public information.
 (function (root) {
-  const names = ["你", "暗潮", "猎隼", "冷锋", "夜航", "赤焰", "玄石", "霜刃", "逐浪"];
+  const names = ["你", "小扁豆", "儿颠颠", "三老蛤", "滴滴佬", "马老五", "小腊顺", "霜刃", "逐浪"];
   const labels = [
     "高牌",
     "一对",
@@ -74,7 +74,7 @@
       ({ 11: "J", 12: "Q", 13: "K", 14: "A" }[rank(c)] || rank(c))
     );
   }
-  function create(n = 8) {
+  function create(n = 6) {
     if (!Number.isInteger(n) || n < 2 || n > 8) throw Error("AI 数量需为 2～8");
     return {
       players: names.slice(0, n + 1).map((name) => ({ name, chips: 2000 })),

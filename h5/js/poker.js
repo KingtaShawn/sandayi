@@ -4,14 +4,15 @@ window.createPokerUI = function ({ navigate }) {
     $ = (id) => document.getElementById("poker-" + id);
   let s = E.create(),
     timer = null,
-    visible = false;
+    visible = false,
+    dealing = false;
   let dealtHand = 0;
   let boardSeen = [];
   function cards(node, cs, animateFrom) {
     node.replaceChildren(...cs.map((c, i) => {
       const span = document.createElement("span");
       span.className = "poker-card" + (Math.floor(c / 13) % 2 ? " red" : "") + (i >= animateFrom ? " dealing" : "");
-      span.style.animationDelay = Math.max(0, i - animateFrom) * 120 + "ms";
+      span.style.animationDelay = Math.max(0, i - animateFrom) * 230 + "ms";
       const value = E.card(c);
       span.innerHTML = '<span class="card-corner"></span><span class="card-suit"></span>';
       span.firstChild.textContent = value.slice(1);
@@ -42,6 +43,7 @@ window.createPokerUI = function ({ navigate }) {
         if (i === s.dealer) { const d = document.createElement('b'); d.className = 'dealer-button'; d.textContent = 'D'; node.append(d); }
         if (p.hole && i !== 0 && !p.folded) {
           const h = document.createElement('div'); h.className = 'seat-cards' + (newHand ? ' dealing' : '');
+          if (newHand) h.style.animationDelay = (i - 1) * 120 + 'ms';
           if (s.done && s.board.length === 5) {
             p.hole.forEach(c => {const v=document.createElement('span');v.className = Math.floor(c/13)%2 ? 'red' : '';v.textContent=E.card(c);h.append(v);});
           } else h.innerHTML = '<span class="card-back"></span><span class="card-back"></span>';
@@ -63,13 +65,13 @@ window.createPokerUI = function ({ navigate }) {
         ["翻牌前", "翻牌", "转牌", "河牌"][s.street] +
         " · 底池 " +
         s.players.reduce((n, p) => n + p.total, 0);
-    $("status").textContent = s.done
+    $("status").textContent = dealing ? "荷官正在发牌…" : s.done
       ? s.result || "选择 AI 人数后，点击下一手入座"
       : s.turn === 0
-        ? "轮到你行动"
-        : s.players[s.turn].name + " 正在思考…";
+        ? "轮到你行动" + (s.log.length ? " · " + s.log[s.log.length - 1] : "")
+        : (s.log.length ? s.log[s.log.length - 1] + " · " : "") + s.players[s.turn].name + " 正在思考…";
     const l = E.legal(s),
-      human = !s.done && s.turn === 0;
+      human = !dealing && !s.done && s.turn === 0;
     ["fold", "call"].forEach((k) => ($(k).disabled = !human));
     ["raise", "allin", "amount"].forEach(
       (k) => ($(k).disabled = !human || !l.raise),
@@ -80,7 +82,7 @@ window.createPokerUI = function ({ navigate }) {
     if (document.activeElement !== $("amount"))
       $("amount").value = Math.min(l.min || 20, l.max || 2000);
     $("next").disabled =
-      !s.done ||
+      dealing || !s.done ||
       s.players[0].chips === 0 ||
       s.players.filter((p) => p.chips > 0).length < 2;
     $("log").replaceChildren(
@@ -93,20 +95,26 @@ window.createPokerUI = function ({ navigate }) {
   }
   function loop() {
     clearTimeout(timer);
+    const newHand = s.hand !== dealtHand;
+    const newCards = !newHand && (s.board || []).length > boardSeen.length;
+    if (newHand || newCards) dealing = true;
     render();
-    if (visible && !s.done && s.turn !== 0)
+    if (!visible) return;
+    if (dealing) {
+      timer = setTimeout(() => { dealing = false; loop(); }, newHand ? 2000 : 1900);
+    } else if (!s.done && s.turn !== 0) {
       timer = setTimeout(() => {
         try {
           const move = E.decide(E.observation(s, s.turn));
           E.action(s, move.type, move.target);
           loop();
-        } catch (e) {
-          $("error").textContent = e.message;
-        }
-      }, 450);
+        } catch (e) { $("error").textContent = e.message; }
+      }, 1200);
+    }
   }
   function act(type, target) {
     try {
+      if (dealing) return;
       $("error").textContent = "";
       E.action(s, type, target);
       loop();
@@ -129,7 +137,7 @@ window.createPokerUI = function ({ navigate }) {
   $("reset").onclick = () => {
     if (s.hand && !confirm("重新开桌会清空本桌筹码，继续？")) return;
     s = E.create(Number($("count").value));
-    dealtHand = 0; boardSeen = [];
+    dealtHand = 0; boardSeen = []; dealing = false;
     $("error").textContent = "";
     loop();
   };
@@ -144,7 +152,8 @@ window.createPokerUI = function ({ navigate }) {
       loop();
     },
     close() {
-      visible = false;
+      visible = false,
+    dealing = false;
       clearTimeout(timer);
     },
   };

@@ -3,7 +3,7 @@ const E = require("../../poker/engine");
 Page({
   data: {
     counts: [2, 3, 4, 5, 6, 7, 8],
-    count: 6,
+    count: 4,
     amount: "",
     players: [],
     board: [],
@@ -15,6 +15,7 @@ Page({
   onLoad() {
     this.s = E.create();
     this.visible = true;
+    this.lastHand = 0; this.boardCount = 0; this.dealing = false;
     this.render();
   },
   onShow() {
@@ -54,34 +55,43 @@ Page({
       hole: (s.players[0].hole || []).map(E.card),
       log: (s.log || []).slice(-8),
       done: s.done,
-      human: !s.done && s.turn === 0,
+      human: !this.dealing && !s.done && s.turn === 0,
       canRaise: l.raise,
       call: l.call || 0,
       amount: String(Math.min(l.min || 20, l.max || 2000)),
       pot: s.done ? 0 : s.players.reduce((n, p) => n + p.total, 0),
-      status: s.done
+      status: this.dealing ? "荷官正在发牌…" : s.done
         ? s.result || "点击下一手开始"
         : s.turn === 0
-          ? "轮到你行动"
-          : s.players[s.turn].name + " 正在思考",
+          ? "轮到你行动" + (s.log.length ? " · " + s.log[s.log.length - 1] : "")
+          : (s.log.length ? s.log[s.log.length - 1] + " · " : "") + s.players[s.turn].name + " 正在思考",
       canNext:
-        s.done &&
+        !this.dealing && s.done &&
         s.players[0].chips > 0 &&
         s.players.filter((p) => p.chips > 0).length > 1,
     });
   },
   loop() {
     clearTimeout(this.timer);
+    const newHand = this.s.hand !== this.lastHand;
+    const boardCount = (this.s.board || []).length;
+    if (newHand || boardCount > this.boardCount) this.dealing = true;
+    this.lastHand = this.s.hand; this.boardCount = boardCount;
     this.render();
-    if (this.visible && !this.s.done && this.s.turn !== 0)
+    if (!this.visible) return;
+    if (this.dealing) {
+      this.timer = setTimeout(() => { this.dealing = false; this.loop(); }, 2000);
+    } else if (!this.s.done && this.s.turn !== 0) {
       this.timer = setTimeout(() => {
         const m = E.decide(E.observation(this.s, this.s.turn));
         E.action(this.s, m.type, m.target);
         this.loop();
-      }, 450);
+      }, 1200);
+    }
   },
   act(e) {
     try {
+      if (this.dealing) return;
       let type = e.currentTarget.dataset.type,
         target = Number(this.data.amount);
       if (type === "allin") {
@@ -115,6 +125,7 @@ Page({
       success: (r) => {
         if (r.confirm) {
           this.s = E.create(this.data.count + 2);
+          this.dealing = false; this.lastHand = 0; this.boardCount = 0;
           this.loop();
         }
       },

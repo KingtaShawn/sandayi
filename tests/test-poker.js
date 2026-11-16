@@ -101,4 +101,4 @@ test("heads-up dealer posts small blind and acts first before flop", () => {
   assert.equal(s.players[s.dealer].bet, 10);
 });
 
- test("nine-handed table defaults to eight opponents and accepts full-table play",()=>{const s=E.create();assert.equal(s.players.length,9);E.start(s,()=>0.3);assert.equal(s.players.filter(p=>p.hole.length===2).length,9);assert.equal(new Set(s.players.flatMap(p=>p.hole)).size,18);});
+ test("seven-handed table defaults to named opponents and nine-handed play remains supported",()=>{const defaults=E.create();assert.deepEqual(defaults.players.map(p=>p.name),["你","小扁豆","儿颠颠","三老蛤","滴滴佬","马老五","小腊顺"]);const s=E.create(8);assert.equal(s.players.length,9);E.start(s,()=>0.3);assert.equal(s.players.filter(p=>p.hole.length===2).length,9);assert.equal(new Set(s.players.flatMap(p=>p.hole)).size,18);});
