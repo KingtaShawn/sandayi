@@ -65,24 +65,26 @@ test('小程序：多人底池预设按真实金额递增，选择仍对应正�
 });
 
 test('小程序：荷官发牌与筹码运动使用实测目标座位坐标',()=>{
-  let page;const timers=new Map();let nextTimer=0;
+  let page;const timers=new Map();let nextTimer=0;let lastDelay=0;
   const rect=(left,top,width,height,dataset)=>({left,top,width,height,dataset});
   const seats=Array.from({length:7},(_,i)=>rect(20+i*40,120,30,20));
   const cardGroups=Array.from({length:6},(_,k)=>[0,1].map(cardIndex=>rect(60+k*40+cardIndex*12,145,20,24,{seatIndex:k+1,cardIndex}))).flat();
   const rects=[rect(5,6,400,240),rect(100,10,40,40),rect(150,80,20,20),seats,cardGroups,[],[rect(190,190,20,30),rect(214,190,20,30)]];
   const query={in(){return this},select(){return this},selectAll(){return this},boundingClientRect(){return this},fields(options){assert.equal(options.rect,true);assert.equal(options.size,true);assert.equal(options.dataset,true);return this},exec(fn){fn(rects)}};
   vm.runInNewContext(fs.readFileSync(path.resolve(__dirname,'../miniprogram/pages/poker/poker.js'),'utf8'),{
-    Page:p=>{page=p},require:id=>id.endsWith('/motion')?M:E,setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer},clearTimeout:id=>timers.delete(id),wx:{createSelectorQuery:()=>query}
+    Page:p=>{page=p},require:id=>id.endsWith('/motion')?M:E,setTimeout:(fn,ms)=>{lastDelay=ms;timers.set(++nextTimer,fn);return nextTimer},clearTimeout:id=>timers.delete(id),wx:{createSelectorQuery:()=>query}
   });
   page.setData=(patch,callback)=>{Object.assign(page.data,patch);if(callback)callback()};page.onLoad();page.onShow();page.next();
   assert.equal(page.data.motionReady,true);assert.equal(page.data.motionHand,true);
+  assert.equal(lastDelay,M.dealDuration(14));assert.equal(page.data.human,false);
   assert.match(page.data.handMotion[0],/--deal-x:-80px;--deal-y:-175px/);
   assert.match(page.data.seatMotion[1][0],/--deal-x:50px;--deal-y:-127px;animation-delay:0ms/);
-  assert.match(page.data.seatMotion[1][1],/--deal-x:38px;--deal-y:-127px;animation-delay:770ms/);
+  assert.match(page.data.seatMotion[1][1],/--deal-x:38px;--deal-y:-127px;animation-delay:3220ms/);
   assert.equal(page.data.betFlights.length,2);
   assert.match(page.data.betFlights[0].style,/left:155px;top:84px;--dx:-85px;--dy:40px/);
   rects[5]=[rect(170,70,20,30),rect(195,70,20,30),rect(220,70,20,30)];
   page.s.board=[0,1,2];page.loop();assert.equal(page.data.motionReady,true);assert.equal(page.data.motionBoardFrom,0);
+  assert.equal(lastDelay,M.dealDuration(3));assert.match(page.data.boardMotion[1],/animation-delay:460ms/);assert.match(page.data.boardMotion[2],/animation-delay:920ms/);
   assert.match(page.data.boardMotion[0],/--deal-x:-60px;--deal-y:-55px/);
   page.onUnload();
 });

@@ -376,7 +376,7 @@ test('H5 弹球：移动发球、切换暂停恢复、清关、失败与重开�
   } finally { p.close(); }
 });
 
-test('H5 发牌按庄家左侧顺序逐张发两轮',()=>{const p=boot();try{p.click('btn-enter-poker');p.click('poker-next');const seat1=p.w.document.querySelectorAll('.seat-1 .card-back');const seat2=p.w.document.querySelectorAll('.seat-2 .card-back');const hand=p.$('poker-hand').children;assert.equal(seat1.length,2);assert.equal(seat1[0].style.animationDelay,'0ms');assert.equal(seat2[0].style.animationDelay,'110ms');assert.equal(seat1[1].style.animationDelay,'770ms');assert.equal(hand[0].style.animationDelay,'660ms');assert.equal(hand[1].style.animationDelay,'1430ms');}finally{p.close();}});
+test('H5 发牌按庄家左侧顺序逐张发两轮',()=>{const p=boot();try{p.click('btn-enter-poker');p.click('poker-next');const seat1=p.w.document.querySelectorAll('.seat-1 .card-back');const seat2=p.w.document.querySelectorAll('.seat-2 .card-back');const hand=p.$('poker-hand').children;assert.equal(seat1.length,2);assert.equal(seat1[0].style.animationDelay,'0ms');assert.equal(seat2[0].style.animationDelay,'460ms');assert.equal(seat1[1].style.animationDelay,'3220ms');assert.equal(hand[0].style.animationDelay,'2760ms');assert.equal(hand[1].style.animationDelay,'5980ms');}finally{p.close();}});
 
 test('H5 底池40且无人下注：四档显示20、40、80、120并提交倍池加注',async()=>{
   const p=boot(null,{pokerSetup:s=>{s.hand=1;s.done=false;s.dealer=0;s.turn=0;s.street=1;s.board=[35,36,37];s.current=0;s.minRaise=20;s.pending=[0,1,2,3,4,5,6];s.rights=s.pending.slice();s.players.forEach((q,i)=>Object.assign(q,{hole:[i*2,i*2+1],bet:0,total:[10,10,20,0,0,0,0][i],chips:1900,folded:false,action:''}));}});

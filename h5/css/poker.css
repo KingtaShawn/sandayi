@@ -73,7 +73,8 @@
 .dealer-portrait{background:#173c2d}.dealer-portrait:before,.dealer-portrait:after{display:none}.dealer-portrait img{width:100%;height:100%;object-fit:cover;object-position:center 35%;display:block}
 /* Origins are computed from the actual dealer and destination in table coordinates. */
 .poker:not(.motion-ready) .poker-card.dealing,.poker:not(.motion-ready) .card-back.dealing{animation:none!important}
-.poker.motion-ready .poker-card.dealing,.poker.motion-ready .card-back.dealing{animation:dealer-to-card .72s cubic-bezier(.18,.7,.22,1) both}
+.poker.motion-ready .poker-card.dealing,.poker.motion-ready .card-back.dealing{animation:dealer-to-card .42s cubic-bezier(.18,.7,.22,1) both}
+.is-dealing .dealer-portrait{animation:dealer-deal .46s ease-in-out var(--deal-count,1)}
 @keyframes dealer-to-card{from{opacity:0;transform:translate(var(--deal-x,0px),var(--deal-y,0px)) scale(.42)}to{opacity:1;transform:translate(0,0) scale(1)}}
 @media(prefers-reduced-motion:reduce){.poker *{animation-duration:.01ms!important;animation-delay:0ms!important}}
 /* Lift and mark the exact five cards used by each pot winner. */

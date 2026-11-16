@@ -22,6 +22,9 @@
   }
   function center(rect) { return {x:rect.left+rect.width/2,y:rect.top+rect.height/2}; }
   function between(from, to) { return {x:to.x-from.x,y:to.y-from.y}; }
+  // Each card lands before the next leaves the dealer; allow time for the last landing.
+  const DEAL_STEP = 460;
+  function dealDuration(count) { return Math.max(500, count * DEAL_STEP + 200); }
   // Seat coordinates skip players who were not dealt a hand and deal from left of button.
   function dealOrder(players, dealer) {
     const seats=[]; if(dealer<0) return seats;
@@ -32,6 +35,6 @@
     }
     return seats;
   }
-  const api={toLocal,matrixFromCss,center,between,dealOrder};
+  const api={toLocal,matrixFromCss,center,between,dealOrder,DEAL_STEP,dealDuration};
   if(typeof module!=='undefined') module.exports=api; else root.PokerMotion=api;
 })(typeof window!=='undefined'?window:globalThis);

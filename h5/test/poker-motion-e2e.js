@@ -24,12 +24,31 @@ async function main(){
   let browser;
   try{
     browser=await puppeteer.launch({executablePath,headless:true,args:['--no-sandbox']});
+    {
+      const page=await browser.newPage();await page.setViewport({width:844,height:390,isMobile:true,hasTouch:true});
+      await page.goto('http://127.0.0.1:'+server.address().port);
+      await page.click('#btn-enter-poker');await page.click('#poker-next');
+      const sequence=await page.evaluate(()=>{
+        const first=document.querySelector('.seat-1 .card-back');
+        const second=document.querySelector('.seat-2 .card-back');
+        const cards=[...document.querySelectorAll('.card-back.dealing,#poker-hand .dealing')];
+        const animations=cards.map(e=>e.getAnimations()[0]);
+        animations.forEach(a=>{a.pause();a.currentTime=230});
+        const early=[first,second].map(e=>+getComputedStyle(e).opacity);
+        animations.forEach(a=>a.currentTime=690);
+        const next=[first,second].map(e=>+getComputedStyle(e).opacity);
+        return {delays:cards.map(e=>parseFloat(e.style.animationDelay)).sort((a,b)=>a-b),duration:animations[0].effect.getTiming().duration,early,next,disabled:document.querySelector('#poker-call').disabled};
+      });
+      assert.deepEqual(sequence.delays,Array.from({length:14},(_,i)=>i*460));
+      assert.ok(sequence.duration<460 && sequence.early[0]>0 && sequence.early[1]===0 && sequence.next[0]===1 && sequence.next[1]>0 && sequence.disabled,JSON.stringify(sequence));
+      await page.close();console.log('✓ seven-handed: each card lands before the next is dealt');
+    }
     for(const [width,height] of [[844,390],[390,844]]) for(const mode of ['board','payout']){
       const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
       await page.setViewport({width,height,isMobile:true,hasTouch:true});
       await page.goto('http://127.0.0.1:'+server.address().port);
       await page.addStyleTag({content:'#view-poker .dealing,#view-poker .flying-chips,#view-poker .dealer-portrait{animation-play-state:paused!important;animation-delay:0ms!important}'});
-      await page.evaluate(mode=>{Poker.decide=()=>({type:mode==='board'?'call':'fold'});const old=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>old(fn,ms===2800?500:ms===1200?100:ms,...args)},mode);
+      await page.evaluate(mode=>{Poker.decide=()=>({type:mode==='board'?'call':'fold'});const old=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>old(fn,ms>=2000?500:ms===1200?100:ms,...args)},mode);
       await page.click('#btn-enter-poker');await page.click('#poker-next');await sleep(80);
       const first=await page.evaluate((center,distance)=>{
         const c=eval('('+center+')'),d=eval('('+distance+')'),dealer=c(document.querySelector('.dealer-portrait'));
@@ -67,7 +86,7 @@ async function main(){
         } else request.continue();
       });
       await page.goto('http://127.0.0.1:'+server.address().port);
-      await page.evaluate(()=>{const old=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>old(fn,ms===2800?100:ms===1700?100:ms,...args)});
+      await page.evaluate(()=>{const old=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>old(fn,ms>=2000?100:ms===1700?100:ms,...args)});
       await page.click('#btn-enter-poker');
       await page.waitForFunction(()=>document.querySelector('.winning-hand-badge'),{timeout:6000});
       await sleep(1000);
@@ -87,7 +106,7 @@ async function main(){
       });
       await page.goto('http://127.0.0.1:'+server.address().port);
       await page.addStyleTag({content:'#view-poker .flying-chips{animation-play-state:paused!important;animation-delay:0ms!important}'});
-      await page.evaluate(()=>{const old=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>old(fn,ms===2800?200:ms,...args)});
+      await page.evaluate(()=>{const old=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>old(fn,ms===500?200:ms>=2000?200:ms,...args)});
       await page.click('#btn-enter-poker');
       await page.waitForFunction(()=>document.querySelectorAll('.payout').length===2,{timeout:6000});
       const targets=await page.evaluate((center,distance)=>{const c=eval('('+center+')'),d=eval('('+distance+')');return [...document.querySelectorAll('.payout')].map((e,i)=>{const start=d(c(e),c(document.querySelector('#poker-chips')));const a=e.getAnimations()[0];a.currentTime=a.effect.getComputedTiming().duration*.999;return {start,end:d(c(e),c(document.querySelector('.seat-'+i)))}})},center.toString(),distance.toString());

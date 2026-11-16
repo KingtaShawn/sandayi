@@ -9,6 +9,12 @@ test('viewport points map to table coordinates in both orientations',()=>{
   assert.deepEqual(M.toLocal({x:190,y:150},{left:50,top:30},400,200,rotated),{x:120,y:60});
   assert.deepEqual(M.between({x:100,y:50},{x:260,y:140}),{x:160,y:90});
 });
+test('deal duration covers every card, including nine-handed play',()=>{
+  assert.equal(M.DEAL_STEP,460);
+  assert.ok(M.dealDuration(14) > 13 * M.DEAL_STEP + 420);
+  assert.ok(M.dealDuration(18) > 17 * M.DEAL_STEP + 420);
+  assert.ok(M.dealDuration(3) > 2 * M.DEAL_STEP + 420);
+});
 test('dealing begins left of button, or with the button heads-up, skipping empty seats',()=>{
   const players=Array.from({length:7},()=>({hole:[1,2]}));
   assert.deepEqual(M.dealOrder(players,4),[5,6,0,1,2,3,4]);

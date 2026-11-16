@@ -89,11 +89,11 @@ Page({
         const cardIndex = Number(rect.dataset && rect.dataset.cardIndex);
         if (Number.isInteger(i) && i >= 0 && Number.isInteger(cardIndex) && cardIndex >= 0 && cardIndex < 2) {
           if (!seatMotion[i]) seatMotion[i] = [];
-          seatMotion[i][cardIndex] = styleFor(rect, (Math.max(0, order.indexOf(i)) + cardIndex * order.length) * 110);
+          seatMotion[i][cardIndex] = styleFor(rect, (Math.max(0, order.indexOf(i)) + cardIndex * order.length) * M.DEAL_STEP);
         }
       });
-      const boardMotion = (rects[5] || []).map((rect,i) => styleFor(rect, Math.max(0,i-deal.boardFrom)*230));
-      const handMotion = (rects[6] || []).map((rect,i) => styleFor(rect, (Math.max(0,order.indexOf(0))+i*order.length)*110));
+      const boardMotion = (rects[5] || []).map((rect,i) => styleFor(rect, (deal.hand ? order.length * 2 * M.DEAL_STEP : 0) + Math.max(0,i-deal.boardFrom)*M.DEAL_STEP));
+      const handMotion = (rects[6] || []).map((rect,i) => styleFor(rect, (Math.max(0,order.indexOf(0))+i*order.length)*M.DEAL_STEP));
       this.setData({seatMotion,boardMotion,handMotion,motionPending:false,motionReady:true,motionHand:deal.hand,motionBoardFrom:deal.boardFrom});
     });
   },
@@ -129,7 +129,7 @@ Page({
     const deal = this.pendingDeal; this.pendingDeal = null;
     const sequence = ++this.motionSeq;
     this.setData({
-      motionPending:!!deal, motionReady:false, motionHand:!!(deal && deal.hand), motionBoardFrom:deal ? deal.boardFrom : -1,
+      motionPending:!!deal, motionReady:false, motionHand:!!(deal && deal.hand), motionBoardFrom:deal ? deal.boardFrom : -1, dealCount:deal ? deal.count : 0,
       winningHands, boardHighlights, handHighlights, winCelebrate,
       potStacks: Array.from({length:stackCount},(_,i)=>({id:i,colour:['ivory','red','blue','gold','green','red','gold'][i]})),
       betFlights: this.betFlights,
@@ -186,15 +186,16 @@ Page({
     const newHand = this.s.hand !== this.lastHand;
     const boardCount = (this.s.board || []).length;
     const newBoard = !newHand && boardCount > this.boardCount;
+    const cardCount = (newHand ? M.dealOrder(this.s.players, this.s.dealer).length * 2 : 0) + (newHand ? boardCount : newBoard ? boardCount - this.boardCount : 0);
     if (newHand || newBoard) {
       this.dealing = true;
-      this.pendingDeal = {hand:newHand, boardFrom:newBoard ? this.boardCount : -1};
+      this.pendingDeal = {hand:newHand, boardFrom:newHand && boardCount ? 0 : newBoard ? this.boardCount : -1, count:cardCount};
     }
     this.lastHand = this.s.hand; this.boardCount = boardCount;
     this.render();
     if (!this.visible) return;
     if (this.dealing) {
-      this.timer = setTimeout(() => { this.dealing = false; this.loop(); }, 2800);
+      this.timer = setTimeout(() => { this.dealing = false; this.loop(); }, M.dealDuration(cardCount));
     } else if (this.s.done && this.s.hand && this.s.awards && this.payoutHand !== this.s.hand) {
       const waitForBet = this.recentBet;
       this.settling = true; this.render();
