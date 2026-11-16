@@ -226,3 +226,20 @@ test('底池 40 含对手 20，先跟注后的底池为 60',()=>{
   s.players[0].chips=100;
   assert.deepEqual(['half','pot','double','triple'].map(size=>E.raiseTarget(s,size)),[50,80,100,100]);
 });
+
+test('best five cards retain the correct rank, suits and chosen kickers',()=>{
+  const cards=[c(14,0),c(14,1),c(13,3),c(12,2),c(9,0),c(7,0),c(2,2)];
+  const hand=E.bestFive(cards);assert.equal(hand.name,'一对');assert.equal(hand.score,E.evaluate(cards));
+  assert.deepEqual(hand.cards,[c(14,0),c(14,1),c(13,3),c(12,2),c(9,0)]);
+  const royal=[c(10,0),c(11,0),c(12,0),c(13,0),c(14,0),c(2,1),c(3,2)];
+  assert.equal(E.bestFive(royal).name,'皇家同花顺');assert.equal(E.bestFive(royal).score,E.evaluate(royal));
+  assert.equal(E.bestFive([1,2,3,4]),null);
+});
+test('winning five may be entirely on the board; no invented cards after folds',()=>{
+  const s=E.create(2);E.start(s,()=>0.3);s.done=true;s.winners=[0,1];
+  s.board=[c(10,0),c(11,1),c(12,2),c(13,3),c(14,0)];
+  s.players[0].hole=[c(2,1),c(3,1)];s.players[1].hole=[c(4,1),c(5,1)];
+  const hands=E.winningHands(s);assert.equal(hands.length,2);hands.forEach(h=>{assert.equal(h.name,'顺子');assert.deepEqual(h.cards,s.board)});
+  s.board=[];const early=E.winningHands(s);assert.ok(early.every(h=>h.name==='无人跟注获胜'&&h.cards.length===0));
+  s.done=false;assert.deepEqual(E.winningHands(s),[]);
+});

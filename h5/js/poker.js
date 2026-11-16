@@ -9,16 +9,18 @@ window.createPokerUI = function ({ navigate }) {
     settling = false;
   let dealtHand = 0;
   let boardSeen = [];
+  let celebratedHand = 0;
   let totalsSeen = [];
   let payoutHand = 0;
   let recentBet = false;
   let selectedSizing = 'half';
   let sizingOpen = false;
   const sizingLabels = {half:'½ 底池', pot:'全池', double:'2倍底池', triple:'3倍底池'};
-  function cards(node, cs, animateFrom, dealDelays) {
+  function cards(node, cs, animateFrom, dealDelays, highlighted, celebrate) {
     node.replaceChildren(...cs.map((c, i) => {
       const span = document.createElement("span");
-      span.className = "poker-card" + (Math.floor(c / 13) % 2 ? " red" : "") + (i >= animateFrom ? " dealing" : "");
+      const isWinning = highlighted && highlighted.has(c);
+      span.className = "poker-card" + (Math.floor(c / 13) % 2 ? " red" : "") + (i >= animateFrom ? " dealing" : "") + (isWinning ? " winning-card" + (celebrate ? " win-lift" : "") : "");
       span.style.animationDelay = (dealDelays ? dealDelays[i] : Math.max(0, i - animateFrom) * 230) + "ms";
       const value = E.card(c);
       span.innerHTML = '<span class="card-corner"></span><span class="card-suit"></span>';
@@ -81,6 +83,10 @@ window.createPokerUI = function ({ navigate }) {
     view.classList.remove('motion-ready');
     const newHand = s.hand !== dealtHand;
     const board = s.board || [];
+    const revealHands = s.done && !dealing && payoutHand === s.hand && !!s.awards;
+    const winningHands = revealHands ? E.winningHands(s) : [];
+    const boardHighlights = new Set(winningHands.flatMap(hand => hand.cards).filter(card => board.includes(card)));
+    const celebrate = revealHands && winningHands.length > 0 && celebratedHand !== s.hand;
     const order = M.dealOrder(s.players, s.dealer);
     const dealDelays = (i) => [order.indexOf(i) * 110, (order.indexOf(i) + order.length) * 110];
     const increases = s.players.map((p,i) => Math.max(0, (p.total || 0) - (newHand ? 0 : (totalsSeen[i] || 0))));
@@ -112,12 +118,14 @@ window.createPokerUI = function ({ navigate }) {
         action.textContent = won ? '胜出' : status === 'in-hand' ? label + ' · ' + (p.action || (s.turn === i ? '行动中' : '等待')) : label;
         info.append(heading, chips, action); node.append(avatar, info);
         if (i === s.dealer) { const d = document.createElement('b'); d.className = 'dealer-button'; d.textContent = 'D'; node.append(d); }
-        const reveal = s.done && !dealing && payoutHand === s.hand && !!s.awards;
+        const reveal = revealHands;
+        const winningHand = winningHands.find(hand => hand.seat === i);
+        const winningCards = new Set(winningHand ? winningHand.cards : []);
         if (reveal && p.hole && p.hole.length) node.classList.add('showdown');
         if (p.hole && p.hole.length && i !== 0 && (!p.folded || reveal)) {
           const h = document.createElement('div'); h.className = 'seat-cards' + (reveal ? ' revealed' : '');
           if (reveal) {
-            p.hole.forEach(c => {const v=document.createElement('span');v.className = Math.floor(c/13)%2 ? 'red' : '';v.textContent=E.card(c);h.append(v);});
+            p.hole.forEach(c => {const v=document.createElement('span');v.className = (Math.floor(c/13)%2 ? 'red ' : '') + (winningCards.has(c) ? 'winning-card' + (celebrate ? ' win-lift' : '') : '');v.textContent=E.card(c);h.append(v);});
           } else {
             for (let k = 0; k < 2; k++) {
               const back = document.createElement('span'); back.className = 'card-back' + (newHand ? ' dealing' : '');
@@ -132,8 +140,16 @@ window.createPokerUI = function ({ navigate }) {
         return node;
       }),
     );
-    cards($("board"), board, newBoardFrom);
-    cards($("hand"), s.players[0].hole || [], newHand ? 0 : Infinity, newHand ? dealDelays(0) : null);
+    cards($("board"), board, newBoardFrom, null, boardHighlights, celebrate);
+    const hero = winningHands.find(hand => hand.seat === 0);
+    cards($("hand"), s.players[0].hole || [], newHand ? 0 : Infinity, newHand ? dealDelays(0) : null, new Set(hero ? hero.cards : []), celebrate);
+    $("winning-hands").replaceChildren(...winningHands.map(hand => {
+      const badge = document.createElement('span');
+      badge.className = 'winning-hand-badge' + (celebrate ? ' win-announce' : '');
+      badge.textContent = hand.player + ' · ' + hand.name;
+      return badge;
+    }));
+    if (celebrate) celebratedHand = s.hand;
     placeDealOrigins();
     view.classList.add('motion-ready');
     $("dealer").classList.toggle('is-dealing', newHand || newBoardFrom < board.length);
@@ -272,7 +288,7 @@ window.createPokerUI = function ({ navigate }) {
   $("reset").onclick = () => {
     if (s.hand && !confirm("重新开桌会清空本桌筹码，继续？")) return;
     s = E.create(Number($("count").value));
-    dealtHand = 0; boardSeen = []; totalsSeen = []; payoutHand = 0; dealing = false; settling = false; sizingOpen = false; selectedSizing = 'half'; $("flights").replaceChildren();
+    dealtHand = 0; boardSeen = []; celebratedHand = 0; totalsSeen = []; payoutHand = 0; dealing = false; settling = false; sizingOpen = false; selectedSizing = 'half'; $("flights").replaceChildren();
     $("error").textContent = "";
     loop();
   };

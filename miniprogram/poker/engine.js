@@ -68,6 +68,31 @@
               );
     return best;
   }
+  // Keep the exact cards as well as the rank, for showdown presentation.
+  function bestFive(cards) {
+    if (!cards || cards.length < 5) return null;
+    let best = -1, selected = null;
+    for (let a = 0; a < cards.length - 4; a++)
+      for (let b = a + 1; b < cards.length - 3; b++)
+        for (let c = b + 1; c < cards.length - 2; c++)
+          for (let d = c + 1; d < cards.length - 1; d++)
+            for (let e = d + 1; e < cards.length; e++) {
+              const choice = [cards[a], cards[b], cards[c], cards[d], cards[e]];
+              const score = five(choice);
+              if (score > best) { best = score; selected = choice; }
+            }
+    const category = Math.floor(best / Math.pow(15, 5));
+    const high = Math.floor(best / Math.pow(15, 4)) % 15;
+    return {score: best, cards: selected, name: category === 8 && high === 14 ? '皇家同花顺' : labels[category]};
+  }
+  function winningHands(s) {
+    if (!s.done || !Array.isArray(s.winners)) return [];
+    return s.winners.map(i => {
+      const p = s.players[i];
+      const hand = s.board && s.board.length === 5 && p.hole && p.hole.length === 2 ? bestFive(p.hole.concat(s.board)) : null;
+      return {seat:i, player:p.name, name:hand ? hand.name : '无人跟注获胜', cards:hand ? hand.cards : []};
+    });
+  }
   function card(c) {
     return (
       ["♠", "♥", "♣", "♦"][Math.floor(c / 13)] +
@@ -459,6 +484,8 @@
     action,
     legal,
     evaluate,
+    bestFive,
+    winningHands,
     card,
     observation,
     seatStatus,

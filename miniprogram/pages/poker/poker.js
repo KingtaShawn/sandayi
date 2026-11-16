@@ -23,7 +23,7 @@ Page({
     this.visible = true;
     this.lastHand = 0; this.boardCount = 0; this.dealing = false;
     this.settling = false; this.payoutHand = 0; this.totalsHand = 0; this.totalsSeen = []; this.payoutFlights = []; this.betFlights = [];
-    this.geometry = null; this.motionSeq = 0; this.pendingDeal = null;
+    this.geometry = null; this.motionSeq = 0; this.pendingDeal = null; this.celebratedHand = 0;
     this.render();
   },
   onShow() {
@@ -106,6 +106,13 @@ Page({
   render() {
     const s = this.s,
       l = E.legal(s);
+    const revealHands = s.done && !this.dealing && this.payoutHand === s.hand && !!s.awards;
+    const winningHands = revealHands ? E.winningHands(s) : [];
+    const boardHighlights = (s.board || []).map(card => winningHands.some(hand => hand.cards.includes(card)));
+    const hero = winningHands.find(hand => hand.seat === 0);
+    const handHighlights = (s.players[0].hole || []).map(card => !!hero && hero.cards.includes(card));
+    const winCelebrate = revealHands && winningHands.length > 0 && this.celebratedHand !== s.hand;
+    if (winCelebrate) this.celebratedHand = s.hand;
     const pot = s.players.reduce((n, p) => n + (p.total || 0), 0);
     const displayPot = s.done && this.payoutHand === s.hand && !this.settling ? 0 : pot;
     const stackCount = displayPot <= 0 ? 0 : Math.min(7, Math.max(1, Math.ceil(Math.log2(displayPot / 20 + 1))));
@@ -123,6 +130,7 @@ Page({
     const sequence = ++this.motionSeq;
     this.setData({
       motionPending:!!deal, motionReady:false, motionHand:!!(deal && deal.hand), motionBoardFrom:deal ? deal.boardFrom : -1,
+      winningHands, boardHighlights, handHighlights, winCelebrate,
       potStacks: Array.from({length:stackCount},(_,i)=>({id:i,colour:['ivory','red','blue','gold','green','red','gold'][i]})),
       betFlights: this.betFlights,
       payoutFlights: this.payoutFlights,
@@ -133,6 +141,7 @@ Page({
         award: s.done && !this.dealing && this.payoutHand === s.hand && s.awards ? s.awards[i] || 0 : 0,
         winner: !!(s.done && !this.dealing && this.payoutHand === s.hand && s.winners && s.winners.includes(i)),
         position: p.position || "",
+        revealedCards: (p.hole || []).map(card => ({id:card, text:E.card(card), red:Math.floor(card / 13) % 2 === 1, highlight:winningHands.some(hand => hand.seat === i && hand.cards.includes(card))})),
         dealer: s.dealer === i,
         me: i === 0,
         style: 'left:' + (50 - 47 * Math.sin(2 * Math.PI * i / s.players.length)) + '%;top:' + (50 + 47 * Math.cos(2 * Math.PI * i / s.players.length)) + '%;',
@@ -253,7 +262,7 @@ Page({
         if (r.confirm) {
           this.s = E.create(this.data.count + 2);
           this.dealing = false; this.lastHand = 0; this.boardCount = 0;
-          this.settling = false; this.payoutHand = 0; this.totalsHand = 0; this.totalsSeen = []; this.payoutFlights = []; this.betFlights = []; this.pendingDeal = null;
+          this.settling = false; this.payoutHand = 0; this.totalsHand = 0; this.totalsSeen = []; this.payoutFlights = []; this.betFlights = []; this.pendingDeal = null; this.celebratedHand = 0;
           this.geometry = null; this.motionSeq++;
           this.loop();
         }

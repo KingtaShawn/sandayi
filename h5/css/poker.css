@@ -76,3 +76,12 @@
 .poker.motion-ready .poker-card.dealing,.poker.motion-ready .card-back.dealing{animation:dealer-to-card .72s cubic-bezier(.18,.7,.22,1) both}
 @keyframes dealer-to-card{from{opacity:0;transform:translate(var(--deal-x,0px),var(--deal-y,0px)) scale(.42)}to{opacity:1;transform:translate(0,0) scale(1)}}
 @media(prefers-reduced-motion:reduce){.poker *{animation-duration:.01ms!important;animation-delay:0ms!important}}
+/* Lift and mark the exact five cards used by each pot winner. */
+.poker-winning-hands{position:absolute;bottom:calc(100% + 1cqh);left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:.7cqh;width:100%;pointer-events:none}
+.winning-hand-badge{color:#fff4db;background:linear-gradient(135deg,#a5284d,#6e1b37);border:1px solid #ffc881;border-radius:2cqh;padding:.6cqh 1.2cqh;font-size:clamp(9px,2.6cqh,15px);line-height:1.1;font-weight:800;white-space:nowrap;box-shadow:0 3px 10px #0008}
+.winning-hand-badge.win-announce{animation:winning-announce .85s cubic-bezier(.2,.9,.25,1.15) both}
+.poker-card.winning-card,.seat-cards.revealed span.winning-card{outline:2px solid #ffcf67;outline-offset:1px;box-shadow:0 0 0 2px #a24e22,0 0 12px #ffe484d9;position:relative;z-index:2}
+.poker-card.winning-card.win-lift,.seat-cards.revealed span.winning-card.win-lift{animation:winning-lift .9s cubic-bezier(.22,.8,.28,1) both}
+@keyframes winning-announce{from{opacity:0;transform:translateY(1.8cqh) scale(.8)}to{opacity:1;transform:translateY(0) scale(1)}}
+.poker-card.winning-card,.seat-cards.revealed span.winning-card{transform:translateY(-.7cqh)}
+@keyframes winning-lift{0%{transform:translateY(0) scale(1)}45%{transform:translateY(-2cqh) scale(1.16)}100%{transform:translateY(-.7cqh) scale(1)}}

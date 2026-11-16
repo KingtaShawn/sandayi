@@ -124,3 +124,12 @@ test('小程序：底池40时两倍底池选择加注到80',()=>{
   page.setData=patch=>Object.assign(page.data,patch);page.onLoad();page.s=E.create(2);E.start(page.s,()=>0.3);page.s.street=1;page.s.board=[35,36,37];page.s.current=0;page.s.minRaise=20;page.s.turn=0;page.s.rights=[0];page.s.players.forEach((p,i)=>{p.bet=0;p.total=[10,10,20][i];p.chips=1900});page.dealing=false;page.render();
   assert.deepEqual(Array.from(page.data.sizingOptions,o=>o.target),[20,40,80,120]);page.openSizing();page.selectSizing({currentTarget:{dataset:{index:2}}});assert.equal(page.data.raiseTo,80);page.act({currentTarget:{dataset:{type:'raise'}}});assert.equal(page.s.players[0].bet,80);page.onUnload();
 });
+
+test('小程序：摊牌显示牌型并标记恰好五张组成牌',()=>{
+  let page;const timers=new Map();let nextTimer=0;
+  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname,'../miniprogram/pages/poker/poker.js'),'utf8'),{Page:p=>{page=p},require:id=>id.endsWith('/motion')?M:E,setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer},clearTimeout:id=>timers.delete(id),wx:{}});
+  page.setData=patch=>Object.assign(page.data,patch);page.onLoad();
+  const c=(r,s=0)=>s*13+r-2;page.s.hand=1;page.s.dealer=0;page.s.board=[c(13,3),c(12,2),c(9,0),c(7,0),c(2,2)];page.s.players[0].hole=[c(14,0),c(14,1)];page.s.players[1].hole=[c(3,1),c(4,1)];page.s.players[0].total=60;page.s.players[1].total=60;page.s.awards=[120,0,0,0,0,0,0];page.s.winners=[0];
+  page.lastHand=1;page.boardCount=5;page.totalsHand=1;page.totalsSeen=[60,60,0,0,0,0,0];page.loop();
+  assert.equal(page.data.winningHands[0].name,'一对');assert.equal(Array.from(page.data.handHighlights).filter(Boolean).length,2);assert.equal(Array.from(page.data.boardHighlights).filter(Boolean).length,3);assert.equal(page.data.players[1].revealedCards.filter(c=>c.highlight).length,0);page.onUnload();
+});

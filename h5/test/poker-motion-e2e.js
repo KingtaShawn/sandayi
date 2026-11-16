@@ -55,6 +55,26 @@ async function main(){
       assert.deepEqual(errors,[]);await page.close();console.log(`✓ ${width}×${height} ${mode}: motion starts and ends at the correct elements`);
     }
     // A split pot must travel from the pot to each actual recipient, not a fixed seat.
+    // Showdown: the announcement and highlighted cards must survive both orientations.
+    for(const [width,height] of [[844,390],[390,844],[568,320]]) {
+      const page=await browser.newPage();await page.setViewport({width,height,isMobile:true,hasTouch:true});
+      await page.setRequestInterception(true);
+      page.on('request',request=>{
+        if(new URL(request.url()).pathname.endsWith('/js/poker-engine.js')) {
+          const source=fs.readFileSync(path.join(root,'js/poker-engine.js'),'utf8');
+          const fixture=`;const originalCreate=window.Poker.create;window.Poker.create=(...args)=>{const s=originalCreate(...args);s.hand=1;s.dealer=0;s.done=true;s.board=[37,49,7,5,26];s.players[0].hole=[12,25];s.players[1].hole=[14,15];s.awards=[200,0,0,0,0,0,0];s.winners=[0];s.result='你获胜';return s;};`;
+          request.respond({status:200,contentType:'text/javascript',body:source+fixture});
+        } else request.continue();
+      });
+      await page.goto('http://127.0.0.1:'+server.address().port);
+      await page.evaluate(()=>{const old=window.setTimeout.bind(window);window.setTimeout=(fn,ms,...args)=>old(fn,ms===2800?100:ms===1700?100:ms,...args)});
+      await page.click('#btn-enter-poker');
+      await page.waitForFunction(()=>document.querySelector('.winning-hand-badge'),{timeout:6000});
+      await sleep(1000);
+      const result=await page.evaluate(()=>({badge:document.querySelector('.winning-hand-badge').textContent,board:document.querySelectorAll('#poker-board .winning-card').length,hand:document.querySelectorAll('#poker-hand .winning-card').length,other:document.querySelectorAll('.seat-cards .winning-card').length}));
+      assert.deepEqual(result,{badge:'你 · 一对',board:3,hand:2,other:0});
+      await page.close();console.log(`✓ ${width}×${height} showdown: winning hand and exact five cards`);
+    }
     for(const [width,height] of [[844,390],[390,844]]) {
       const page=await browser.newPage();await page.setViewport({width,height,isMobile:true,hasTouch:true});
       await page.setRequestInterception(true);

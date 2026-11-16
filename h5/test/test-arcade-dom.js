@@ -382,3 +382,13 @@ test('H5 底池40且无人下注：四档显示20、40、80、120并提交倍池
   const p=boot(null,{pokerSetup:s=>{s.hand=1;s.done=false;s.dealer=0;s.turn=0;s.street=1;s.board=[35,36,37];s.current=0;s.minRaise=20;s.pending=[0,1,2,3,4,5,6];s.rights=s.pending.slice();s.players.forEach((q,i)=>Object.assign(q,{hole:[i*2,i*2+1],bet:0,total:[10,10,20,0,0,0,0][i],chips:1900,folded:false,action:''}));}});
   try{p.click('btn-enter-poker');await sleep(30);p.click('poker-amount');const opts=Array.from(p.w.document.querySelectorAll('.poker-size-options button'));assert.deepEqual(opts.map(e=>e.dataset.preset),['half','pot','double','triple']);assert.deepEqual(opts.map(e=>Number(e.querySelector('small').textContent.replace(/\D/g,''))),[20,40,80,120]);p.click('poker-size-double');assert.equal(p.$('poker-raise').textContent,'加注至 80');p.click('poker-raise');assert.match(p.$('poker-log').textContent,/你：加注至 80/);}finally{p.close();}
 });
+
+test('H5 摊牌展示牌型并只高亮赢家组合的五张牌',async()=>{
+  const c=(rank,suit=0)=>suit*13+rank-2;
+  const p=boot(null,{pokerSetup:s=>{s.hand=1;s.dealer=0;s.board=[c(13,3),c(12,2),c(9,0),c(7,0),c(2,2)];s.players[0].hole=[c(14,0),c(14,1)];s.players[1].hole=[c(3,1),c(4,1)];s.players[0].total=60;s.players[1].total=60;s.awards=[120,0,0,0,0,0,0];s.winners=[0];s.result='你 收获 120';}});
+  try{p.click('btn-enter-poker');await sleep(80);assert.equal(p.$('poker-winning-hands').textContent,'你 · 一对');assert.equal(p.$('poker-hand').querySelectorAll('.winning-card').length,2);assert.equal(p.$('poker-board').querySelectorAll('.winning-card').length,3);assert.equal(p.w.document.querySelectorAll('.seat-1 .winning-card').length,0);assert.equal(p.w.document.querySelectorAll('.winning-card').length,5);}finally{p.close();}
+});
+test('H5 对手全部弃牌时说明获胜原因，不高亮虚构牌型',async()=>{
+  const p=boot(null,{pokerSetup:s=>{s.hand=1;s.dealer=0;s.board=[];s.players[0].hole=[1,2];s.players[0].total=10;s.players[1].total=20;s.awards=[30,0,0,0,0,0,0];s.winners=[0];}});
+  try{p.click('btn-enter-poker');await sleep(80);assert.equal(p.$('poker-winning-hands').textContent,'你 · 无人跟注获胜');assert.equal(p.w.document.querySelectorAll('.winning-card').length,0);}finally{p.close();}
+});
