@@ -21,6 +21,11 @@ const { createRng } = require('../miniprogram/utils/random');
 const ROOT = path.resolve(__dirname, '..');
 const PROFILES = ['normal', 'pressure', 'cash', 'low-bottom'];
 const VARIANTS = {
+  previous: {},
+  candidate: {},
+  rollout: { AI_ENDGAME_DEPTH: '2', AI_ROLLOUT_FULL: '1' },
+  endgame2: { AI_ENDGAME_DEPTH: '2', AI_ROLLOUT_FULL: '0' },
+  endgame3: { AI_ENDGAME_DEPTH: '3' },
   points: { AI_WIN_OBJECTIVE: 'off', AI_WIN_SAMPLE_SCALE: '1', AI_JOKER_RESERVE: '0' },
   endgame: { AI_WIN_OBJECTIVE: 'endgame', AI_WIN_SAMPLE_SCALE: '1', AI_JOKER_RESERVE: '0' },
   all: { AI_WIN_OBJECTIVE: 'all', AI_WIN_SAMPLE_SCALE: '1', AI_JOKER_RESERVE: '0' },

@@ -38,6 +38,7 @@ const TEST_FILES = [
   'test-ai-point-plan.js',
   'test-ai-long-plan.js',
   'test-ai-arena.js',
+  'test-ai-endgame-search.js',
   'test-ai-joker-reserve.js',
   'test-ai-shared-hands.js',
   'test-ai-trump-tail-feed.js',

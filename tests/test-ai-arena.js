@@ -98,7 +98,9 @@ function replayPosition(f) {
 
 for (const fixture of require('./fixtures/ai-contract-replays.json')) {
   test(`训练失败回放seed=${fixture.scenario.seed}：同一完整残局由失合同改为守住合同`, () => {
-    const st = replayPosition(fixture), points = loadStrategy(FILE, { AI_WIN_OBJECTIVE: 'off' }), next = loadStrategy(FILE);
+    const st = replayPosition(fixture), points = loadStrategy(FILE, {
+      AI_WIN_OBJECTIVE: 'off', AI_ENDGAME_DEPTH: '2', AI_ROLLOUT_FULL: '0'
+    }), next = loadStrategy(FILE);
     assert.deepEqual(points.decidePlay(st, fixture.seat).map((c) => c.id), fixture.previous);
     assert.deepEqual(next.decidePlay(st, fixture.seat).map((c) => c.id), fixture.expected);
     const dealer = dealerProfile(FILE, fixture.scenario.profile);

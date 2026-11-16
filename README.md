@@ -57,6 +57,8 @@ npm run test:h5:layout              # 弹球/数独一屏布局，13 种尺寸�
 AI 压测：`node --test tests/test-ai-legal.js`（100 局完整模拟，零非法出牌断言）。
 AI 对弈基准：`node tools/ai-bench.js 400`（同种子 A/B 双向判定，见 `docs/AI-LONG-TERM-UPGRADE.md`）。
 
+三打一普通/困难 AI 的闲家推演现在会评完全部合法代表候选，避免漏掉唯一可压庄的后排候选；剩3～4张时，以策略模拟和完整残局搜索共同复核喂分、接手和扣底路线。保持既有信息权限和计算预算。独立评测平均得分略增，尚未证明整体胜率提升；复现方法及结果见 [残局搜索验证记录](docs/AI-SEARCH-VALIDATION-2026-11-16.json) 和 [AI 优化台账](docs/AI-LONG-TERM-UPGRADE.md)。
+
 ## 发布 H5（EdgeOne Pages）
 
 ```bash
