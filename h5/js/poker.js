@@ -37,9 +37,11 @@ window.createPokerUI = function ({ navigate }) {
         avatar.textContent = i === 0 ? '你' : ['','♠','♦','♣','♥','♠','♦','♣','♥'][i];
         const info = document.createElement('div'); info.className = 'seat-info';
         const name = document.createElement('strong'); name.textContent = p.name;
+        const heading = document.createElement('div'); heading.className = 'seat-heading'; heading.append(name);
+        if (p.position) { const position = document.createElement('span'); position.className = 'seat-position'; position.textContent = p.position; heading.append(position); }
         const chips = document.createElement('span'); chips.textContent = '◈ ' + p.chips;
         const action = document.createElement('small'); action.textContent = p.folded ? '弃牌' : p.action || (s.turn === i ? '思考中' : '等待');
-        info.append(name, chips, action); node.append(avatar, info);
+        info.append(heading, chips, action); node.append(avatar, info);
         if (i === s.dealer) { const d = document.createElement('b'); d.className = 'dealer-button'; d.textContent = 'D'; node.append(d); }
         if (p.hole && i !== 0 && !p.folded) {
           const h = document.createElement('div'); h.className = 'seat-cards' + (newHand ? ' dealing' : '');

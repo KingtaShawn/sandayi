@@ -36,6 +36,7 @@ Page({
     this.setData({
       players: s.players.map((p, i) => ({
         name: p.name,
+        position: p.position || "",
         dealer: s.dealer === i,
         me: i === 0,
         style: 'left:' + (50 - 47 * Math.sin(2 * Math.PI * i / s.players.length)) + '%;top:' + (50 + 47 * Math.cos(2 * Math.PI * i / s.players.length)) + '%;',

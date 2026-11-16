@@ -120,6 +120,7 @@
         total: 0,
         folded: p.chips === 0,
         action: "",
+        position: "",
       }),
     );
     s.dealer = next(s, s.dealer, (p) => p.chips > 0);
@@ -131,6 +132,23 @@
           ? s.dealer
           : next(s, s.dealer, (p) => !p.folded),
       bb = next(s, sb, (p) => !p.folded);
+    // Position belongs to a hand, so retain it after folding or going all-in.
+    s.players[s.dealer].position = sb === s.dealer ? "庄家/小盲" : "庄家";
+    if (sb !== s.dealer) s.players[sb].position = "小盲";
+    s.players[bb].position = "大盲";
+    const earlyPositions = {
+      2: [], 3: [], 4: ["枪口"], 5: ["枪口", "关煞"],
+      6: ["枪口", "劫位", "关煞"],
+      7: ["枪口", "中位", "劫位", "关煞"],
+      8: ["枪口", "枪口+1", "中位", "劫位", "关煞"],
+      9: ["枪口", "枪口+1", "枪口+2", "中位", "劫位", "关煞"],
+    };
+    let seat = bb;
+    const count = s.players.filter(p => !p.folded).length;
+    earlyPositions[count].forEach(position => {
+      seat = next(s, seat, p => !p.folded);
+      s.players[seat].position = position;
+    });
     pay(s, sb, 10);
     pay(s, bb, 20);
     s.pending = s.players

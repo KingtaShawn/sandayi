@@ -102,3 +102,22 @@ test("heads-up dealer posts small blind and acts first before flop", () => {
 });
 
  test("seven-handed table defaults to named opponents and nine-handed play remains supported",()=>{const defaults=E.create();assert.deepEqual(defaults.players.map(p=>p.name),["你","小扁豆","儿颠颠","三老蛤","滴滴佬","马老五","小腊顺"]);const s=E.create(8);assert.equal(s.players.length,9);E.start(s,()=>0.3);assert.equal(s.players.filter(p=>p.hole.length===2).length,9);assert.equal(new Set(s.players.flatMap(p=>p.hole)).size,18);});
+
+test('positions follow the button, retain folded players and skip eliminated seats', () => {
+  const s = E.create(); E.start(s, () => 0.3);
+  assert.deepEqual(s.players.map(p => p.position), ['庄家','小盲','大盲','枪口','中位','劫位','关煞']);
+  const foldedSeat=s.turn; E.action(s,'fold'); assert.equal(s.players[foldedSeat].position,'枪口');
+  while(!s.done) E.action(s, 'fold');
+  s.players[1].chips=0; s.players[4].chips=0;
+  E.start(s, () => 0.3);
+  assert.deepEqual(s.players.map(p => p.position), ['关煞','','庄家','小盲','','大盲','枪口']);
+});
+test('heads-up dealer is also the small blind', () => {
+  const s=E.create(2);s.players[2].chips=0;E.start(s,()=>0.3);
+  assert.equal(s.players[s.dealer].position,'庄家/小盲');
+  assert.equal(s.players.find(p=>p.position==='大盲').bet,20);
+  assert.equal(s.players[2].position,'');
+});
+test('positions are unique across all supported table sizes',()=>{
+  for(let n=2;n<=8;n++){const s=E.create(n);E.start(s,()=>0.3);const positions=s.players.map(p=>p.position);assert.equal(new Set(positions).size,n+1);assert.equal(positions.filter(p=>p==='小盲').length,1);assert.equal(positions.filter(p=>p==='大盲').length,1);}
+});
