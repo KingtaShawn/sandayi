@@ -11,6 +11,7 @@ Page({
     log: [],
     done: true,
   },
+  back() { wx.navigateBack(); },
   onLoad() {
     this.s = E.create();
     this.visible = true;
