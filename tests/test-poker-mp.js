@@ -60,7 +60,7 @@ test('小程序：多人底池预设按真实金额递增，选择仍对应正�
   let page;const timers=new Map();let nextTimer=0;
   vm.runInNewContext(fs.readFileSync(path.resolve(__dirname,'../miniprogram/pages/poker/poker.js'),'utf8'),{Page:p=>{page=p},require:id=>id.endsWith('/motion')?M:E,setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer},clearTimeout:id=>timers.delete(id),wx:{}});
   page.setData=patch=>Object.assign(page.data,patch);page.onLoad();E.start(page.s,()=>0.3);page.s.street=1;page.s.board=[35,36,37];page.s.current=20;page.s.players.forEach((p,i)=>{p.bet=i===1?20:0;p.total=200+p.bet;p.chips=2000-p.total});page.s.turn=0;page.s.rights=[0];page.dealing=false;page.render();
-  const options=Array.from(page.data.sizingOptions);assert.deepEqual(options.map(o=>o.target),options.map(o=>o.target).slice().sort((a,b)=>a-b));assert.equal(options[0].label,'2倍当前注');
+  const options=Array.from(page.data.sizingOptions);assert.deepEqual(options.map(o=>o.target),options.map(o=>o.target).slice().sort((a,b)=>a-b));assert.equal(options[0].label,'½ 底池');
   page.openSizing();const half=options.find(o=>o.label==='½ 底池');page.selectSizing({currentTarget:{dataset:{index:half.index}}});assert.equal(page.data.raiseTo,half.target);page.onUnload();
 });
 
@@ -116,4 +116,11 @@ test('小程序：横竖屏变化取消旧路径并显示牌面',()=>{
   page.betFlights=[{id:1}];page.payoutFlights=[{id:2}];page.pendingDeal={hand:true};
   page.setData({motionPending:true,motionReady:true,motionHand:true,motionBoardFrom:0,betFlights:[{id:1}],payoutFlights:[{id:2}]});
   page.onResize();assert.equal(page.pendingDeal,null);assert.equal(page.betFlights.length,0);assert.equal(page.payoutFlights.length,0);assert.equal(page.data.motionPending,false);assert.equal(page.data.motionReady,false);assert.equal(page.data.motionHand,false);assert.equal(page.data.motionBoardFrom,-1);assert.equal(page.data.betFlights.length,0);assert.equal(page.data.payoutFlights.length,0);page.onUnload();
+});
+
+test('小程序：底池40时两倍底池选择加注到80',()=>{
+  let page;const timers=new Map();let nextTimer=0;
+  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname,'../miniprogram/pages/poker/poker.js'),'utf8'),{Page:p=>{page=p},require:id=>id.endsWith('/motion')?M:E,setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer},clearTimeout:id=>timers.delete(id),wx:{}});
+  page.setData=patch=>Object.assign(page.data,patch);page.onLoad();page.s=E.create(2);E.start(page.s,()=>0.3);page.s.street=1;page.s.board=[35,36,37];page.s.current=0;page.s.minRaise=20;page.s.turn=0;page.s.rights=[0];page.s.players.forEach((p,i)=>{p.bet=0;p.total=[10,10,20][i];p.chips=1900});page.dealing=false;page.render();
+  assert.deepEqual(Array.from(page.data.sizingOptions,o=>o.target),[20,40,80,120]);page.openSizing();page.selectSizing({currentTarget:{dataset:{index:2}}});assert.equal(page.data.raiseTo,80);page.act({currentTarget:{dataset:{type:'raise'}}});assert.equal(page.s.players[0].bet,80);page.onUnload();
 });

@@ -174,17 +174,17 @@
     };
   }
   // Presets return the player's total contribution on this betting round.
-  // Pot fractions are calculated after calling; multiples apply to the current bet.
+  // All displayed sizes use the pot after calling; result is the round total.
   function raiseTarget(s, preset) {
     const l = legal(s);
     if (!l.raise) return null;
     const pot = s.players.reduce((sum, p) => sum + (p.total || 0), 0);
     let desired;
-    const fractions = {quarter: 1 / 4, third: 1 / 3, half: 1 / 2, twoThirds: 2 / 3, threeQuarters: 3 / 4, pot: 1};
+    const fractions = {quarter: 1 / 4, third: 1 / 3, half: 1 / 2, twoThirds: 2 / 3, threeQuarters: 3 / 4, pot: 1, double: 2, triple: 3};
     if (Object.prototype.hasOwnProperty.call(fractions, preset)) {
       desired = s.current + Math.round((pot + l.call) * fractions[preset]);
-    } else if (preset === "double" || preset === "triple" || preset === "quad") {
-      desired = s.current * ({double: 2, triple: 3, quad: 4}[preset]);
+    } else if (preset === "quad") {
+      desired = s.current * 4;
     } else { throw Error("未知下注选项"); }
     return Math.min(l.max, Math.max(l.min, desired));
   }

@@ -284,7 +284,7 @@ test('H5 半池预设显示并提交实际加注总额',async()=>{const p=boot()
 
 test('H5 预设在多人底池中按实际加注总额递增排列',async()=>{
   const p=boot(null,{pokerSetup:s=>{s.hand=1;s.done=false;s.dealer=0;s.turn=0;s.street=1;s.board=[35,36,37];s.current=20;s.minRaise=20;s.pending=[0,1,2,3,4,5,6];s.rights=s.pending.slice();s.players.forEach((q,i)=>Object.assign(q,{hole:[i*2,i*2+1],bet:i===1?20:0,total:200+(i===1?20:0),chips:1800-(i===1?20:0),folded:false,action:''}));}});
-  try{p.click('btn-enter-poker');await sleep(30);p.click('poker-amount');const opts=Array.from(p.w.document.querySelectorAll('.poker-size-options button'));const targets=opts.map(e=>Number(e.querySelector('small').textContent.replace(/\D/g,'')));assert.equal(opts.length,4);assert.deepEqual(targets,[...targets].sort((a,b)=>a-b));assert.equal(opts[0].dataset.preset,'double');assert.equal(opts[1].dataset.preset,'triple');}finally{p.close();}
+  try{p.click('btn-enter-poker');await sleep(30);p.click('poker-amount');const opts=Array.from(p.w.document.querySelectorAll('.poker-size-options button'));const targets=opts.map(e=>Number(e.querySelector('small').textContent.replace(/\D/g,'')));assert.equal(opts.length,4);assert.deepEqual(targets,[...targets].sort((a,b)=>a-b));assert.equal(opts[0].dataset.preset,'half');assert.equal(opts[1].dataset.preset,'pot');}finally{p.close();}
 });
 
 test('H5 多位底池赢家高亮，只有退还筹码者不显示为赢家',async()=>{
@@ -293,3 +293,8 @@ test('H5 多位底池赢家高亮，只有退还筹码者不显示为赢家',asy
 });
 
 test('H5 发牌按庄家左侧顺序逐张发两轮',()=>{const p=boot();try{p.click('btn-enter-poker');p.click('poker-next');const seat1=p.w.document.querySelectorAll('.seat-1 .card-back');const seat2=p.w.document.querySelectorAll('.seat-2 .card-back');const hand=p.$('poker-hand').children;assert.equal(seat1.length,2);assert.equal(seat1[0].style.animationDelay,'0ms');assert.equal(seat2[0].style.animationDelay,'110ms');assert.equal(seat1[1].style.animationDelay,'770ms');assert.equal(hand[0].style.animationDelay,'660ms');assert.equal(hand[1].style.animationDelay,'1430ms');}finally{p.close();}});
+
+test('H5 底池40且无人下注：四档显示20、40、80、120并提交倍池加注',async()=>{
+  const p=boot(null,{pokerSetup:s=>{s.hand=1;s.done=false;s.dealer=0;s.turn=0;s.street=1;s.board=[35,36,37];s.current=0;s.minRaise=20;s.pending=[0,1,2,3,4,5,6];s.rights=s.pending.slice();s.players.forEach((q,i)=>Object.assign(q,{hole:[i*2,i*2+1],bet:0,total:[10,10,20,0,0,0,0][i],chips:1900,folded:false,action:''}));}});
+  try{p.click('btn-enter-poker');await sleep(30);p.click('poker-amount');const opts=Array.from(p.w.document.querySelectorAll('.poker-size-options button'));assert.deepEqual(opts.map(e=>e.dataset.preset),['half','pot','double','triple']);assert.deepEqual(opts.map(e=>Number(e.querySelector('small').textContent.replace(/\D/g,''))),[20,40,80,120]);p.click('poker-size-double');assert.equal(p.$('poker-raise').textContent,'加注至 80');p.click('poker-raise');assert.match(p.$('poker-log').textContent,/你：加注至 80/);}finally{p.close();}
+});

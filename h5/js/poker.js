@@ -14,7 +14,7 @@ window.createPokerUI = function ({ navigate }) {
   let recentBet = false;
   let selectedSizing = 'half';
   let sizingOpen = false;
-  const sizingLabels = {half:'½ 底池', pot:'全池', double:'2倍当前注', triple:'3倍当前注'};
+  const sizingLabels = {half:'½ 底池', pot:'全池', double:'2倍底池', triple:'3倍底池'};
   function cards(node, cs, animateFrom, dealDelays) {
     node.replaceChildren(...cs.map((c, i) => {
       const span = document.createElement("span");
@@ -177,7 +177,7 @@ window.createPokerUI = function ({ navigate }) {
       option.classList.toggle('selected', preset === selectedSizing);
       option.setAttribute('aria-pressed', String(preset === selectedSizing));
     });
-    // Pot fractions and multiples can cross in multiway pots; order by real target.
+    // Order by the legal total after minimum-raise and stack limits.
     if (human && l.raise) {
       options.sort((a, b) => E.raiseTarget(s, a.dataset.preset) - E.raiseTarget(s, b.dataset.preset));
       const list = document.querySelector('.poker-size-options');

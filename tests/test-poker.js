@@ -170,8 +170,8 @@ test('raise presets apply pot odds, minimum raise and short all-in limits',()=>{
   assert.equal(E.raiseTarget(s,'twoThirds'),53);
   assert.equal(E.raiseTarget(s,'threeQuarters'),58);
   assert.equal(E.raiseTarget(s,'pot'),70);
-  assert.equal(E.raiseTarget(s,'double'),40);
-  assert.equal(E.raiseTarget(s,'triple'),60);
+  assert.equal(E.raiseTarget(s,'double'),120);
+  assert.equal(E.raiseTarget(s,'triple'),170);
   assert.equal(E.raiseTarget(s,'quad'),80);
   assert.throws(()=>E.raiseTarget(s,'unknown'),/未知下注选项/);
   s.players[s.turn].chips=35;
@@ -211,4 +211,18 @@ test('winners exclude an uncalled-bet refund, including multiple side pots',()=>
   assert.equal(s.turn,3);E.action(s,'raise',200);E.action(s,'call');E.action(s,'call');E.action(s,'fold');
   assert.equal(s.done,true);assert.deepEqual(s.awards,[170,100,0,100]);assert.deepEqual(s.winners,[0,1]);
   E.start(s,()=>0.3);assert.deepEqual(s.winners,[]);
+});
+
+test('底池 40：无人下注时四档为 20、40、80、120',()=>{
+  const s=E.create(2);E.start(s,()=>0.3);s.street=1;s.current=0;s.minRaise=20;s.turn=0;s.rights=[0];
+  s.players.forEach((p,i)=>{p.bet=0;p.total=[10,10,20][i];p.chips=1900;});
+  assert.deepEqual(['half','pot','double','triple'].map(size=>E.raiseTarget(s,size)),[20,40,80,120]);
+});
+test('底池 40 含对手 20，先跟注后的底池为 60',()=>{
+  const s=E.create(2);E.start(s,()=>0.3);s.street=1;s.current=20;s.minRaise=20;s.turn=0;s.rights=[0];
+  s.players.forEach((p,i)=>{p.bet=i===1?20:0;p.total=[0,20,20][i];p.chips=1900;});
+  assert.equal(E.legal(s).call,20);
+  assert.deepEqual(['half','pot','double','triple'].map(size=>E.raiseTarget(s,size)),[50,80,140,200]);
+  s.players[0].chips=100;
+  assert.deepEqual(['half','pot','double','triple'].map(size=>E.raiseTarget(s,size)),[50,80,100,100]);
 });

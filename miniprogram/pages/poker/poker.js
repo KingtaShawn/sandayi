@@ -5,7 +5,7 @@ Page({
   data: {
     counts: [2, 3, 4, 5, 6, 7, 8],
     count: 4,
-    sizingLabels: ["½ 底池", "全池", "2倍当前注", "3倍当前注"],
+    sizingLabels: ["½ 底池", "全池", "2倍底池", "3倍底池"],
     sizingValues: ["half", "pot", "double", "triple"],
     sizingIndex: 0,
     sizingOpen: false,
