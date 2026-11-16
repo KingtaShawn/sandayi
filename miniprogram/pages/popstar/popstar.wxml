@@ -5,6 +5,6 @@
   <view class="message">{{message}}</view>
   <view class="board"><button wx:for="{{cells}}" wx:key="id" class="cell star-{{item.value}} {{item.empty ? 'empty' : ''}} {{item.pop ? 'pop' : ''}} {{item.hint ? 'hint' : ''}} {{item.falling ? 'falling' : ''}}" style="{{item.shift}}" disabled="{{item.empty}}" data-index="{{item.id}}" bindtap="onCell" aria-label="{{item.name}}">{{item.empty ? '' : '★'}}</button></view>
   <view class="tools"><button bindtap="onHint" disabled="{{busy || status !== 'playing'}}">✧ 寻找大片</button><button bindtap="onRestart" disabled="{{busy}}">↻ 重玩本关</button></view>
-  <view class="save">同色星星的角标相同，可辅助辨认</view>
+  <view class="save">没有时间限制 · 进度保存在本机</view>
   <view class="result" wx:if="{{!busy && status !== 'playing'}}"><view class="panel"><view class="result-icon">✦</view><view class="result-title">{{status === 'won' ? '星光收集成功！' : '再试一次，凑出更大片'}}</view><view class="result-body">累计 {{score}} / 目标 {{target}} 分 · 剩余 {{remaining}} 颗 · 奖励 {{bonus}} 分</view><button class="primary" bindtap="onContinue">{{status === 'won' && level < 1000 ? '下一关 →' : '重玩本关'}}</button><button bindtap="onHome">回游戏大厅</button></view></view>
 </view>
