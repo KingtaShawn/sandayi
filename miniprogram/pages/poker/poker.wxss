@@ -20,3 +20,4 @@ page{height:100%;overflow:hidden}.poker{height:100vh;min-height:0;padding:0;over
 @keyframes payout-travel{0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}15%{opacity:1}75%{opacity:1}100%{opacity:0;transform:translate(calc(var(--dx) - 50%),calc(var(--dy) - 50%)) scale(.65)}}
 @keyframes bet-travel{0%{opacity:0;transform:translate(calc(var(--dx) - 50%),calc(var(--dy) - 50%)) scale(.6)}15%{opacity:1}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(.65)}}
 .cards text.deal-wait,.seat-cards.deal-wait{visibility:hidden}
+.seat-cards:not(.revealed){display:flex;gap:2px}.seat-card-back{display:block;width:3.5vh;height:4.6vh;box-sizing:border-box;border:1px solid #eee1c9;border-radius:2px;background:repeating-linear-gradient(45deg,#743c35 0 2px,#d7b79b 2px 3px)}.seat-card-back.deal-wait{visibility:hidden}.seat-card-back.deal-directional{animation:dealer-to-card .72s cubic-bezier(.18,.7,.22,1) both}

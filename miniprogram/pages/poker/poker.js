@@ -10,6 +10,8 @@ Page({
     sizingIndex: 0,
     sizingOpen: false,
     players: [],
+    seatMotion: [], boardMotion: [], handMotion: [],
+    motionPending: false, motionReady: false, motionHand: false, motionBoardFrom: -1,
     board: [],
     hole: [],
     log: [],
@@ -58,7 +60,7 @@ Page({
     q.select('.dealer-avatar').boundingClientRect();
     q.select('.chips').boundingClientRect();
     q.selectAll('.seat').boundingClientRect();
-    q.selectAll('.seat-cards').fields({rect:true,size:true,dataset:true});
+    q.selectAll('.seat-card-back').fields({rect:true,size:true,dataset:true});
     q.selectAll('.board text').boundingClientRect();
     q.selectAll('.hand text').boundingClientRect();
     q.exec(rects => {
@@ -84,7 +86,11 @@ Page({
       const seatMotion = [];
       (rects[4] || []).forEach(rect => {
         const i = Number(rect.dataset && rect.dataset.seatIndex);
-        if (Number.isInteger(i) && i >= 0) seatMotion[i] = styleFor(rect, Math.max(0, order.indexOf(i)) * 200);
+        const cardIndex = Number(rect.dataset && rect.dataset.cardIndex);
+        if (Number.isInteger(i) && i >= 0 && Number.isInteger(cardIndex) && cardIndex >= 0 && cardIndex < 2) {
+          if (!seatMotion[i]) seatMotion[i] = [];
+          seatMotion[i][cardIndex] = styleFor(rect, (Math.max(0, order.indexOf(i)) + cardIndex * order.length) * 110);
+        }
       });
       const boardMotion = (rects[5] || []).map((rect,i) => styleFor(rect, Math.max(0,i-deal.boardFrom)*230));
       const handMotion = (rects[6] || []).map((rect,i) => styleFor(rect, (Math.max(0,order.indexOf(0))+i*order.length)*110));
