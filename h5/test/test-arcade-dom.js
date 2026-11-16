@@ -13,10 +13,12 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 test('H5 发布产物：所有本地 CSS/JS/manifest 引用存在且使用同一版本', () => {
   const html = fs.readFileSync(path.join(H5, 'dist/index.html'), 'utf8');
   const refs = Array.from(html.matchAll(/(?:src|href)="((?:css|js)\/[^"?]+|manifest\.webmanifest)\?v=([^"]+)"/g));
-  assert.equal(refs.length, 13);
+  assert.equal(refs.length, 14);
   assert.equal(new Set(refs.map((ref) => ref[2])).size, 1);
   refs.forEach((ref) => assert.ok(fs.existsSync(path.join(H5, 'dist', ref[1])), ref[1]));
   assert.match(html, /id="btn-enter-match3"/);
+  assert.match(html, /src="icons\/poker-dealer\.jpg"/);
+  assert.ok(fs.existsSync(path.join(H5, 'dist/icons/poker-dealer.jpg')));
 });
 
 function boot(saved, { normalMotion = false, starSaved, pokerSetup } = {}) {
@@ -38,7 +40,7 @@ function boot(saved, { normalMotion = false, starSaved, pokerSetup } = {}) {
   w.setInterval = (fn, ms, ...args) => interval(fn, Math.min(ms, 2), ...args);
   if (starSaved) w.localStorage.setItem('popstar:progress:v1', starSaved);
   if (saved) w.localStorage.setItem(KEY, saved);
-  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'poker-engine.js', 'poker.js', 'app.js']) {
+  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'poker-engine.js', 'poker-motion.js', 'poker.js', 'app.js']) {
     w.eval(fs.readFileSync(path.join(H5, 'js', script), 'utf8'));
     if (script === 'poker-engine.js' && pokerSetup) {
       const create = w.Poker.create;
@@ -289,3 +291,5 @@ test('H5 多位底池赢家高亮，只有退还筹码者不显示为赢家',asy
   const p=boot(null,{pokerSetup:s=>{s.hand=1;s.dealer=0;s.players[0].total=100;s.players[1].total=100;s.players[2].total=10;s.awards=[80,120,10,0,0,0,0];s.winners=[0,1];s.board=[];s.result='你 收获 80 · 小扁豆 收获 120 · 儿颠颠 收获 10';}});
   try{p.click('btn-enter-poker');await sleep(80);assert.equal(p.w.document.querySelectorAll('.poker-seat.winner').length,2);assert.ok(p.w.document.querySelector('.seat-0.winner'));assert.ok(p.w.document.querySelector('.seat-1.winner'));assert.equal(p.w.document.querySelector('.seat-2.winner'),null);assert.equal(p.w.document.querySelector('.seat-0 small').textContent,'胜出');}finally{p.close();}
 });
+
+test('H5 发牌按庄家左侧顺序逐张发两轮',()=>{const p=boot();try{p.click('btn-enter-poker');p.click('poker-next');const seat1=p.w.document.querySelectorAll('.seat-1 .card-back');const seat2=p.w.document.querySelectorAll('.seat-2 .card-back');const hand=p.$('poker-hand').children;assert.equal(seat1.length,2);assert.equal(seat1[0].style.animationDelay,'0ms');assert.equal(seat2[0].style.animationDelay,'110ms');assert.equal(seat1[1].style.animationDelay,'770ms');assert.equal(hand[0].style.animationDelay,'660ms');assert.equal(hand[1].style.animationDelay,'1430ms');}finally{p.close();}});

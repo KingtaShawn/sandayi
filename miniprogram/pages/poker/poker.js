@@ -1,5 +1,6 @@
 "use strict";
 const E = require("../../poker/engine");
+const M = require("../../poker/motion");
 Page({
   data: {
     counts: [2, 3, 4, 5, 6, 7, 8],
@@ -20,6 +21,7 @@ Page({
     this.visible = true;
     this.lastHand = 0; this.boardCount = 0; this.dealing = false;
     this.settling = false; this.payoutHand = 0; this.totalsHand = 0; this.totalsSeen = []; this.payoutFlights = []; this.betFlights = [];
+    this.geometry = null; this.motionSeq = 0; this.pendingDeal = null;
     this.render();
   },
   onShow() {
@@ -27,15 +29,73 @@ Page({
     if (this.s) this.loop();
   },
   onHide() {
-    this.visible = false;
+    this.visible = false; this.motionSeq++; this.geometry = null;
     this.setData({ sizingOpen: false });
     clearTimeout(this.timer);
     this.settling = false; this.payoutFlights = [];
   },
   onUnload() {
-    this.visible = false;
+    this.visible = false; this.motionSeq++; this.geometry = null;
     clearTimeout(this.timer);
     this.settling = false; this.payoutFlights = [];
+  },
+  // Use the rendered rectangles, not a guessed direction. If geometry is unavailable,
+  // omit the transient effect instead of animating toward an arbitrary seat.
+  flightStyle(i, delay = 0) {
+    const g = this.geometry;
+    if (!g || !g.table || !g.pot || !g.seats[i]) return '';
+    const start = M.center(g.pot), end = M.center(g.seats[i]), delta = M.between(start, end);
+    return 'left:' + (start.x - g.table.left) + 'px;top:' + (start.y - g.table.top) + 'px;--dx:' + delta.x + 'px;--dy:' + delta.y + 'px;animation-delay:' + delay + 'ms;';
+  },
+  measureMotion(deal, sequence, pendingBets = []) {
+    if (!this.visible) return;
+    if (!wx.createSelectorQuery) {
+      if (deal) this.setData({motionPending:false});
+      return;
+    }
+    const q = wx.createSelectorQuery().in(this);
+    q.select('.chip-flights').boundingClientRect();
+    q.select('.dealer-avatar').boundingClientRect();
+    q.select('.chips').boundingClientRect();
+    q.selectAll('.seat').boundingClientRect();
+    q.selectAll('.seat-cards').fields({rect:true,size:true,dataset:true});
+    q.selectAll('.board text').boundingClientRect();
+    q.selectAll('.hand text').boundingClientRect();
+    q.exec(rects => {
+      if (!this.visible || sequence !== this.motionSeq) return;
+      if (!rects || !rects[0] || !rects[1] || !rects[2] || !rects[3]) {
+        if (deal) this.setData({motionPending:false});
+        return;
+      }
+      const g = {table:rects[0], dealer:rects[1], pot:rects[2], seats:rects[3]};
+      this.geometry = g;
+      if (pendingBets.length) {
+        const betFlights = pendingBets.map(i => ({id:i, style:this.flightStyle(i)})).filter(f => f.style);
+        this.betFlights = betFlights;
+        this.setData({betFlights});
+      }
+      if (!deal) return;
+      const origin = M.center(g.dealer), order = M.dealOrder(this.s.players, this.s.dealer);
+      const styleFor = (rect, delay) => {
+        if (!rect) return '';
+        const d = M.between(M.center(rect), origin);
+        return '--deal-x:' + d.x + 'px;--deal-y:' + d.y + 'px;animation-delay:' + delay + 'ms;';
+      };
+      const seatMotion = [];
+      (rects[4] || []).forEach(rect => {
+        const i = Number(rect.dataset && rect.dataset.seatIndex);
+        if (Number.isInteger(i) && i >= 0) seatMotion[i] = styleFor(rect, Math.max(0, order.indexOf(i)) * 200);
+      });
+      const boardMotion = (rects[5] || []).map((rect,i) => styleFor(rect, Math.max(0,i-deal.boardFrom)*230));
+      const handMotion = (rects[6] || []).map((rect,i) => styleFor(rect, (Math.max(0,order.indexOf(0))+i*order.length)*110));
+      this.setData({seatMotion,boardMotion,handMotion,motionPending:false,motionReady:true,motionHand:deal.hand,motionBoardFrom:deal.boardFrom});
+    });
+  },
+  onResize() {
+    this.geometry = null; this.motionSeq++; this.pendingDeal = null;
+    this.betFlights = []; this.payoutFlights = [];
+    this.setData({motionPending:false,motionReady:false,motionHand:false,motionBoardFrom:-1,betFlights:[],payoutFlights:[]});
+    this.measureMotion(null,this.motionSeq);
   },
   render() {
     const s = this.s,
@@ -45,15 +105,18 @@ Page({
     const stackCount = displayPot <= 0 ? 0 : Math.min(7, Math.max(1, Math.ceil(Math.log2(displayPot / 20 + 1))));
     const newHand = this.totalsHand !== s.hand;
     const increases = s.players.map((p,i) => Math.max(0, (p.total || 0) - (newHand ? 0 : (this.totalsSeen[i] || 0))));
-    const flightStyle = (i) => {
-      const angle = 2 * Math.PI * i / s.players.length;
-      return '--dx:' + (-31.58 * Math.sin(angle)) + 'vw;--dy:' + (6.46 + 30.36 * Math.cos(angle)) + 'vh;';
-    };
-    const freshBets = increases.map((amount,i) => amount ? {id:i, style:flightStyle(i)} : null).filter(Boolean);
-    this.recentBet = freshBets.length > 0;
+    const pendingBets = !this.geometry ? increases.map((amount,i) => amount ? i : -1).filter(i => i >= 0) : [];
+    const freshBets = increases.map((amount,i) => {
+      const style = amount ? this.flightStyle(i) : '';
+      return style ? {id:i, style} : null;
+    }).filter(Boolean);
+    this.recentBet = increases.some(Boolean);
     this.betFlights = freshBets.length ? freshBets : (s.done && this.settling && this.payoutHand !== s.hand ? this.betFlights : []);
     this.totalsHand = s.hand; this.totalsSeen = s.players.map(p => p.total || 0);
+    const deal = this.pendingDeal; this.pendingDeal = null;
+    const sequence = ++this.motionSeq;
     this.setData({
+      motionPending:!!deal, motionReady:false, motionHand:!!(deal && deal.hand), motionBoardFrom:deal ? deal.boardFrom : -1,
       potStacks: Array.from({length:stackCount},(_,i)=>({id:i,colour:['ivory','red','blue','gold','green','red','gold'][i]})),
       betFlights: this.betFlights,
       payoutFlights: this.payoutFlights,
@@ -101,18 +164,22 @@ Page({
           ? "轮到你行动" + (s.log.length ? " · " + s.log[s.log.length - 1] : "")
           : (s.log.length ? s.log[s.log.length - 1] + " · " : "") + s.players[s.turn].name + " 正在思考",
       canNext: !this.dealing && !this.settling && s.done,
-    });
+    }, () => this.measureMotion(deal, sequence, pendingBets));
   },
   loop() {
     clearTimeout(this.timer);
     const newHand = this.s.hand !== this.lastHand;
     const boardCount = (this.s.board || []).length;
-    if (newHand || boardCount > this.boardCount) this.dealing = true;
+    const newBoard = !newHand && boardCount > this.boardCount;
+    if (newHand || newBoard) {
+      this.dealing = true;
+      this.pendingDeal = {hand:newHand, boardFrom:newBoard ? this.boardCount : -1};
+    }
     this.lastHand = this.s.hand; this.boardCount = boardCount;
     this.render();
     if (!this.visible) return;
     if (this.dealing) {
-      this.timer = setTimeout(() => { this.dealing = false; this.loop(); }, 2000);
+      this.timer = setTimeout(() => { this.dealing = false; this.loop(); }, 2800);
     } else if (this.s.done && this.s.hand && this.s.awards && this.payoutHand !== this.s.hand) {
       const waitForBet = this.recentBet;
       this.settling = true; this.render();
@@ -120,8 +187,8 @@ Page({
         this.payoutHand = this.s.hand;
         this.payoutFlights = this.s.awards.map((amount, i) => {
           if (!amount) return null;
-          const angle = 2 * Math.PI * i / this.s.players.length;
-          return {id:i, style:'--dx:' + (-31.58 * Math.sin(angle)) + 'vw;--dy:' + (6.46 + 30.36 * Math.cos(angle)) + 'vh;animation-delay:' + (i * 80) + 'ms;'};
+          const style = this.flightStyle(i, i * 80);
+          return style ? {id:i, style} : null;
         }).filter(Boolean);
         this.render();
         this.timer = setTimeout(() => { this.settling = false; this.payoutFlights = []; this.render(); }, 1700);
@@ -180,7 +247,8 @@ Page({
         if (r.confirm) {
           this.s = E.create(this.data.count + 2);
           this.dealing = false; this.lastHand = 0; this.boardCount = 0;
-          this.settling = false; this.payoutHand = 0; this.totalsHand = 0; this.totalsSeen = []; this.payoutFlights = []; this.betFlights = [];
+          this.settling = false; this.payoutHand = 0; this.totalsHand = 0; this.totalsSeen = []; this.payoutFlights = []; this.betFlights = []; this.pendingDeal = null;
+          this.geometry = null; this.motionSeq++;
           this.loop();
         }
       },

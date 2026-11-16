@@ -70,3 +70,9 @@
 .poker-pot,.poker-center #poker-status{font-size:clamp(10px,2.8cqh,15px)}.card-corner{font-size:3.6cqh}.card-suit{font-size:4.8cqh}.seat-cards.revealed span{width:6.5cqh;height:8.4cqh;font-size:clamp(10px,2.7cqh,14px)}.poker-actions button{font-size:clamp(10px,2.8cqh,15px)}.poker-size-options button{height:21cqh;gap:2cqh}.poker-size-options strong{font-size:clamp(11px,3cqh,17px)}.poker-size-options small{font-size:clamp(10px,2.7cqh,15px)}
 @container (max-height:400px){.poker-seats[data-count="9"] .poker-seat{padding:.4cqh .7cqh .4cqh .4cqh;gap:.5cqh}.poker-seats[data-count="9"] .seat-avatar{width:5cqh;height:5cqh}.poker-seats[data-count="9"] .seat-info strong{font-size:9px}.poker-seats[data-count="9"] .seat-info>span{font-size:8px}.poker-seats[data-count="9"] .seat-info small{font-size:7px}.poker-seats[data-count="9"] .seat-info .seat-position{font-size:7px}.poker-seats[data-count="9"] .seat-heading{gap:2px}}
 .seat-bet{font-size:clamp(9px,2.2cqh,12px)}.poker-actions .poker-sizing button{font-size:clamp(10px,2.5cqh,14px)}.poker-details{font-size:clamp(9px,2.2cqh,13px)}
+.dealer-portrait{background:#173c2d}.dealer-portrait:before,.dealer-portrait:after{display:none}.dealer-portrait img{width:100%;height:100%;object-fit:cover;object-position:center 35%;display:block}
+/* Origins are computed from the actual dealer and destination in table coordinates. */
+.poker:not(.motion-ready) .poker-card.dealing,.poker:not(.motion-ready) .card-back.dealing{animation:none!important}
+.poker.motion-ready .poker-card.dealing,.poker.motion-ready .card-back.dealing{animation:dealer-to-card .72s cubic-bezier(.18,.7,.22,1) both}
+@keyframes dealer-to-card{from{opacity:0;transform:translate(var(--deal-x,0px),var(--deal-y,0px)) scale(.42)}to{opacity:1;transform:translate(0,0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.poker *{animation-duration:.01ms!important;animation-delay:0ms!important}}

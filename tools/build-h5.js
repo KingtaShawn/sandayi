@@ -43,6 +43,7 @@ function main() {
   execFileSync(process.execPath, [path.join(__dirname, 'build-bundle.js')], { stdio: 'inherit' });
 
   fs.copyFileSync(path.join(ROOT, 'miniprogram/poker/engine.js'), path.join(H5, 'js/poker-engine.js'));
+  fs.copyFileSync(path.join(ROOT, 'miniprogram/poker/motion.js'), path.join(H5, 'js/poker-motion.js'));
 
   // 2. 全新 dist，避免删掉的文件残留
   fs.rmSync(DIST, { recursive: true, force: true });
