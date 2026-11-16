@@ -314,6 +314,16 @@
       advance(s);
     }
   }
+  // A zero stack during a hand may be an all-in, which remains eligible to win.
+  function seatStatus(s, i) {
+    const p = s.players[i];
+    if (p.chips === 0 && (s.done || !p.hole || p.hole.length === 0)) return "eliminated";
+    if (!s.hand) return "ready";
+    if (s.done) return "survived";
+    if (p.folded) return "folded";
+    if (p.chips === 0) return "all-in";
+    return "in-hand";
+  }
   function observation(s, i) {
     return {
       hole: s.players[i].hole.slice(),
@@ -433,6 +443,7 @@
     evaluate,
     card,
     observation,
+    seatStatus,
     decide,
     labels,
   };

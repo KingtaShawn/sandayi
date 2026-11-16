@@ -36,6 +36,7 @@ Page({
     this.setData({
       players: s.players.map((p, i) => ({
         name: p.name,
+        status: E.seatStatus(s, i),
         position: p.position || "",
         dealer: s.dealer === i,
         me: i === 0,
@@ -44,7 +45,11 @@ Page({
         chips: p.chips,
         bet: p.bet || 0,
         active: s.turn === i,
-        action: p.folded ? "弃牌" : p.action || "",
+        action: (() => {
+          const status = E.seatStatus(s, i);
+          const label = {ready:'待发牌', survived:'在座', 'in-hand':'在局', 'all-in':'全押', folded:'弃牌', eliminated:'出局'}[status];
+          return status === 'in-hand' ? label + ' · ' + (p.action || (s.turn === i ? '行动中' : '等待')) : label;
+        })(),
         cards:
           i !== 0 && p.hole && !p.folded
             ? s.done && s.board.length === 5

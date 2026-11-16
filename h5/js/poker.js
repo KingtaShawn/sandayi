@@ -28,7 +28,8 @@ window.createPokerUI = function ({ navigate }) {
     $("seats").replaceChildren(
       ...s.players.map((p, i) => {
         const node = document.createElement("div");
-        node.className = "poker-seat seat-" + i + (s.turn === i ? " active" : "") + (p.folded ? " folded" : "");
+        const status = E.seatStatus(s, i);
+        node.className = "poker-seat seat-" + i + " " + status + (s.turn === i ? " active" : "");
         const angle = 2 * Math.PI * i / s.players.length;
         node.style.setProperty('--seat-x', (50 - 48 * Math.sin(angle)) + '%');
         node.style.setProperty('--seat-y', (50 + 47 * Math.cos(angle)) + '%');
@@ -40,7 +41,9 @@ window.createPokerUI = function ({ navigate }) {
         const heading = document.createElement('div'); heading.className = 'seat-heading'; heading.append(name);
         if (p.position) { const position = document.createElement('span'); position.className = 'seat-position'; position.textContent = p.position; heading.append(position); }
         const chips = document.createElement('span'); chips.textContent = '◈ ' + p.chips;
-        const action = document.createElement('small'); action.textContent = p.folded ? '弃牌' : p.action || (s.turn === i ? '思考中' : '等待');
+        const action = document.createElement('small');
+        const label = {ready:'待发牌', survived:'在座', 'in-hand':'在局', 'all-in':'全押', folded:'弃牌', eliminated:'出局'}[status];
+        action.textContent = status === 'in-hand' ? label + ' · ' + (p.action || (s.turn === i ? '行动中' : '等待')) : label;
         info.append(heading, chips, action); node.append(avatar, info);
         if (i === s.dealer) { const d = document.createElement('b'); d.className = 'dealer-button'; d.textContent = 'D'; node.append(d); }
         if (p.hole && i !== 0 && !p.folded) {

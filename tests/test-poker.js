@@ -121,3 +121,19 @@ test('heads-up dealer is also the small blind', () => {
 test('positions are unique across all supported table sizes',()=>{
   for(let n=2;n<=8;n++){const s=E.create(n);E.start(s,()=>0.3);const positions=s.players.map(p=>p.position);assert.equal(new Set(positions).size,n+1);assert.equal(positions.filter(p=>p==='小盲').length,1);assert.equal(positions.filter(p=>p==='大盲').length,1);}
 });
+
+test('seat status distinguishes in-hand, folded, all-in and elimination', () => {
+  const s = E.create(3);
+  assert.equal(E.seatStatus(s,0),'ready');
+  s.players[1].chips = 5;
+  E.start(s,()=>0.3);
+  assert.equal(E.seatStatus(s,0),'in-hand');
+  assert.equal(E.seatStatus(s,1),'all-in');
+  const folding = s.turn; E.action(s,'fold');
+  assert.equal(E.seatStatus(s,folding),'folded');
+  assert.equal(E.seatStatus(s,1),'all-in');
+  while(!s.done) E.action(s,'call');
+  for(let i=0;i<s.players.length;i++) assert.equal(E.seatStatus(s,i),s.players[i].chips ? 'survived' : 'eliminated');
+  s.players[1].chips=0; E.start(s,()=>0.3);
+  assert.equal(E.seatStatus(s,1),'eliminated');
+});

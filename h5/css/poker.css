@@ -34,3 +34,9 @@
 .poker-actions input{height:7.3cqh}
 .poker-details{width:18cqw;right:1.5cqw}
 .poker-center{top:40%}
+/* Green marks seats still eligible in this hand; gold marks whose turn it is. */
+.poker-seat.in-hand,.poker-seat.all-in,.poker-seat.survived,.poker-seat.ready{opacity:1;border-color:#77e6a3;background:linear-gradient(135deg,#265a3d,#173626);box-shadow:0 0 0 2px #69d99655,0 4px 12px #0009}
+.poker-seat.in-hand .seat-avatar,.poker-seat.all-in .seat-avatar,.poker-seat.survived .seat-avatar,.poker-seat.ready .seat-avatar{border-color:#9af4b7}
+.poker-seat.in-hand .seat-info small,.poker-seat.all-in .seat-info small,.poker-seat.survived .seat-info small,.poker-seat.ready .seat-info small{color:#b7ffcd;font-weight:700}
+.poker-seat.active{border-color:#ffe08a;background:linear-gradient(135deg,#776126,#433716);box-shadow:0 0 0 3px #f4d47a99,0 0 18px #d9b45088,0 5px 18px #0009}
+.poker-seat.folded,.poker-seat.eliminated{opacity:.43;filter:grayscale(.7);border-color:#777;background:#222b26}
