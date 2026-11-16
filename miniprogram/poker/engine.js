@@ -104,6 +104,7 @@
     const rebuys = s.players.map((p, i) => p.chips === 0 ? i : -1).filter(i => i >= 0);
     rebuys.forEach(i => { s.players[i].chips += 2000; });
     s.rebuys = rebuys;
+    s.winners = [];
     s.hand++;
     s.done = false;
     s.board = [];
@@ -182,8 +183,8 @@
     const fractions = {quarter: 1 / 4, third: 1 / 3, half: 1 / 2, twoThirds: 2 / 3, threeQuarters: 3 / 4, pot: 1};
     if (Object.prototype.hasOwnProperty.call(fractions, preset)) {
       desired = s.current + Math.round((pot + l.call) * fractions[preset]);
-    } else if (preset === "triple" || preset === "quad") {
-      desired = s.current * (preset === "triple" ? 3 : 4);
+    } else if (preset === "double" || preset === "triple" || preset === "quad") {
+      desired = s.current * ({double: 2, triple: 3, quad: 4}[preset]);
     } else { throw Error("未知下注选项"); }
     return Math.min(l.max, Math.max(l.min, desired));
   }
@@ -246,6 +247,7 @@
     const ps = s.players,
       live = ps.filter((p) => !p.folded);
     s.awards = ps.map(() => 0);
+    s.winners = [];
     const levels = [...new Set(ps.map((p) => p.total).filter(Boolean))].sort(
       (a, b) => a - b,
     );
@@ -278,12 +280,12 @@
           ((a - s.dealer + ps.length - 1) % ps.length) -
           ((b - s.dealer + ps.length - 1) % ps.length),
       );
-      winners.forEach(
-        (i, k) =>
-          (s.awards[i] +=
-            Math.floor(pot / winners.length) +
-            (k < pot % winners.length ? 1 : 0)),
-      );
+      winners.forEach((i, k) => {
+        const amount = Math.floor(pot / winners.length) + (k < pot % winners.length ? 1 : 0);
+        s.awards[i] += amount;
+        // A one-contributor layer is an uncalled bet returned, not a won pot.
+        if (contributors.length > 1 && amount > 0 && !s.winners.includes(i)) s.winners.push(i);
+      });
     });
     ps.forEach((p, i) => (p.chips += s.awards[i]));
     s.done = true;

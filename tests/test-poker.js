@@ -170,11 +170,12 @@ test('raise presets apply pot odds, minimum raise and short all-in limits',()=>{
   assert.equal(E.raiseTarget(s,'twoThirds'),53);
   assert.equal(E.raiseTarget(s,'threeQuarters'),58);
   assert.equal(E.raiseTarget(s,'pot'),70);
+  assert.equal(E.raiseTarget(s,'double'),40);
   assert.equal(E.raiseTarget(s,'triple'),60);
   assert.equal(E.raiseTarget(s,'quad'),80);
   assert.throws(()=>E.raiseTarget(s,'unknown'),/未知下注选项/);
   s.players[s.turn].chips=35;
-  for(const preset of ['quarter','third','half','twoThirds','threeQuarters','pot','triple','quad']) assert.equal(E.raiseTarget(s,preset),35);
+  for(const preset of ['quarter','third','half','twoThirds','threeQuarters','pot','double','triple','quad']) assert.equal(E.raiseTarget(s,preset),35);
   E.action(s,'raise',E.raiseTarget(s,'third'));
   assert.equal(s.players[0].chips,0);
 });
@@ -199,4 +200,15 @@ test('selected AI players use wider preflop ranges without removing stack risk l
   assert.ok(extra>40);assert.equal(regressions,0);
   const wide=E.observation(reference,1);wide.current=2000;wide.players[1].bet=0;wide.players[1].chips=2000;wide.hole=[0,14];
   assert.equal(E.decide(wide,()=>0.5,4).type,'fold');
+});
+
+test('winners exclude an uncalled-bet refund, including multiple side pots',()=>{
+  const s=E.create(3);s.players[0].chips=50;s.players[1].chips=100;
+  E.start(s,()=>0.3);
+  s.players[0].hole=[c(14,0),c(14,1)];s.players[1].hole=[c(13,0),c(13,1)];
+  s.players[2].hole=[c(12,0),c(12,1)];s.players[3].hole=[c(11,0),c(11,1)];
+  s.deck=[c(9,0),c(7,3),c(8,3),c(6,3),c(4,2),c(3,1),c(2,0),c(5,3)];
+  assert.equal(s.turn,3);E.action(s,'raise',200);E.action(s,'call');E.action(s,'call');E.action(s,'fold');
+  assert.equal(s.done,true);assert.deepEqual(s.awards,[170,100,0,100]);assert.deepEqual(s.winners,[0,1]);
+  E.start(s,()=>0.3);assert.deepEqual(s.winners,[]);
 });

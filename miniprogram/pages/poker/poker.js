@@ -4,9 +4,9 @@ Page({
   data: {
     counts: [2, 3, 4, 5, 6, 7, 8],
     count: 4,
-    sizingLabels: ["¼ 底池", "⅓ 底池", "½ 底池", "⅔ 底池", "¾ 底池", "1 倍底池", "3倍当前注", "4倍当前注"],
-    sizingValues: ["quarter", "third", "half", "twoThirds", "threeQuarters", "pot", "triple", "quad"],
-    sizingIndex: 1,
+    sizingLabels: ["½ 底池", "全池", "2倍当前注", "3倍当前注"],
+    sizingValues: ["half", "pot", "double", "triple"],
+    sizingIndex: 0,
     sizingOpen: false,
     players: [],
     board: [],
@@ -62,6 +62,7 @@ Page({
         name: p.name,
         status: E.seatStatus(s, i),
         award: s.done && !this.dealing && this.payoutHand === s.hand && s.awards ? s.awards[i] || 0 : 0,
+        winner: !!(s.done && !this.dealing && this.payoutHand === s.hand && s.winners && s.winners.includes(i)),
         position: p.position || "",
         dealer: s.dealer === i,
         me: i === 0,
@@ -73,7 +74,7 @@ Page({
         action: (() => {
           const status = E.seatStatus(s, i);
           const label = {ready:'待发牌', survived:'在座', 'in-hand':'在局', 'all-in':'全押', folded:'弃牌', eliminated:'待补码'}[status];
-          return status === 'in-hand' ? label + ' · ' + (p.action || (s.turn === i ? '行动中' : '等待')) : label;
+          return s.done && !this.dealing && this.payoutHand === s.hand && s.winners && s.winners.includes(i) ? '胜出' : status === 'in-hand' ? label + ' · ' + (p.action || (s.turn === i ? '行动中' : '等待')) : label;
         })(),
         revealed: !!(i !== 0 && p.hole && p.hole.length && s.done && !this.dealing && this.payoutHand === s.hand && s.awards),
         cards:

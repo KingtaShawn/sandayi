@@ -27,9 +27,9 @@ test('小程序：分池筹码分别送至获款座位，完成后底池归零',
     setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer},clearTimeout:id=>timers.delete(id),wx:{}
   });
   page.setData=patch=>Object.assign(page.data,patch);page.onLoad();
-  page.s.hand=1;page.s.dealer=0;page.s.board=[];page.s.players[0].total=100;page.s.players[1].total=100;page.s.awards=[80,120,0,0,0,0,0];
+  page.s.hand=1;page.s.dealer=0;page.s.board=[];page.s.players[0].total=100;page.s.players[1].total=100;page.s.awards=[80,120,0,0,0,0,0];page.s.winners=[0,1];
   page.lastHand=1;page.totalsHand=1;page.totalsSeen=[100,100,0,0,0,0,0];page.loop();
-  assert.equal(page.data.pot,200);assert.equal(page.data.players[0].chips,1920);assert.equal(page.data.players[1].chips,1880);assert.equal(page.data.payoutFlights.length,2);assert.deepEqual(Array.from(page.data.players.slice(0,2),p=>p.award),[80,120]);assert.equal(page.data.canNext,false);
+  assert.equal(page.data.pot,200);assert.equal(page.data.players[0].chips,1920);assert.equal(page.data.players[1].chips,1880);assert.equal(page.data.payoutFlights.length,2);assert.deepEqual(Array.from(page.data.players.slice(0,2),p=>p.award),[80,120]);assert.equal(page.data.players[0].winner,true);assert.equal(page.data.players[1].winner,true);assert.equal(page.data.players[2].winner,false);assert.equal(page.data.canNext,false);
   const finish=timers.get(page.timer);assert.ok(finish);finish();assert.equal(page.data.players[0].chips,2000);assert.equal(page.data.players[1].chips,2000);assert.equal(page.data.pot,0);assert.equal(page.data.payoutFlights.length,0);assert.equal(page.data.canNext,true);page.onUnload();
 });
 
@@ -50,7 +50,7 @@ test('小程序：选择半池后按预设合法金额加注',()=>{
     Page:p=>{page=p},require:()=>E,setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer},clearTimeout:id=>timers.delete(id),wx:{}
   });
   page.setData=patch=>Object.assign(page.data,patch);page.onLoad();page.s=E.create(2);E.start(page.s,()=>0.3);page.dealing=false;page.render();
-  assert.equal(page.data.human,true);page.openSizing();assert.equal(page.data.sizingOpen,true);assert.equal(page.data.sizingOptions.find(o=>o.label==='½ 底池').target,45);page.selectSizing({currentTarget:{dataset:{index:2}}});assert.equal(page.data.sizingOpen,false);assert.equal(page.data.raiseTo,45);
+  assert.equal(page.data.human,true);page.openSizing();assert.equal(page.data.sizingOpen,true);assert.equal(page.data.sizingOptions.find(o=>o.label==='½ 底池').target,45);page.selectSizing({currentTarget:{dataset:{index:0}}});assert.equal(page.data.sizingOpen,false);assert.equal(page.data.raiseTo,45);
   page.act({currentTarget:{dataset:{type:'raise'}}});assert.equal(page.s.players[0].bet,45);page.onUnload();
 });
 
@@ -58,6 +58,6 @@ test('小程序：多人底池预设按真实金额递增，选择仍对应正�
   let page;const timers=new Map();let nextTimer=0;
   vm.runInNewContext(fs.readFileSync(path.resolve(__dirname,'../miniprogram/pages/poker/poker.js'),'utf8'),{Page:p=>{page=p},require:()=>E,setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer},clearTimeout:id=>timers.delete(id),wx:{}});
   page.setData=patch=>Object.assign(page.data,patch);page.onLoad();E.start(page.s,()=>0.3);page.s.street=1;page.s.board=[35,36,37];page.s.current=20;page.s.players.forEach((p,i)=>{p.bet=i===1?20:0;p.total=200+p.bet;p.chips=2000-p.total});page.s.turn=0;page.s.rights=[0];page.dealing=false;page.render();
-  const options=Array.from(page.data.sizingOptions);assert.deepEqual(options.map(o=>o.target),options.map(o=>o.target).slice().sort((a,b)=>a-b));assert.equal(options[0].label,'3倍当前注');
+  const options=Array.from(page.data.sizingOptions);assert.deepEqual(options.map(o=>o.target),options.map(o=>o.target).slice().sort((a,b)=>a-b));assert.equal(options[0].label,'2倍当前注');
   page.openSizing();const half=options.find(o=>o.label==='½ 底池');page.selectSizing({currentTarget:{dataset:{index:half.index}}});assert.equal(page.data.raiseTo,half.target);page.onUnload();
 });

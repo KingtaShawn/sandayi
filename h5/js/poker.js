@@ -12,9 +12,9 @@ window.createPokerUI = function ({ navigate }) {
   let totalsSeen = [];
   let payoutHand = 0;
   let recentBet = false;
-  let selectedSizing = 'third';
+  let selectedSizing = 'half';
   let sizingOpen = false;
-  const sizingLabels = {quarter:'¼ 底池', third:'⅓ 底池', half:'½ 底池', twoThirds:'⅔ 底池', threeQuarters:'¾ 底池', pot:'1 倍底池', triple:'3倍当前注', quad:'4倍当前注'};
+  const sizingLabels = {half:'½ 底池', pot:'全池', double:'2倍当前注', triple:'3倍当前注'};
   function cards(node, cs, animateFrom) {
     node.replaceChildren(...cs.map((c, i) => {
       const span = document.createElement("span");
@@ -59,6 +59,7 @@ window.createPokerUI = function ({ navigate }) {
     const increases = s.players.map((p,i) => Math.max(0, (p.total || 0) - (newHand ? 0 : (totalsSeen[i] || 0))));
     recentBet = increases.some(Boolean);
     const newBoardFrom = newHand ? 0 : boardSeen.length <= board.length && boardSeen.every((c, i) => board[i] === c) ? boardSeen.length : board.length;
+    $("seats").dataset.count = String(s.players.length);
     $("seats").replaceChildren(
       ...s.players.map((p, i) => {
         const node = document.createElement("div");
@@ -66,7 +67,8 @@ window.createPokerUI = function ({ navigate }) {
         const amountDue = s.done && s.awards ? s.awards[i] || 0 : 0;
         const award = !dealing && payoutHand === s.hand ? amountDue : 0;
         const shownStack = s.done && (payoutHand !== s.hand || settling) ? p.chips - amountDue : p.chips;
-        node.className = "poker-seat seat-" + i + " " + status + (s.turn === i ? " active" : "") + (award ? " winner" : "");
+        const won = !!(award && s.winners && s.winners.includes(i));
+        node.className = "poker-seat seat-" + i + " " + status + (s.turn === i ? " active" : "") + (won ? " winner" : "");
         const angle = 2 * Math.PI * i / s.players.length;
         node.style.setProperty('--seat-x', (50 - 48 * Math.sin(angle)) + '%');
         node.style.setProperty('--seat-y', (50 + 47 * Math.cos(angle)) + '%');
@@ -80,7 +82,7 @@ window.createPokerUI = function ({ navigate }) {
         const chips = document.createElement('span'); chips.textContent = '◈ ' + shownStack;
         const action = document.createElement('small');
         const label = {ready:'待发牌', survived:'在座', 'in-hand':'在局', 'all-in':'全押', folded:'弃牌', eliminated:'待补码'}[status];
-        action.textContent = status === 'in-hand' ? label + ' · ' + (p.action || (s.turn === i ? '行动中' : '等待')) : label;
+        action.textContent = won ? '胜出' : status === 'in-hand' ? label + ' · ' + (p.action || (s.turn === i ? '行动中' : '等待')) : label;
         info.append(heading, chips, action); node.append(avatar, info);
         if (i === s.dealer) { const d = document.createElement('b'); d.className = 'dealer-button'; d.textContent = 'D'; node.append(d); }
         const reveal = s.done && !dealing && payoutHand === s.hand && !!s.awards;
@@ -236,7 +238,7 @@ window.createPokerUI = function ({ navigate }) {
   $("reset").onclick = () => {
     if (s.hand && !confirm("重新开桌会清空本桌筹码，继续？")) return;
     s = E.create(Number($("count").value));
-    dealtHand = 0; boardSeen = []; totalsSeen = []; payoutHand = 0; dealing = false; settling = false; sizingOpen = false; selectedSizing = 'third'; $("flights").replaceChildren();
+    dealtHand = 0; boardSeen = []; totalsSeen = []; payoutHand = 0; dealing = false; settling = false; sizingOpen = false; selectedSizing = 'half'; $("flights").replaceChildren();
     $("error").textContent = "";
     loop();
   };
