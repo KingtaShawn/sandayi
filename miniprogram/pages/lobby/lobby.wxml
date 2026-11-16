@@ -7,6 +7,8 @@
       <button class="entry cards" bindtap="onCards" aria-label="进入三打一"><text class="icon" aria-hidden="true">♥</text><text class="name">三打一</text></button>
       <button class="entry fruit" bindtap="onMatch3" aria-label="进入果园消消乐"><text class="icon" aria-hidden="true">🍎</text><text class="name">果园消消乐</text></button>
       <button class="entry stars" bindtap="onPopstar" aria-label="进入消灭星星"><text class="icon" aria-hidden="true">★</text><text class="name">消灭星星</text></button>
+      <button class="entry breakout" bindtap="onBreakout" aria-label="进入经典弹球"><text class="icon" aria-hidden="true">●</text><text class="name">经典弹球</text></button>
+      <button class="entry sudoku" bindtap="onSudoku" aria-label="进入数独"><text class="icon" aria-hidden="true">▦</text><text class="name">数独</text></button>
     </view>
   </view>
   <view class="footer">单人畅玩 · 随时切换</view>

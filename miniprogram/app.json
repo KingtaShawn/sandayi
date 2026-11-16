@@ -4,6 +4,8 @@
     "pages/home/home",
     "pages/match3/match3",
     "pages/popstar/popstar",
+    "pages/breakout/breakout",
+    "pages/sudoku/sudoku",
     "pages/table/table",
     "pages/rules/rules",
     "pages/poker/poker"

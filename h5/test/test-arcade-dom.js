@@ -13,13 +13,15 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 test('H5 发布产物：所有本地 CSS/JS/manifest 引用存在且使用同一版本', () => {
   const html = fs.readFileSync(path.join(H5, 'dist/index.html'), 'utf8');
   const refs = Array.from(html.matchAll(/(?:src|href)="((?:css|js)\/[^"?]+|manifest\.webmanifest)\?v=([^"]+)"/g));
-  assert.equal(refs.length, 13);
+  assert.equal(refs.length, 15);
   assert.equal(new Set(refs.map((ref) => ref[2])).size, 1);
   refs.forEach((ref) => assert.ok(fs.existsSync(path.join(H5, 'dist', ref[1])), ref[1]));
   assert.match(html, /id="btn-enter-match3"/);
+  assert.match(html, /id="btn-enter-breakout"/);
+  assert.match(html, /id="btn-enter-sudoku"/);
 });
 
-function boot(saved, { normalMotion = false, starSaved, pokerSetup } = {}) {
+function boot(saved, { normalMotion = false, starSaved, pokerSetup, sudokuSaved } = {}) {
   const errors = [];
   const console = new VirtualConsole();
   console.on('jsdomError', (error) => errors.push(error));
@@ -31,6 +33,7 @@ function boot(saved, { normalMotion = false, starSaved, pokerSetup } = {}) {
   let seed = 13;
   w.Math.random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   w.matchMedia = () => ({ matches: !normalMotion });
+  w.HTMLCanvasElement.prototype.getContext = () => ({ clearRect() {}, fillRect() {}, beginPath() {}, arc() {}, fill() {}, fillText() {}, scale() {} });
   w.SoundFx = { play() {}, unlock() {}, state: () => 'idle', isEnabled: () => false, toggle: () => false, isMusicOn: () => false, toggleMusic: () => false, setActive(value) { this.active = value; } };
   // Fast card-game timers still execute their real callbacks; match animation ordering is preserved.
   const timeout = w.setTimeout.bind(w), interval = w.setInterval.bind(w);
@@ -38,7 +41,8 @@ function boot(saved, { normalMotion = false, starSaved, pokerSetup } = {}) {
   w.setInterval = (fn, ms, ...args) => interval(fn, Math.min(ms, 2), ...args);
   if (starSaved) w.localStorage.setItem('popstar:progress:v1', starSaved);
   if (saved) w.localStorage.setItem(KEY, saved);
-  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'poker-engine.js', 'poker.js', 'app.js']) {
+  if (sudokuSaved) w.localStorage.setItem('sudoku:progress:v1', sudokuSaved);
+  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'poker-engine.js', 'poker.js', 'mini-games.js', 'app.js']) {
     w.eval(fs.readFileSync(path.join(H5, 'js', script), 'utf8'));
     if (script === 'poker-engine.js' && pokerSetup) {
       const create = w.Poker.create;
@@ -224,7 +228,7 @@ test('H5 消灭星星：四个入口、提示、完整盘面终局、下一关/�
     assert.equal(p.$('star-board').getAttribute('aria-busy'),'false');
   }
   try {
-    assert.equal(p.w.document.querySelectorAll('.game-entry').length,4);
+    assert.equal(p.w.document.querySelectorAll('.game-entry').length,6);
     const fruitSaved=p.w.localStorage.getItem(KEY);
     p.click('btn-enter-popstar');assert.equal(p.$('view-popstar').hidden,false);
     assert.equal(p.$('star-board').children.length,100);
@@ -288,4 +292,84 @@ test('H5 预设在多人底池中按实际加注总额递增排列',async()=>{
 test('H5 多位底池赢家高亮，只有退还筹码者不显示为赢家',async()=>{
   const p=boot(null,{pokerSetup:s=>{s.hand=1;s.dealer=0;s.players[0].total=100;s.players[1].total=100;s.players[2].total=10;s.awards=[80,120,10,0,0,0,0];s.winners=[0,1];s.board=[];s.result='你 收获 80 · 小扁豆 收获 120 · 儿颠颠 收获 10';}});
   try{p.click('btn-enter-poker');await sleep(80);assert.equal(p.w.document.querySelectorAll('.poker-seat.winner').length,2);assert.ok(p.w.document.querySelector('.seat-0.winner'));assert.ok(p.w.document.querySelector('.seat-1.winner'));assert.equal(p.w.document.querySelector('.seat-2.winner'),null);assert.equal(p.w.document.querySelector('.seat-0 small').textContent,'胜出');}finally{p.close();}
+});
+
+test('H5 数独：笔记、撤销、冲突检查、提示、暂停与刷新续玩', () => {
+  const p = boot(); let saved;
+  const state = () => JSON.parse(JSON.stringify(p.w.GameCore.storage.get('sudoku:progress:v1').current));
+  try {
+    p.click('btn-enter-sudoku');
+    assert.equal(p.$('view-sudoku').hidden, false); assert.equal(p.$('sudoku-board').children.length, 81);
+    const s = state(), i = s.givens.findIndex((n) => !n), cell = p.$('sudoku-board').children[i];
+    cell.click(); p.click('sudoku-pencil'); p.$('sudoku-digits').children[2].click();
+    assert.equal(state().notes[i], 4); assert.equal(state().board[i], 0);
+    p.click('sudoku-undo'); assert.equal(state().notes[i], 0); p.click('sudoku-pencil');
+    const peer = s.givens.findIndex((n, j) => n && p.w.GameCore.Sudoku.peers(i, j));
+    cell.dispatchEvent(new p.w.KeyboardEvent('keydown', { key: String(s.givens[peer]), bubbles: true }));
+    assert.equal(cell.getAttribute('aria-invalid'), 'true'); p.click('sudoku-check'); assert.match(p.$('sudoku-status').textContent, /错误/);
+    p.click('sudoku-hint'); assert.equal(state().board[i], s.solution[i]); assert.equal(state().hints, 1);
+    p.click('sudoku-pause'); assert.equal(p.$('sudoku-cover').hidden, false); assert.ok(p.$('sudoku-hint').disabled);
+    p.click('sudoku-pause'); assert.equal(p.$('sudoku-cover').hidden, true);
+    saved = p.w.localStorage.getItem('sudoku:progress:v1');
+    p.click('sudoku-home'); assert.equal(p.$('view-lobby').hidden, false);
+    p.click('btn-enter-sudoku'); assert.equal(p.$('sudoku-cover').hidden, false); p.click('sudoku-pause'); assert.equal(state().board[i], s.solution[i]);
+  } finally { p.close(); }
+  const restored = boot(undefined, { sudokuSaved: saved });
+  try { restored.click('btn-enter-sudoku'); assert.equal(restored.w.GameCore.storage.get('sudoku:progress:v1').current.hints, 1); assert.equal(restored.$('sudoku-hints').textContent, '1'); } finally { restored.close(); }
+});
+
+test('H5 数独：换难度取消/确认、键盘焦点与完整解题后返回', () => {
+  const p = boot();
+  try {
+    p.click('btn-enter-sudoku');
+    const s = () => p.w.GameCore.storage.get('sudoku:progress:v1').current;
+    const initial = JSON.stringify(s());
+    p.$('sudoku-difficulty').value = 'hard'; p.$('sudoku-difficulty').dispatchEvent(new p.w.Event('change'));
+    const root = p.$('view-sudoku'), cancel = root.querySelector('[data-cancel]'), confirm = root.querySelector('[data-confirm]');
+    assert.equal(p.w.document.activeElement, confirm);
+    confirm.dispatchEvent(new p.w.KeyboardEvent('keydown', { key: 'Tab', bubbles: true })); assert.equal(p.w.document.activeElement, cancel);
+    cancel.click(); assert.equal(JSON.stringify(s()), initial); assert.equal(p.$('sudoku-difficulty').value, 'easy');
+    p.$('sudoku-difficulty').value = 'medium'; p.$('sudoku-difficulty').dispatchEvent(new p.w.Event('change')); confirm.click(); assert.equal(s().difficulty, 'medium');
+    const current = s();
+    for (let i = 0; i < 81; i++) if (!current.givens[i]) { p.$('sudoku-board').children[i].click(); p.$('sudoku-digits').children[current.solution[i] - 1].click(); }
+    assert.equal(s().status, 'won'); assert.match(p.$('sudoku-status').textContent, /完成/); assert.equal(p.$('sudoku-pause').disabled, true);
+    p.click('sudoku-home'); p.click('btn-enter-sudoku'); assert.equal(p.$('sudoku-cover').hidden, true); assert.equal(p.$('sudoku-filled').textContent, '81 / 81');
+  } finally { p.close(); }
+});
+
+test('H5 数独：离开和弹窗不计时，后台自动暂停', () => {
+  const p = boot();
+  try {
+    let now = 1000; p.w.Date.now = () => now; let timer;
+    p.w.setInterval = (fn) => { timer = fn; return 10001; }; p.w.clearInterval = () => { timer = null; };
+    p.click('btn-enter-sudoku'); now += 3000; timer(); assert.equal(p.$('sudoku-time').textContent, '0:03');
+    p.click('sudoku-rules'); now += 5000; timer(); p.$('view-sudoku').querySelector('[data-confirm]').click(); now += 1000; timer(); assert.equal(p.$('sudoku-time').textContent, '0:04');
+    p.w.dispatchEvent(new p.w.Event('blur')); now += 5000; timer(); assert.equal(p.$('sudoku-time').textContent, '0:04'); assert.equal(p.$('sudoku-cover').hidden, false);
+    p.click('sudoku-home'); assert.equal(timer, null);
+  } finally { p.close(); }
+});
+
+test('H5 弹球：移动发球、切换暂停恢复、清关、失败与重开保留最高分', () => {
+  const p = boot();
+  try {
+    const Session = p.w.GameCore.BreakoutSession; let session;
+    p.w.GameCore.BreakoutSession = function (storage) { session = new Session(storage); return session; };
+    const frames = new Map(); let id = 0, now = 100;
+    p.w.requestAnimationFrame = (fn) => { frames.set(++id, fn); return id; }; p.w.cancelAnimationFrame = (key) => frames.delete(key);
+    const frame = () => { now += 16; const pending = [...frames.values()]; frames.clear(); pending.forEach((fn) => fn(now)); };
+    p.click('btn-enter-breakout'); assert.equal(frames.size, 1); p.click('breakout-action'); frame(); frame(); assert.ok(session.state.ball.y < 432);
+    p.$('breakout-canvas').dispatchEvent(new p.w.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })); frame(); assert.ok(session.state.paddle < 180);
+    p.click('breakout-home'); assert.equal(frames.size, 0); assert.equal(session.state.paused, true);
+    const before = JSON.stringify(session.state); p.click('btn-enter-sudoku'); frame(); assert.equal(JSON.stringify(session.state), before);
+    p.click('sudoku-home'); p.click('btn-enter-breakout'); assert.equal(p.$('breakout-action').textContent, '继续游戏'); frame(); assert.equal(JSON.stringify(session.state), before);
+    p.click('breakout-action'); frame(); frame(); assert.equal(session.state.paused, false);
+    session.state.bricks = [{ x: 100, y: 80, w: 38, h: 18, hp: 1, color: 0 }]; session.state.ball = { x: 119, y: 110, vx: 0, vy: -450 }; frame(); frame();
+    assert.equal(p.$('breakout-action').textContent, '下一关'); assert.equal(p.$('breakout-score').textContent, '10');
+    p.click('breakout-action'); assert.equal(session.state.level, 2); assert.equal(p.$('breakout-action').textContent, '发球');
+    p.click('breakout-action'); session.state.lives = 1; session.state.ball.y = 500; session.state.ball.vy = 300; frame(); frame(); assert.equal(p.$('breakout-action').textContent, '再来一局');
+    p.click('breakout-action'); assert.equal(session.state.lives, 3); assert.equal(session.state.score, 0); assert.equal(session.best, 10);
+    p.click('breakout-action'); p.click('breakout-restart'); p.$('view-breakout').querySelector('[data-cancel]').click(); assert.equal(session.state.paused, true);
+    p.click('breakout-restart'); p.$('view-breakout').querySelector('[data-confirm]').click(); assert.equal(session.state.status, 'ready');
+    p.click('breakout-home'); assert.equal(frames.size, 0);
+  } finally { p.close(); }
 });

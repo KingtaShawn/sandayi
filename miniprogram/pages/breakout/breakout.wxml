@@ -1,0 +1,8 @@
+<view class="mini-game">
+  <view class="nav"><button bindtap="onHome">← 游戏大厅</button><text>经典弹球</text><button bindtap="onRules">玩法</button></view>
+  <view class="stats"><view><text>得分</text><text class="number">{{score}}</text></view><view><text>生命</text><text class="number">{{lives}}</text></view><view><text>关卡</text><text class="number">{{level}} / 6</text></view><view><text>最高分</text><text class="number">{{best}}</text></view></view>
+  <view class="message" aria-role="status">{{message}}</view>
+  <canvas id="breakout-canvas" type="2d" class="breakout-canvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;" catchtouchstart="onTouch" catchtouchmove="onTouch" aria-label="左右拖动控制挡板"></canvas>
+  <view class="tools"><button class="primary" bindtap="onAction" disabled="{{!ready}}">{{action}}</button><button bindtap="onRestart">重新开始</button></view>
+  <view class="save-note">左右拖动控制挡板 · 最高分保存在本机</view>
+</view>
