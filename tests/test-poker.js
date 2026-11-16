@@ -161,3 +161,23 @@ test('all-in players are never rebought until their current hand is settled',()=
   assert.throws(()=>E.start(s,()=>0.3),/本手尚未结束/);
   assert.equal(s.players[1].chips,0);
 });
+
+test('raise presets apply pot odds, minimum raise and short all-in limits',()=>{
+  const s=E.create(2);E.start(s,()=>0.3);
+  assert.equal(E.raiseTarget(s,'third'),40);
+  assert.equal(E.raiseTarget(s,'half'),45);
+  assert.equal(E.raiseTarget(s,'triple'),60);
+  assert.equal(E.raiseTarget(s,'quad'),80);
+  assert.throws(()=>E.raiseTarget(s,'unknown'),/未知下注选项/);
+  s.players[s.turn].chips=35;
+  for(const preset of ['third','half','triple','quad']) assert.equal(E.raiseTarget(s,preset),35);
+  E.action(s,'raise',E.raiseTarget(s,'third'));
+  assert.equal(s.players[0].chips,0);
+});
+test('pot fraction sizes are based on the pot after calling',()=>{
+  const s=E.create(2);E.start(s,()=>0.3);
+  E.action(s,'raise',100);
+  const p=s.players[s.turn],l=E.legal(s),pot=s.players.reduce((a,q)=>a+q.total,0);
+  assert.equal(E.raiseTarget(s,'half'),Math.max(l.min,s.current+Math.round((pot+l.call)/2)));
+  assert.equal(p.chips+p.bet,l.max);
+});

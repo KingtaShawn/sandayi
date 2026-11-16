@@ -4,7 +4,9 @@ Page({
   data: {
     counts: [2, 3, 4, 5, 6, 7, 8],
     count: 4,
-    amount: "",
+    sizingLabels: ["⅓ 底池", "½ 底池", "3倍当前注", "4倍当前注"],
+    sizingValues: ["third", "half", "triple", "quad"],
+    sizingIndex: 0,
     players: [],
     board: [],
     hole: [],
@@ -71,9 +73,10 @@ Page({
           const label = {ready:'待发牌', survived:'在座', 'in-hand':'在局', 'all-in':'全押', folded:'弃牌', eliminated:'待补码'}[status];
           return status === 'in-hand' ? label + ' · ' + (p.action || (s.turn === i ? '行动中' : '等待')) : label;
         })(),
+        revealed: !!(i !== 0 && p.hole && p.hole.length && s.done && !this.dealing && this.payoutHand === s.hand && s.awards),
         cards:
-          i !== 0 && p.hole && !p.folded
-            ? s.done && s.board.length === 5
+          i !== 0 && p.hole && p.hole.length && (!p.folded || (s.done && !this.dealing && this.payoutHand === s.hand && s.awards))
+            ? s.done && !this.dealing && this.payoutHand === s.hand && s.awards
               ? p.hole.map(E.card).join(" ")
               : "▧ ▧"
             : "",
@@ -85,7 +88,7 @@ Page({
       human: !this.dealing && !s.done && s.turn === 0,
       canRaise: l.raise,
       call: l.call || 0,
-      amount: String(Math.min(l.min || 20, l.max || 2000)),
+      raiseTo: !this.dealing && !s.done && s.turn === 0 && l.raise ? E.raiseTarget(s, this.data.sizingValues[this.data.sizingIndex]) : null,
       pot: displayPot,
       status: this.dealing ? "荷官正在发牌…" : s.done
         ? (s.awards && this.payoutHand !== s.hand ? "正在结算…" : s.result || "点击下一手开始")
@@ -131,7 +134,7 @@ Page({
     try {
       if (this.dealing) return;
       let type = e.currentTarget.dataset.type,
-        target = Number(this.data.amount);
+        target = type === "raise" ? E.raiseTarget(this.s, this.data.sizingValues[this.data.sizingIndex]) : null;
       if (type === "allin") {
         type = "raise";
         target = E.legal(this.s).max;
@@ -150,8 +153,9 @@ Page({
       wx.showToast({ title: err.message, icon: "none" });
     }
   },
-  input(e) {
-    this.setData({ amount: e.detail.value });
+  sizing(e) {
+    this.setData({ sizingIndex: Number(e.detail.value) });
+    this.render();
   },
   count(e) {
     this.setData({ count: Number(e.detail.value) });

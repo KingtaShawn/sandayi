@@ -172,6 +172,20 @@
         s.players.some((q, i) => i !== s.turn && !q.folded && q.chips > 0),
     };
   }
+  // Presets return the player's total contribution on this betting round.
+  // Pot fractions are calculated after calling; multiples apply to the current bet.
+  function raiseTarget(s, preset) {
+    const l = legal(s);
+    if (!l.raise) return null;
+    const pot = s.players.reduce((sum, p) => sum + (p.total || 0), 0);
+    let desired;
+    if (preset === "third" || preset === "half") {
+      desired = s.current + Math.round((pot + l.call) * (preset === "third" ? 1 / 3 : 1 / 2));
+    } else if (preset === "triple" || preset === "quad") {
+      desired = s.current * (preset === "triple" ? 3 : 4);
+    } else { throw Error("未知下注选项"); }
+    return Math.min(l.max, Math.max(l.min, desired));
+  }
   function action(s, type, target) {
     const i = s.turn,
       p = s.players[i],
@@ -443,6 +457,7 @@
     card,
     observation,
     seatStatus,
+    raiseTarget,
     decide,
     labels,
   };

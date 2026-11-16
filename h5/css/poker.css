@@ -53,3 +53,6 @@
 @keyframes award-pop{from{opacity:0;transform:translate(-50%,1cqh) scale(.7)}to{opacity:1;transform:translate(-50%,0) scale(1)}}@keyframes bet-pop{from{opacity:.2;transform:translateX(-50%) scale(.6)}to{opacity:1;transform:translateX(-50%) scale(1)}}
 @media(prefers-reduced-motion:reduce){.poker *{animation-duration:.01ms!important;animation-delay:0ms!important}}
 .poker-seat.winner{z-index:6}.seat-award{left:110%}
+.poker-actions .poker-sizing{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:.2cqh;white-space:nowrap;height:9cqh}.poker-actions .poker-sizing span{font-size:clamp(8px,2cqh,11px)}.poker-actions .poker-sizing select{width:100%;min-width:0;height:5.5cqh;padding:0 .4cqw;font-size:clamp(9px,2.3cqh,13px);border-radius:5px;background:#10231a;color:#f9edce}.poker-actions .poker-sizing select:disabled{opacity:.45}.poker-seat.eliminated.showdown{opacity:1;filter:none}.seat-cards.revealed span{background:#fffdfa;border:1px solid #dac8a5;color:#17221e}
+.seat-cards.revealed span.red{color:#c84443}
+.seat-cards.revealed span{width:6.2cqh;height:8cqh;font-size:clamp(9px,2.5cqh,13px);line-height:1}

@@ -80,10 +80,12 @@ window.createPokerUI = function ({ navigate }) {
         action.textContent = status === 'in-hand' ? label + ' · ' + (p.action || (s.turn === i ? '行动中' : '等待')) : label;
         info.append(heading, chips, action); node.append(avatar, info);
         if (i === s.dealer) { const d = document.createElement('b'); d.className = 'dealer-button'; d.textContent = 'D'; node.append(d); }
-        if (p.hole && i !== 0 && !p.folded) {
-          const h = document.createElement('div'); h.className = 'seat-cards' + (newHand ? ' dealing' : '');
+        const reveal = s.done && !dealing && payoutHand === s.hand && !!s.awards;
+        if (reveal && p.hole && p.hole.length) node.classList.add('showdown');
+        if (p.hole && p.hole.length && i !== 0 && (!p.folded || reveal)) {
+          const h = document.createElement('div'); h.className = 'seat-cards' + (newHand ? ' dealing' : '') + (reveal ? ' revealed' : '');
           if (newHand) h.style.animationDelay = (i - 1) * 120 + 'ms';
-          if (s.done && s.board.length === 5) {
+          if (reveal) {
             p.hole.forEach(c => {const v=document.createElement('span');v.className = Math.floor(c/13)%2 ? 'red' : '';v.textContent=E.card(c);h.append(v);});
           } else h.innerHTML = '<span class="card-back"></span><span class="card-back"></span>';
           node.appendChild(h);
@@ -124,10 +126,13 @@ window.createPokerUI = function ({ navigate }) {
       (k) => ($(k).disabled = !human || !l.raise),
     );
     $("call").textContent = l.call ? "跟注 " + l.call : "过牌";
-    $("amount").min = l.min || 20;
-    $("amount").max = l.max || 2000;
-    if (document.activeElement !== $("amount"))
-      $("amount").value = Math.min(l.min || 20, l.max || 2000);
+    const optionLabels = {third:'⅓ 底池', half:'½ 底池', triple:'3倍当前注', quad:'4倍当前注'};
+    Array.from($("amount").options).forEach(option => {
+      const target = human && l.raise ? E.raiseTarget(s, option.value) : null;
+      option.textContent = optionLabels[option.value] + (target == null ? '' : ' · 至 ' + target);
+    });
+    const raiseTo = human && l.raise ? E.raiseTarget(s, $("amount").value) : null;
+    $("raise").textContent = raiseTo == null ? '加注' : '加注至 ' + raiseTo;
     $("next").disabled = dealing || settling || !s.done;
     $("log").replaceChildren(
       ...(s.log || []).slice(-12).map((v) => {
@@ -179,7 +184,8 @@ window.createPokerUI = function ({ navigate }) {
   }
   $("fold").onclick = () => act("fold");
   $("call").onclick = () => act("call");
-  $("raise").onclick = () => act("raise", Number($("amount").value));
+  $("amount").onchange = () => render();
+  $("raise").onclick = () => act("raise", E.raiseTarget(s, $("amount").value));
   $("allin").onclick = () => act("raise", E.legal(s).max);
   $("next").onclick = () => {
     try {
