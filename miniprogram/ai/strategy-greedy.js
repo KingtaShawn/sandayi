@@ -1,5 +1,5 @@
 /**
- * ai/strategy-greedy.js —— 贪心启发式 AI（P0）。
+ * ai/strategy-greedy.js —— 公开记牌、策略推演与限预算残局搜索。
  *
  * 铁律（架构 §8.9）：
  *   1. 出牌候选 = engine.validate.legalMoves(公开决策视图, idx)，甩牌不查询真实暗牌；
@@ -128,6 +128,9 @@ const EARLY_PLAN_MARGIN = 8;
 // 合同未定且手牌≤6时优先合同胜率；其他阶段及胜负已定后继续优化总分。
 const WIN_OBJECTIVE = envFlag('AI_WIN_OBJECTIVE') || 'late';
 const WIN_SAMPLE_SCALE = envFlag('AI_WIN_SAMPLE_SCALE') === '2' ? 2 : 1;
+// 闲家3~4张残局复核；2/3张门槛用于配对消融，非法配置不能扩大搜索预算。
+const ENDGAME_DEPTH = ['2', '3'].includes(envFlag('AI_ENDGAME_DEPTH')) ? Number(envFlag('AI_ENDGAME_DEPTH')) : 4;
+const FEAT_ROLLOUT_FULL = envFlag('AI_ROLLOUT_FULL') !== '0';
 
 class GreedyStrategy {
   /**
@@ -523,17 +526,22 @@ class GreedyStrategy {
         } else ctx.freeDiscardLead = switchSuit;
       }
     }
-    // R5 末墩精确求解：有真实选择权时替换贪心选择（预算超限/异常静默回退）
+    // R5 原有两张残局求解；3~4张在R3之后复核，保留原规划作为比较基准。
+    let endgameSolved = false;
     if (ctx && FEAT_R5 && this.difficulty !== 'easy') {
       const r5 = this._solveEndgame(state, playerIdx, ctx);
-      if (r5) pick = r5;
+      if (r5) { pick = r5; endgameSolved = true; }
     }
     // R3 中盘 PIMC 推演：大分墩/卡点墩的跟牌决策，仅当 rollout 期望值显著
     // 优于贪心选择（τ 阈值，小样本 EV 有噪声、贪心是大量基准校准的先验）
     // 才覆盖（R5 求解位手牌=2 与 R3 门互斥；超预算/异常同样静默回退）
-    if (ctx && FEAT_R3 && this.difficulty !== 'easy') {
+    if (ctx && FEAT_R3 && !endgameSolved && this.difficulty !== 'easy') {
       const r3 = this._solvePIMC(state, playerIdx, ctx, pick);
       if (r3) pick = r3;
+    }
+    if (ctx && FEAT_R5 && !endgameSolved && !ctx.sdy.isDealer && this.difficulty !== 'easy') {
+      const verified = this._solveEndgame(state, playerIdx, ctx, pick);
+      if (verified) pick = verified;
     }
     if (ctx && FEAT_TEAM_FOLLOW && !ctx.sdy.isDealer && !isLead
         && this.difficulty !== 'easy') {
@@ -1768,10 +1776,12 @@ class GreedyStrategy {
     return s;
   }
 
-  /* --------------------- R5 残局精确求解（末两墩） --------------------- */
+  /* --------------------- R5 残局搜索与规划复核 --------------------- */
 
   /**
-   * 残局精确求解（剩 ≤2 墩，即手牌 ≤2 张）：枚举/采样未见牌分布 →
+   * 两张残局沿用原求解；闲家3~4张时，先用策略模拟筛选挑战者，再对相同
+   * 假设下的原规划和挑战者完整搜索。两种模型均有足够配对优势才覆盖。
+   * 枚举/采样未见牌分布 →
    * 每个候选出牌按「庄家方最大化、攻方最小化 V=庄家终局分−合同分」的
    * 完全信息minimax（α-β剪枝）求值到全场打空，取期望效用最优。
    * 闲家末盘合同未定时提高合同胜负权重，其他情况仍比较终局分。
@@ -1780,23 +1790,25 @@ class GreedyStrategy {
    * vs 整对）时存在；手牌=本墩张数时合法出牌唯一，自动跳过。
    * 确定性保证：分布按牌序全枚举（超上限改固定种子采样）、候选次序稳定、
    * 节点超限整体回退贪心（不按时钟截断）→ bench 同种子可复现。
-   * PIMC 通病（对手知情过强）在只剩两墩时影响有限，接受。
+   * 完整搜索仅表示每份假设内不截断合法走法，不代表知道真实暗牌或全局最优。
    * @returns {Array<object>|null} 最优出牌；null=不适用/超预算，走贪心
    */
-  _solveEndgame(state, playerIdx, ctx) {
+  _solveEndgame(state, playerIdx, ctx, prior) {
     try {
       const cfg = state.config;
       const ti = state.trumpInfo;
       const trick = state.currentTrick;
       const h = state.players[playerIdx].hand.length;
-      if (h !== 2) return null; // v1 范围：手牌恰 2 张（≤2 墩）
+      if (h < 2 || h > (ctx.sdy.isDealer ? 2 : ENDGAME_DEPTH)) return null;
+      if ((h > 2 && !prior) || (h === 2 && prior)) return null;
 
       // 闲家在合同确定后仍继续争分/扣底；庄家保留合同已定时的快路径。
       const need = ctx.sdy.need;
       const remainingPts = this._remainingPoints(state, ctx);
       if (remainingPts <= 0 || (ctx.sdy.isDealer && (need <= 0 || need > remainingPts))) return null;
 
-      const rootCands = this._legalPlays(state, playerIdx, ctx);
+      const rootCands = h > 2 ? this._endgameMoves(this._playView(state, playerIdx, ctx), playerIdx)
+        : this._legalPlays(state, playerIdx, ctx);
       if (rootCands.length <= 1) return null; // 无选择权（如跟牌且手牌=本墩张数）
 
       const isLead = !trick || trick.plays.length === 0;
@@ -1821,36 +1833,77 @@ class GreedyStrategy {
       // （R4 先验只喂 R3：h=2 池太小实测加权反而失真 40.0→40.3，勿接到此处）
 
       const belief = this._beliefSpec(ctx, groups);
-      const assignments = this._r5Assignments(unseen, groups, ti, belief ? R5_SAMPLE_N : undefined, belief);
+      const assignments = this._r5Assignments(unseen, groups, ti, h > 2 ? 32 : belief ? R5_SAMPLE_N : undefined, belief);
       if (assignments.length === 0) return null;
 
       const bottomPtsReal = isDealerView
         ? (state.bottomCards || []).reduce((s, c) => s + pointValue(c, cfg), 0) : 0;
       const seats = groups.map((g) => g.seat);
-      const rootPruned = this._r5Prune(state, playerIdx, rootCands, isLead ? null : trick, R5_K_ROOT);
+      let rootPruned = this._r5Prune(state, playerIdx, rootCands, isLead ? null : trick,
+        h > 2 ? rootCands.length : R5_K_ROOT);
+      const reference = prior && rootPruned.find((cs) => playKey(cs) === playKey(prior));
+      if (prior && !reference) return null;
+      // 有公开证据的跑分窗口不能被少量暗牌假设替换成等待。
+      if (h > 2 && isLead && pointsOf(prior, cfg) > 0
+          && !this._dealerCanBeat(parseCombo(prior, ti, cfg), ctx)) return null;
+      if (reference) {
+        // 先用策略模拟筛出有收益的挑战者，再花完整搜索预算复核两条路线。
+        const rolloutBudget = { n: 0, limit: R3_EVENT_CAP * 2 }, outcomes = new Map();
+        let challenger = reference, bestMean = Infinity;
+        for (const cards of rootPruned) {
+          const values = assignments.map((asg) => {
+            const ss = this._r5SimState(state, ctx, playerIdx, seats, asg, pointsOf(asg.bottom, cfg));
+            ss.winObjective = this._useWinObjective(ctx, h, remainingPts);
+            ss.fullRollout = FEAT_ROLLOUT_FULL;
+            this._r5Apply(ss, playerIdx, cards, parseCombo(cards, ti, cfg));
+            const next = ss.currentTrick ? this._nextSeat(ss, playerIdx) : ss.tricks[ss.tricks.length - 1].winnerIdx;
+            return this._r3Rollout(ss, next, rolloutBudget);
+          });
+          outcomes.set(cards, values);
+          const mean = values.reduce((n, v) => n + v, 0) / values.length;
+          if (mean < bestMean) { challenger = cards; bestMean = mean; }
+        }
+        if (challenger === reference || !this._endgameEvidence(outcomes.get(reference)
+          .map((v, i) => v - outcomes.get(challenger)[i]))) return null;
+        rootPruned = [reference, challenger];
+      }
       const budget = { n: 0 };
+      const caches = assignments.map(() => ({ positions: new Map(), moves: new Map() }));
+      const values = new Map();
       const maximize = isDealerView;
       let best = null;
       let bestV = maximize ? -Infinity : Infinity;
       for (const cards of rootPruned) {
         const combo = parseCombo(cards, ti, cfg);
         let sum = 0;
-        for (const asg of assignments) {
+        const outcomes = [];
+        for (const [i, asg] of assignments.entries()) {
           const ss = this._r5SimState(state, ctx, playerIdx, seats, asg,
             isDealerView ? bottomPtsReal
               : asg.bottom.reduce((s, c) => s + pointValue(c, cfg), 0));
           ss.winObjective = this._useWinObjective(ctx, h, remainingPts);
+          ss.exactEndgame = h > 2;
+          ss.endgameCache = caches[i].positions;
+          ss.endgameMoveCache = caches[i].moves;
           this._r5Apply(ss, playerIdx, cards, combo);
           let next;
           if (ss.currentTrick) next = this._nextSeat(ss, playerIdx);
           else next = ss.tricks[ss.tricks.length - 1].winnerIdx;
-          sum += this._r5Search(ss, next, budget, -Infinity, Infinity);
+          const value = this._r5Search(ss, next, budget, -Infinity, Infinity);
+          sum += value;
+          outcomes.push(value);
         }
+        values.set(cards, outcomes);
         const ev = sum / assignments.length;
         if (maximize ? ev > bestV + 1e-9 : ev < bestV - 1e-9) {
           bestV = ev;
           best = cards;
         }
+      }
+      if (reference) {
+        if (best === reference) return null;
+        const gains = values.get(reference).map((v, i) => v - values.get(best)[i]);
+        if (!this._endgameEvidence(gains)) return null;
       }
       return best;
     } catch (e) {
@@ -2102,9 +2155,34 @@ class GreedyStrategy {
     if (ss.players[toAct].hand.length === 0 && !ss.currentTrick) {
       return this._r5TerminalOf(ss);
     }
-    const cands = legalMoves(ss, toAct);
+    // 最后一张已无选择，直接按真实方向结墩，避免展开四层单分支。
+    if (ss.exactEndgame && ss.players.every((p) => p.hand.length <= 1)) {
+      const t = ss.currentTrick;
+      const plays = t ? t.plays.slice() : [];
+      let seat = toAct;
+      while (plays.length < 4) {
+        const cards = ss.players[seat].hand;
+        plays.push({ playerIdx: seat, cards, combo: parseCombo(cards, ss.trumpInfo, ss.config) });
+        seat = this._nextSeat(ss, seat);
+      }
+      const trick = { leadPlayerIdx: plays[0].playerIdx, leadCombo: plays[0].combo, plays };
+      const result = require('../engine/trick').resolveTrick(trick, ss.trumpInfo, ss.config);
+      return this._r5TerminalOf({ ...ss, tricks: ss.tricks.concat(result) });
+    }
+    const alphaStart = alpha, betaStart = beta;
+    const cache = ss.exactEndgame && !ss.currentTrick && ss.endgameCache;
+    const key = cache ? `${toAct}:${ss.tricks.reduce((n, t) => n + (t.winnerIdx === ss.dealerIdx ? t.points : 0), 0)}:`
+      + ss.players.map((p) => playKey(p.hand)).join('/') : null;
+    const saved = cache && cache.get(key);
+    if (saved) {
+      if (saved.bound === 'exact') return saved.value;
+      if (saved.bound === 'lower') alpha = Math.max(alpha, saved.value);
+      else beta = Math.min(beta, saved.value);
+      if (alpha >= beta) return saved.value;
+    }
+    const cands = ss.exactEndgame ? this._endgameMoves(ss, toAct) : legalMoves(ss, toAct);
     if (cands.length === 0) throw { r5Abort: true }; // 模拟异常，整体回退
-    const pruned = this._r5Prune(ss, toAct, cands, ss.currentTrick, R5_K_NODE);
+    const pruned = this._r5Prune(ss, toAct, cands, ss.currentTrick, ss.exactEndgame ? cands.length : R5_K_NODE);
     const maximize = toAct === ss.dealerIdx;
     let best = maximize ? -Infinity : Infinity;
     for (const cards of pruned) {
@@ -2113,8 +2191,9 @@ class GreedyStrategy {
       let next;
       if (ss.currentTrick) next = this._nextSeat(ss, toAct);
       else next = ss.tricks[ss.tricks.length - 1].winnerIdx;
-      const v = this._r5Search(ss, next, budget, alpha, beta);
-      undo();
+      let v;
+      try { v = this._r5Search(ss, next, budget, alpha, beta); }
+      finally { undo(); }
       if (maximize) {
         if (v > best) best = v;
         if (best >= beta) break; // 剪枝
@@ -2125,6 +2204,8 @@ class GreedyStrategy {
         if (best < beta) beta = best;
       }
     }
+    if (cache) cache.set(key, { value: best,
+      bound: best <= alphaStart ? 'upper' : best >= betaStart ? 'lower' : 'exact' });
     return best;
   }
 
@@ -2136,6 +2217,38 @@ class GreedyStrategy {
     const margin = dPts - ss.contractScore;
     const doubleReward = dPts >= 200 ? 100 : dPts === 0 ? -100 : 0;
     return (ss.winObjective ? (margin >= 0 ? 100 : -100) + margin * 0.1 : margin) + doubleReward;
+  }
+
+  /** 小残局枚举全部实质不同的合法组合，避免代表候选遗漏让牌/保留末墩的路线。 */
+  _endgameMoves(state, seat) {
+    const hand = state.players[seat].hand, trick = state.currentTrick;
+    if (hand.length > 4) return legalMoves(state, seat);
+    const n = trick && trick.plays.length ? trick.leadCombo.n : 0;
+    // 跟牌合法性只依赖自己的余牌和领出组合；甩牌则还依赖所有假设手牌。
+    const cache = state.endgameMoveCache;
+    const cacheKey = cache && (n ? `${seat}:${playKey(hand)}:${playKey(trick.plays[0].cards)}`
+      : `${seat}:${state.players.map((p) => playKey(p.hand)).join('/')}`);
+    if (cache && cache.has(cacheKey)) return cache.get(cacheKey);
+    const out = [], seen = new Set();
+    for (let mask = 1; mask < (1 << hand.length); mask++) {
+      const cards = hand.filter((c, i) => mask & (1 << i));
+      if (n && cards.length !== n) continue;
+      const key = cards.map((c) => `${c.suit}-${c.rank}`).sort().join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (validatePlay(state, seat, cards).ok) out.push(cards);
+    }
+    if (cache) cache.set(cacheKey, out);
+    return out;
+  }
+
+  /** 共同假设的配对优势；收益不足或只由少数极端分布撑起时保留原规划。 */
+  _endgameEvidence(gains) {
+    if (gains.length < 16) return false;
+    const mean = gains.reduce((n, v) => n + v, 0) / gains.length;
+    const se = Math.sqrt(gains.reduce((n, v) => n + (v - mean) ** 2, 0)
+      / (gains.length - 1) / gains.length);
+    return mean >= Math.max(5, 1.64 * se);
   }
 
   _useWinObjective(ctx, h, remainingPts) {
@@ -2283,7 +2396,8 @@ class GreedyStrategy {
    * 贪心快走打到收局，比较合同胜负/终局分效用；安全兑现入口保留分值目标。
    * 范围：手牌3~10张的闲家领出、关键分墩，以及有后续兑现路线或手牌≤4张
    * 的牌权决策。闲家在合同确定后仍争分；庄家保留合同已定时的快路径。
-   * 手牌=2归R5；>10张由前期两墩规划接管。rollout策略=无上下文贪心基线
+   * 手牌=2归R5；3~4张之后还有双模型复核；>10张由前期两墩规划接管。
+   * rollout策略=无上下文贪心基线
    * （_scoreLead/_scoreFollow 基线路径：无记牌、快，且所有候选面对同一策略，
    * 策略偏差在候选间近似抵消）。
    * 确定性：固定种子采样 + 稳定次序 + 步数上限（非时钟截断），bench 可复现。
@@ -2397,6 +2511,7 @@ class GreedyStrategy {
             isDealerView ? bottomPtsReal
               : asg.bottom.reduce((s, c) => s + pointValue(c, cfg), 0));
           ss.winObjective = winObjective;
+          ss.fullRollout = FEAT_ROLLOUT_FULL && !isDealerView;
           this._r5Apply(ss, playerIdx, cards, combo);
           let next;
           if (ss.currentTrick) next = this._nextSeat(ss, playerIdx);
@@ -2444,7 +2559,8 @@ class GreedyStrategy {
     throw { r3Abort: true }; // 异常长局，防御性放弃
   }
 
-  /** rollout 单步：基线贪心打分（无上下文，快）；候选超宽按引擎序截断保确定性
+  /** rollout 单步：基线贪心打分（无上下文，快）；闲家中后盘评完全部代表候选，
+   * 不因引擎枚举顺序漏看唯一将吃牌；庄家及选主模拟保留原预算与行为。
    *  （rollout 增强策略已试删 2026-10-28：全员增强高估对手 a-new +0.8pp、
    *  阵营感知增强 τ∈{5,8,10} 无差异——R3 覆盖 45 次/1600 局太稀，保真度无边际） */
   _r3RolloutMove(ss, seat, budget) {
@@ -2454,7 +2570,7 @@ class GreedyStrategy {
     if (cands.length <= 1) return cands[0];
     const freeDiscard = this._freeDiscardInSimulation(ss, seat, cands);
     if (freeDiscard) return freeDiscard;
-    const capped = cands.length > R3_ROLLOUT_K ? cands.slice(0, R3_ROLLOUT_K) : cands;
+    const capped = !ss.fullRollout && cands.length > R3_ROLLOUT_K ? cands.slice(0, R3_ROLLOUT_K) : cands;
     const isLead = !ss.currentTrick || ss.currentTrick.plays.length === 0;
     let best = capped[0];
     let bestS = -Infinity;

@@ -1,0 +1,2211 @@
+{
+  "date": "2026-11-16",
+  "baselineCommit": "945bf9451f121470951db819875eb3c94ffcc9a7",
+  "conclusion": "修复候选截断并增加受约束的残局复核；独立评测平均得分略增，但未证明整体胜率提升，不能宣称神级或稳赢。",
+  "defaults": {
+    "AI_ROLLOUT_FULL": "1",
+    "AI_ENDGAME_DEPTH": "4"
+  },
+  "information": "保持现有权限：普通策略仅用本人手牌和公开记录；真人庄家的三AI沿用既有渐进区间协同，未增加庄家/底牌读取。",
+  "validation": {
+    "coreTests": 576,
+    "h5DomTests": 28,
+    "oracle": "16份随机三/四张假设，覆盖双方向、四庄位、合同/分数目标、窄窗口缓存与独立穷举对照",
+    "illegalPlays": 0,
+    "scoreConservation": 200
+  },
+  "training": {
+    "seedStart": 110001,
+    "count": 128,
+    "hashes": {
+      "baseline": "24d1f999193703619b23c42c3881c5be8a50b365af8db9c8148f10b73dbdc4b4",
+      "candidate": "eef17841f265a8a5e97e39d09226d85d498bf7c93bb7da47dfd545a40d5d1c42",
+      "runner": "5104af863d305ced81ed1246ad24e72c6706f9b0d98d025efb8343f51e1655d1"
+    },
+    "variantFlags": {
+      "previous": {},
+      "rollout": {
+        "AI_ENDGAME_DEPTH": "2",
+        "AI_ROLLOUT_FULL": "1"
+      },
+      "candidate": {}
+    },
+    "summary": {
+      "overall": {
+        "previous": {
+          "win": 97,
+          "points": 16545,
+          "bottom": 64,
+          "bottomPoints": 1395,
+          "decisions": 6909,
+          "n": 128,
+          "winRate": 0.7578125,
+          "meanPoints": 129.2578125,
+          "bottomRate": 0.5
+        },
+        "rollout": {
+          "win": 98,
+          "points": 16680,
+          "bottom": 65,
+          "bottomPoints": 1455,
+          "decisions": 6900,
+          "n": 128,
+          "winRate": 0.765625,
+          "meanPoints": 130.3125,
+          "bottomRate": 0.5078125,
+          "paired": {
+            "n": 128,
+            "win": {
+              "mean": 0.0078125,
+              "ci95": [
+                -0.0075,
+                0.023125
+              ]
+            },
+            "points": {
+              "mean": 1.0546875,
+              "ci95": [
+                -0.17345461628542624,
+                2.2828296162854262
+              ]
+            },
+            "bottom": {
+              "mean": 0.0078125,
+              "ci95": [
+                -0.018779048498077176,
+                0.034404048498077176
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0.46875,
+              "ci95": [
+                -0.4564080985874196,
+                1.3939080985874197
+              ]
+            },
+            "gained": 1,
+            "lost": 0
+          }
+        },
+        "candidate": {
+          "win": 98,
+          "points": 16685,
+          "bottom": 65,
+          "bottomPoints": 1455,
+          "decisions": 6900,
+          "n": 128,
+          "winRate": 0.765625,
+          "meanPoints": 130.3515625,
+          "bottomRate": 0.5078125,
+          "paired": {
+            "n": 128,
+            "win": {
+              "mean": 0.0078125,
+              "ci95": [
+                -0.0075,
+                0.023125
+              ]
+            },
+            "points": {
+              "mean": 1.09375,
+              "ci95": [
+                -0.1357630940037895,
+                2.3232630940037895
+              ]
+            },
+            "bottom": {
+              "mean": 0.0078125,
+              "ci95": [
+                -0.018779048498077176,
+                0.034404048498077176
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0.46875,
+              "ci95": [
+                -0.4564080985874196,
+                1.3939080985874197
+              ]
+            },
+            "gained": 1,
+            "lost": 0
+          }
+        }
+      },
+      "byProfile": {
+        "normal": {
+          "rollout": {
+            "n": 32,
+            "win": {
+              "mean": 0.03125,
+              "ci95": [
+                -0.03,
+                0.0925
+              ]
+            },
+            "points": {
+              "mean": 2.34375,
+              "ci95": [
+                -1.9448083371206568,
+                6.632308337120657
+              ]
+            },
+            "bottom": {
+              "mean": 0.03125,
+              "ci95": [
+                -0.03,
+                0.0925
+              ]
+            },
+            "bottomPoints": {
+              "mean": 1.40625,
+              "ci95": [
+                -1.35,
+                4.1625
+              ]
+            },
+            "gained": 1,
+            "lost": 0
+          },
+          "candidate": {
+            "n": 32,
+            "win": {
+              "mean": 0.03125,
+              "ci95": [
+                -0.03,
+                0.0925
+              ]
+            },
+            "points": {
+              "mean": 2.34375,
+              "ci95": [
+                -1.9448083371206568,
+                6.632308337120657
+              ]
+            },
+            "bottom": {
+              "mean": 0.03125,
+              "ci95": [
+                -0.03,
+                0.0925
+              ]
+            },
+            "bottomPoints": {
+              "mean": 1.40625,
+              "ci95": [
+                -1.35,
+                4.1625
+              ]
+            },
+            "gained": 1,
+            "lost": 0
+          }
+        },
+        "pressure": {
+          "rollout": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          },
+          "candidate": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        },
+        "cash": {
+          "rollout": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 1.5625,
+              "ci95": [
+                -0.6568328970806783,
+                3.7818328970806783
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                -0.0880065979931197,
+                0.0880065979931197
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0.46875,
+              "ci95": [
+                -2.034390920069385,
+                2.971890920069385
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          },
+          "candidate": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 1.5625,
+              "ci95": [
+                -0.6568328970806783,
+                3.7818328970806783
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                -0.0880065979931197,
+                0.0880065979931197
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0.46875,
+              "ci95": [
+                -2.034390920069385,
+                2.971890920069385
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        },
+        "low-bottom": {
+          "rollout": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 0.3125,
+              "ci95": [
+                -0.6652746912117299,
+                1.2902746912117298
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          },
+          "candidate": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 0.46875,
+              "ci95": [
+                -0.54994062759901,
+                1.48744062759901
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        }
+      },
+      "coverage": {
+        "single": 4665,
+        "pair": 2016,
+        "tractor": 0,
+        "throw": 228,
+        "early": 3954,
+        "middle": 2385,
+        "end": 570,
+        "close": 240
+      },
+      "seats": {
+        "0": 35,
+        "1": 35,
+        "2": 29,
+        "3": 29
+      },
+      "contracts": {
+        "90": 87,
+        "100": 9,
+        "110": 32
+      },
+      "directions": {
+        "counterclockwise": 64,
+        "clockwise": 64
+      }
+    },
+    "changedGames": [
+      {
+        "scenario": {
+          "seed": 110016,
+          "profile": "low-bottom",
+          "direction": "clockwise",
+          "firstBidder": 1
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 125,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "rollout": {
+            "win": true,
+            "points": 120,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 120,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 110019,
+          "profile": "cash",
+          "direction": "counterclockwise",
+          "firstBidder": 2
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 130,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "rollout": {
+            "win": true,
+            "points": 165,
+            "bottom": true,
+            "bottomPoints": 35
+          },
+          "candidate": {
+            "win": true,
+            "points": 165,
+            "bottom": true,
+            "bottomPoints": 35
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 110043,
+          "profile": "cash",
+          "direction": "counterclockwise",
+          "firstBidder": 1
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 65,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "rollout": {
+            "win": false,
+            "points": 75,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": false,
+            "points": 75,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 110052,
+          "profile": "low-bottom",
+          "direction": "counterclockwise",
+          "firstBidder": 2
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 165,
+            "bottom": true,
+            "bottomPoints": 0
+          },
+          "rollout": {
+            "win": true,
+            "points": 165,
+            "bottom": true,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 170,
+            "bottom": true,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 110095,
+          "profile": "cash",
+          "direction": "clockwise",
+          "firstBidder": 3
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 135,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "rollout": {
+            "win": true,
+            "points": 140,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 140,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 110097,
+          "profile": "normal",
+          "direction": "counterclockwise",
+          "firstBidder": 0
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 150,
+            "bottom": true,
+            "bottomPoints": 15
+          },
+          "rollout": {
+            "win": true,
+            "points": 155,
+            "bottom": true,
+            "bottomPoints": 15
+          },
+          "candidate": {
+            "win": true,
+            "points": 155,
+            "bottom": true,
+            "bottomPoints": 15
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 110109,
+          "profile": "normal",
+          "direction": "clockwise",
+          "firstBidder": 1
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 65,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "rollout": {
+            "win": true,
+            "points": 135,
+            "bottom": true,
+            "bottomPoints": 45
+          },
+          "candidate": {
+            "win": true,
+            "points": 135,
+            "bottom": true,
+            "bottomPoints": 45
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 110116,
+          "profile": "low-bottom",
+          "direction": "counterclockwise",
+          "firstBidder": 2
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 130,
+            "bottom": true,
+            "bottomPoints": 0
+          },
+          "rollout": {
+            "win": true,
+            "points": 145,
+            "bottom": true,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 145,
+            "bottom": true,
+            "bottomPoints": 0
+          }
+        }
+      }
+    ]
+  },
+  "holdout": {
+    "seedStart": 120001,
+    "count": 256,
+    "hashes": {
+      "baseline": "24d1f999193703619b23c42c3881c5be8a50b365af8db9c8148f10b73dbdc4b4",
+      "candidate": "eef17841f265a8a5e97e39d09226d85d498bf7c93bb7da47dfd545a40d5d1c42",
+      "runner": "5104af863d305ced81ed1246ad24e72c6706f9b0d98d025efb8343f51e1655d1"
+    },
+    "variantFlags": {
+      "previous": {},
+      "candidate": {}
+    },
+    "summary": {
+      "overall": {
+        "previous": {
+          "win": 168,
+          "points": 30630,
+          "bottom": 93,
+          "bottomPoints": 2135,
+          "decisions": 13323,
+          "n": 256,
+          "winRate": 0.65625,
+          "meanPoints": 119.6484375,
+          "bottomRate": 0.36328125
+        },
+        "candidate": {
+          "win": 168,
+          "points": 30785,
+          "bottom": 96,
+          "bottomPoints": 2275,
+          "decisions": 13308,
+          "n": 256,
+          "winRate": 0.65625,
+          "meanPoints": 120.25390625,
+          "bottomRate": 0.375,
+          "paired": {
+            "n": 256,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                -0.010848782347866166,
+                0.010848782347866166
+              ]
+            },
+            "points": {
+              "mean": 0.60546875,
+              "ci95": [
+                -0.29508318829248226,
+                1.5060206882924823
+              ]
+            },
+            "bottom": {
+              "mean": 0.01171875,
+              "ci95": [
+                -0.008526432096763847,
+                0.03196393209676385
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0.546875,
+              "ci95": [
+                -0.09142800133036577,
+                1.1851780013303657
+              ]
+            },
+            "gained": 1,
+            "lost": 1
+          }
+        }
+      },
+      "byProfile": {
+        "normal": {
+          "candidate": {
+            "n": 64,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": 1.09375,
+              "ci95": [
+                -0.3117837682215647,
+                2.4992837682215647
+              ]
+            },
+            "bottom": {
+              "mean": 0.015625,
+              "ci95": [
+                -0.015,
+                0.04625
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0.234375,
+              "ci95": [
+                -0.22499999999999998,
+                0.69375
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        },
+        "pressure": {
+          "candidate": {
+            "n": 64,
+            "win": {
+              "mean": 0.015625,
+              "ci95": [
+                -0.015,
+                0.04625
+              ]
+            },
+            "points": {
+              "mean": 2.1875,
+              "ci95": [
+                -0.7316447805821484,
+                5.106644780582148
+              ]
+            },
+            "bottom": {
+              "mean": 0.046875,
+              "ci95": [
+                -0.005320296323838729,
+                0.09907029632383874
+              ]
+            },
+            "bottomPoints": {
+              "mean": 2.109375,
+              "ci95": [
+                -0.35810819290966345,
+                4.576858192909663
+              ]
+            },
+            "gained": 1,
+            "lost": 0
+          }
+        },
+        "cash": {
+          "candidate": {
+            "n": 64,
+            "win": {
+              "mean": -0.015625,
+              "ci95": [
+                -0.04625,
+                0.015
+              ]
+            },
+            "points": {
+              "mean": -0.625,
+              "ci95": [
+                -1.538061090812414,
+                0.28806109081241404
+              ]
+            },
+            "bottom": {
+              "mean": -0.015625,
+              "ci95": [
+                -0.04625,
+                0.015
+              ]
+            },
+            "bottomPoints": {
+              "mean": -0.15625,
+              "ci95": [
+                -0.4625,
+                0.15000000000000002
+              ]
+            },
+            "gained": 0,
+            "lost": 1
+          }
+        },
+        "low-bottom": {
+          "candidate": {
+            "n": 64,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": -0.234375,
+              "ci95": [
+                -1.4580070487078622,
+                0.9892570487078622
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                -0.04365266951236265,
+                0.04365266951236265
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        }
+      },
+      "coverage": {
+        "single": 8532,
+        "pair": 4242,
+        "tractor": 0,
+        "throw": 549,
+        "early": 7797,
+        "middle": 4530,
+        "end": 996,
+        "close": 606
+      },
+      "seats": {
+        "0": 71,
+        "1": 57,
+        "2": 61,
+        "3": 67
+      },
+      "contracts": {
+        "90": 172,
+        "100": 20,
+        "110": 63,
+        "140": 1
+      },
+      "directions": {
+        "counterclockwise": 128,
+        "clockwise": 128
+      }
+    },
+    "changedGames": [
+      {
+        "scenario": {
+          "seed": 120006,
+          "profile": "pressure",
+          "direction": "clockwise",
+          "firstBidder": 0
+        },
+        "contract": 110,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 135,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 180,
+            "bottom": true,
+            "bottomPoints": 35
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120039,
+          "profile": "cash",
+          "direction": "clockwise",
+          "firstBidder": 0
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 115,
+            "bottom": true,
+            "bottomPoints": 10
+          },
+          "candidate": {
+            "win": false,
+            "points": 90,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120048,
+          "profile": "low-bottom",
+          "direction": "clockwise",
+          "firstBidder": 1
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 165,
+            "bottom": true,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 150,
+            "bottom": true,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120058,
+          "profile": "pressure",
+          "direction": "counterclockwise",
+          "firstBidder": 3
+        },
+        "contract": 110,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 125,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 120,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120065,
+          "profile": "normal",
+          "direction": "counterclockwise",
+          "firstBidder": 0
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 120,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 115,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120066,
+          "profile": "pressure",
+          "direction": "counterclockwise",
+          "firstBidder": 0
+        },
+        "contract": 110,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 100,
+            "bottom": true,
+            "bottomPoints": 20
+          },
+          "candidate": {
+            "win": true,
+            "points": 95,
+            "bottom": true,
+            "bottomPoints": 20
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120082,
+          "profile": "pressure",
+          "direction": "counterclockwise",
+          "firstBidder": 2
+        },
+        "contract": 110,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 85,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 130,
+            "bottom": true,
+            "bottomPoints": 35
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120096,
+          "profile": "low-bottom",
+          "direction": "clockwise",
+          "firstBidder": 3
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 155,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 140,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120117,
+          "profile": "normal",
+          "direction": "clockwise",
+          "firstBidder": 2
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 80,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": false,
+            "points": 95,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120124,
+          "profile": "low-bottom",
+          "direction": "counterclockwise",
+          "firstBidder": 3
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 155,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 160,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120133,
+          "profile": "normal",
+          "direction": "clockwise",
+          "firstBidder": 0
+        },
+        "contract": 100,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 155,
+            "bottom": true,
+            "bottomPoints": 30
+          },
+          "candidate": {
+            "win": true,
+            "points": 160,
+            "bottom": true,
+            "bottomPoints": 30
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120144,
+          "profile": "low-bottom",
+          "direction": "clockwise",
+          "firstBidder": 1
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 190,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 180,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120156,
+          "profile": "low-bottom",
+          "direction": "counterclockwise",
+          "firstBidder": 3
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 120,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 130,
+            "bottom": true,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120171,
+          "profile": "cash",
+          "direction": "counterclockwise",
+          "firstBidder": 1
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 100,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": false,
+            "points": 105,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120172,
+          "profile": "low-bottom",
+          "direction": "counterclockwise",
+          "firstBidder": 1
+        },
+        "contract": 100,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 145,
+            "bottom": true,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 155,
+            "bottom": true,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120186,
+          "profile": "pressure",
+          "direction": "counterclockwise",
+          "firstBidder": 3
+        },
+        "contract": 110,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 105,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 110,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120192,
+          "profile": "low-bottom",
+          "direction": "clockwise",
+          "firstBidder": 3
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 135,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 115,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120195,
+          "profile": "cash",
+          "direction": "counterclockwise",
+          "firstBidder": 0
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 95,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": false,
+            "points": 100,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120205,
+          "profile": "normal",
+          "direction": "clockwise",
+          "firstBidder": 1
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 60,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": false,
+            "points": 100,
+            "bottom": true,
+            "bottomPoints": 15
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120211,
+          "profile": "cash",
+          "direction": "counterclockwise",
+          "firstBidder": 2
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 105,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": false,
+            "points": 100,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120217,
+          "profile": "normal",
+          "direction": "counterclockwise",
+          "firstBidder": 3
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 75,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": false,
+            "points": 80,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120227,
+          "profile": "cash",
+          "direction": "counterclockwise",
+          "firstBidder": 0
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 155,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 145,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120229,
+          "profile": "normal",
+          "direction": "clockwise",
+          "firstBidder": 0
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 50,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": false,
+            "points": 65,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120230,
+          "profile": "pressure",
+          "direction": "clockwise",
+          "firstBidder": 0
+        },
+        "contract": 110,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 105,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 175,
+            "bottom": true,
+            "bottomPoints": 65
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120237,
+          "profile": "normal",
+          "direction": "clockwise",
+          "firstBidder": 1
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 75,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": false,
+            "points": 70,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120246,
+          "profile": "pressure",
+          "direction": "clockwise",
+          "firstBidder": 2
+        },
+        "contract": 110,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 155,
+            "bottom": true,
+            "bottomPoints": 15
+          },
+          "candidate": {
+            "win": true,
+            "points": 140,
+            "bottom": true,
+            "bottomPoints": 15
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120248,
+          "profile": "low-bottom",
+          "direction": "clockwise",
+          "firstBidder": 2
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 120,
+            "bottom": true,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": true,
+            "points": 140,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 120255,
+          "profile": "cash",
+          "direction": "clockwise",
+          "firstBidder": 3
+        },
+        "contract": 90,
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 105,
+            "bottom": false,
+            "bottomPoints": 0
+          },
+          "candidate": {
+            "win": false,
+            "points": 95,
+            "bottom": false,
+            "bottomPoints": 0
+          }
+        }
+      }
+    ]
+  },
+  "sharedHoldout": {
+    "seedStart": 130001,
+    "count": 128,
+    "summary": {
+      "overall": {
+        "previous": {
+          "win": 92,
+          "points": 15795,
+          "bottom": 58,
+          "bottomPoints": 1695,
+          "decisions": 6675,
+          "n": 128,
+          "winRate": 0.71875,
+          "meanPoints": 123.3984375,
+          "bottomRate": 0.453125,
+          "dealerSweeps": 1
+        },
+        "shared": {
+          "win": 91,
+          "points": 15840,
+          "bottom": 56,
+          "bottomPoints": 1605,
+          "decisions": 6678,
+          "n": 128,
+          "winRate": 0.7109375,
+          "meanPoints": 123.75,
+          "bottomRate": 0.4375,
+          "paired": {
+            "n": 128,
+            "win": {
+              "mean": -0.0078125,
+              "ci95": [
+                -0.04215996346968261,
+                0.026534963469682607
+              ]
+            },
+            "points": {
+              "mean": 0.3515625,
+              "ci95": [
+                -1.8819320878125918,
+                2.585057087812592
+              ]
+            },
+            "bottom": {
+              "mean": -0.015625,
+              "ci95": [
+                -0.05902046307566243,
+                0.02777046307566243
+              ]
+            },
+            "bottomPoints": {
+              "mean": -0.703125,
+              "ci95": [
+                -2.350707687598833,
+                0.9444576875988331
+              ]
+            },
+            "gained": 2,
+            "lost": 3
+          },
+          "dealerSweeps": 1
+        }
+      },
+      "byProfile": {
+        "normal": {
+          "shared": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                -0.0880065979931197,
+                0.0880065979931197
+              ]
+            },
+            "points": {
+              "mean": 0.46875,
+              "ci95": [
+                -3.5488108409689447,
+                4.486310840968945
+              ]
+            },
+            "bottom": {
+              "mean": -0.0625,
+              "ci95": [
+                -0.185,
+                0.06
+              ]
+            },
+            "bottomPoints": {
+              "mean": -1.40625,
+              "ci95": [
+                -5.562975354819972,
+                2.7504753548199723
+              ]
+            },
+            "gained": 1,
+            "lost": 1
+          }
+        },
+        "pressure": {
+          "shared": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": -0.46875,
+              "ci95": [
+                -5.774011078484931,
+                4.836511078484931
+              ]
+            },
+            "bottom": {
+              "mean": 0,
+              "ci95": [
+                -0.0880065979931197,
+                0.0880065979931197
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0.15625,
+              "ci95": [
+                -4.029487923679145,
+                4.341987923679145
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        },
+        "cash": {
+          "shared": {
+            "n": 32,
+            "win": {
+              "mean": -0.03125,
+              "ci95": [
+                -0.13847277645315187,
+                0.07597277645315187
+              ]
+            },
+            "points": {
+              "mean": 1.71875,
+              "ci95": [
+                -4.292322507592323,
+                7.729822507592323
+              ]
+            },
+            "bottom": {
+              "mean": -0.03125,
+              "ci95": [
+                -0.0925,
+                0.03
+              ]
+            },
+            "bottomPoints": {
+              "mean": -1.5625,
+              "ci95": [
+                -4.625,
+                1.5
+              ]
+            },
+            "gained": 1,
+            "lost": 2
+          }
+        },
+        "low-bottom": {
+          "shared": {
+            "n": 32,
+            "win": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "points": {
+              "mean": -0.3125,
+              "ci95": [
+                -1.2902746912117298,
+                0.6652746912117299
+              ]
+            },
+            "bottom": {
+              "mean": 0.03125,
+              "ci95": [
+                -0.03,
+                0.0925
+              ]
+            },
+            "bottomPoints": {
+              "mean": 0,
+              "ci95": [
+                0,
+                0
+              ]
+            },
+            "gained": 0,
+            "lost": 0
+          }
+        }
+      },
+      "coverage": {
+        "single": 4263,
+        "pair": 2157,
+        "tractor": 0,
+        "throw": 255,
+        "early": 3831,
+        "middle": 2331,
+        "end": 513,
+        "close": 345
+      },
+      "seats": {
+        "0": 41,
+        "1": 31,
+        "2": 30,
+        "3": 26
+      },
+      "contracts": {
+        "90": 90,
+        "100": 6,
+        "110": 32
+      },
+      "directions": {
+        "counterclockwise": 64,
+        "clockwise": 64
+      }
+    },
+    "hashes": {
+      "miniprogram/ai/strategy-greedy.js": "ed39121075f984d0d7d1919b360e548ee764437912056016292f03e052a02cd3",
+      "miniprogram/ai/strategy-shared.js": "ad4c133ec57fed449d705a77095f69d2d66b53a12e42bae160b29a235ea22281",
+      "miniprogram/ai/suit-defense.js": "905356b2433e75266461904c569cb82fe3b5c46c70d0bd94cd26d7f40bc31adb",
+      "miniprogram/ai/public-knowledge.js": "c860880d16582ed77bb111f5d1c49f77ab33deb7a1eb9cff986bea1ba19d166b",
+      "miniprogram/engine/validate.js": "ca6bbd0d01d845694dc875d1c25821b69514c31a4c5406fbd95e36ed82b24c66"
+    },
+    "changedGames": [
+      {
+        "scenario": {
+          "seed": 130001,
+          "profile": "normal",
+          "direction": "counterclockwise",
+          "firstBidder": 0
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 150
+          },
+          "candidate": {
+            "win": true,
+            "points": 130
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130004,
+          "profile": "low-bottom",
+          "direction": "counterclockwise",
+          "firstBidder": 0
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 130
+          },
+          "candidate": {
+            "win": true,
+            "points": 115
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130013,
+          "profile": "normal",
+          "direction": "clockwise",
+          "firstBidder": 1
+        },
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 65
+          },
+          "candidate": {
+            "win": false,
+            "points": 85
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130023,
+          "profile": "cash",
+          "direction": "clockwise",
+          "firstBidder": 2
+        },
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 75
+          },
+          "candidate": {
+            "win": false,
+            "points": 90
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130025,
+          "profile": "normal",
+          "direction": "counterclockwise",
+          "firstBidder": 3
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 125
+          },
+          "candidate": {
+            "win": true,
+            "points": 130
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130027,
+          "profile": "cash",
+          "direction": "counterclockwise",
+          "firstBidder": 3
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 155
+          },
+          "candidate": {
+            "win": false,
+            "points": 95
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130038,
+          "profile": "pressure",
+          "direction": "clockwise",
+          "firstBidder": 0
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 185
+          },
+          "candidate": {
+            "win": true,
+            "points": 125
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130043,
+          "profile": "cash",
+          "direction": "counterclockwise",
+          "firstBidder": 1
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 135
+          },
+          "candidate": {
+            "win": true,
+            "points": 165
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130046,
+          "profile": "pressure",
+          "direction": "clockwise",
+          "firstBidder": 1
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 190
+          },
+          "candidate": {
+            "win": true,
+            "points": 170
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130057,
+          "profile": "normal",
+          "direction": "counterclockwise",
+          "firstBidder": 3
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 125
+          },
+          "candidate": {
+            "win": false,
+            "points": 100
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130065,
+          "profile": "normal",
+          "direction": "counterclockwise",
+          "firstBidder": 0
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 160
+          },
+          "candidate": {
+            "win": true,
+            "points": 145
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130067,
+          "profile": "cash",
+          "direction": "counterclockwise",
+          "firstBidder": 0
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 115
+          },
+          "candidate": {
+            "win": false,
+            "points": 105
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130070,
+          "profile": "pressure",
+          "direction": "clockwise",
+          "firstBidder": 0
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 135
+          },
+          "candidate": {
+            "win": true,
+            "points": 130
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130071,
+          "profile": "cash",
+          "direction": "clockwise",
+          "firstBidder": 0
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 130
+          },
+          "candidate": {
+            "win": true,
+            "points": 120
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130074,
+          "profile": "pressure",
+          "direction": "counterclockwise",
+          "firstBidder": 1
+        },
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 65
+          },
+          "candidate": {
+            "win": false,
+            "points": 80
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130078,
+          "profile": "pressure",
+          "direction": "clockwise",
+          "firstBidder": 1
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 130
+          },
+          "candidate": {
+            "win": true,
+            "points": 185
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130087,
+          "profile": "cash",
+          "direction": "clockwise",
+          "firstBidder": 2
+        },
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 85
+          },
+          "candidate": {
+            "win": true,
+            "points": 145
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130089,
+          "profile": "normal",
+          "direction": "counterclockwise",
+          "firstBidder": 3
+        },
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 105
+          },
+          "candidate": {
+            "win": true,
+            "points": 155
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130095,
+          "profile": "cash",
+          "direction": "clockwise",
+          "firstBidder": 3
+        },
+        "results": {
+          "previous": {
+            "win": true,
+            "points": 140
+          },
+          "candidate": {
+            "win": true,
+            "points": 170
+          }
+        }
+      },
+      {
+        "scenario": {
+          "seed": 130128,
+          "profile": "low-bottom",
+          "direction": "clockwise",
+          "firstBidder": 3
+        },
+        "results": {
+          "previous": {
+            "win": false,
+            "points": 90
+          },
+          "candidate": {
+            "win": false,
+            "points": 95
+          }
+        }
+      }
+    ]
+  },
+  "latency": {
+    "all": {
+      "n": 852,
+      "meanMs": 16.270864847417844,
+      "p95Ms": 70.2104130000007,
+      "maxMs": 205.51352899999983
+    },
+    "late": {
+      "n": 120,
+      "meanMs": 20.399569533333338,
+      "p95Ms": 84.37171099999978,
+      "maxMs": 107.77061700000013
+    },
+    "proposed": 830,
+    "accepted": 1,
+    "environment": "Node 24.22.1，云端单进程，16局真人庄家由四种AI风格代打；不是手机性能承诺"
+  },
+  "sourceHashes": {
+    "miniprogram/ai/strategy-greedy.js": "ed39121075f984d0d7d1919b360e548ee764437912056016292f03e052a02cd3",
+    "h5/js/game-bundle.js": "25c046e32e52595d061a6d7bbb64bc7119680c7ea75012d63b536c35d8370e31",
+    "tools/ai-arena.js": "5104af863d305ced81ed1246ad24e72c6706f9b0d98d025efb8343f51e1655d1",
+    "tests/test-ai-endgame-search.js": "9582fe3c9c60ac4e7698e01a8ce26eec43032f7236229acb659cf940b323bd6d"
+  },
+  "sourceHashNote": "运行开始时的评测哈希保留在各组hashes；之后仅修订源码说明注释并重新生成H5，最终文件哈希见sourceHashes，576+28项测试在最终文件上通过。",
+  "rejectedExperiments": [
+    {
+      "name": "无条件三张完全信息搜索",
+      "count": 128,
+      "attackerWins": [
+        94,
+        93
+      ],
+      "reason": "胜率下降并破坏两项已有残局回归，未采用"
+    },
+    {
+      "name": "无条件四张完全信息搜索",
+      "count": 128,
+      "attackerWins": [
+        94,
+        94
+      ],
+      "reason": "没有胜率收益；完全信息假设会要求现实队友做出不可能获知的接力"
+    },
+    {
+      "name": "仅配对置信门槛",
+      "count": 128,
+      "attackerWins": [
+        97,
+        97
+      ],
+      "reason": "仍破坏历史回归，改为策略模拟和完整搜索共同支持"
+    }
+  ],
+  "integrationBaseCommit": "24d516b71e960bd9019a6b884fd6fceda3591c56"
+}
