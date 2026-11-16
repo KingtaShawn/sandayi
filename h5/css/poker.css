@@ -21,3 +21,16 @@
 .is-dealing .dealer-portrait{animation-duration:1.1s}
 @media(prefers-reduced-motion:reduce){.poker *{animation-duration:.01ms!important;animation-delay:0ms!important}}
 .seat-heading{display:flex;align-items:center;gap:3px;white-space:nowrap}.seat-info .seat-position{font-size:clamp(7px,1.7cqh,10px);line-height:1.1;color:#f4dfab;background:#715a34;border-radius:3px;padding:1px 3px;font-weight:600}
+/* Put the player's cards in front of their seat and reserve a single action column. */
+.poker-main{grid-template-columns:minmax(0,80fr) minmax(0,20fr)}
+.poker-table{left:8%;right:8%;top:18%;bottom:11%}
+.poker-player{position:absolute;z-index:4;left:50%;top:70%;transform:translateX(-50%);margin:0;gap:0}
+.poker-player-label,.poker-player-hint{display:none}
+.poker-hand .poker-card{width:8cqh;height:11cqh}
+.poker-controls{grid-column:2;grid-row:1 / 3;align-self:center;width:auto;max-height:95%;margin:0 1.5cqw 0 0;padding:1.5cqh .8cqw}
+.poker-actions{grid-template-columns:minmax(0,1fr);gap:.65cqh}
+.poker-actions button{height:7.3cqh}
+.poker-actions label{height:7.3cqh;justify-content:space-between}
+.poker-actions input{height:7.3cqh}
+.poker-details{width:18cqw;right:1.5cqw}
+.poker-center{top:40%}
