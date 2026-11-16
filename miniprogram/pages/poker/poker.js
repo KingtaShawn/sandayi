@@ -10,7 +10,7 @@ Page({
     sizingIndex: 0,
     sizingOpen: false,
     players: [],
-    seatMotion: [], boardMotion: [], handMotion: [],
+    seatMotion: [], boardMotion: [], handMotion: [], burnMotion: [], burnCards: [],
     motionPending: false, motionReady: false, motionHand: false, motionBoardFrom: -1,
     board: [],
     hole: [],
@@ -63,6 +63,7 @@ Page({
     q.selectAll('.seat-card-back').fields({rect:true,size:true,dataset:true});
     q.selectAll('.board text').boundingClientRect();
     q.selectAll('.hand text').boundingClientRect();
+    q.selectAll('.burn-card').fields({rect:true,size:true,dataset:true});
     q.exec(rects => {
       if (!this.visible || sequence !== this.motionSeq) return;
       if (!rects || !rects[0] || !rects[1] || !rects[2] || !rects[3]) {
@@ -92,9 +93,14 @@ Page({
           seatMotion[i][cardIndex] = styleFor(rect, (Math.max(0, order.indexOf(i)) + cardIndex * order.length) * M.DEAL_STEP);
         }
       });
-      const boardMotion = (rects[5] || []).map((rect,i) => styleFor(rect, (deal.hand ? order.length * 2 * M.DEAL_STEP : 0) + Math.max(0,i-deal.boardFrom)*M.DEAL_STEP));
+      const boardMotion = (rects[5] || []).map((rect,i) => styleFor(rect, deal.plan.cards[i] || 0));
       const handMotion = (rects[6] || []).map((rect,i) => styleFor(rect, (Math.max(0,order.indexOf(0))+i*order.length)*M.DEAL_STEP));
-      this.setData({seatMotion,boardMotion,handMotion,motionPending:false,motionReady:true,motionHand:deal.hand,motionBoardFrom:deal.boardFrom});
+      const burnMotion = [];
+      (rects[7] || []).forEach(rect => {
+        const i = Number(rect.dataset && rect.dataset.burnIndex), burn = deal.plan.burns.find(item => item.index === i);
+        if (burn) burnMotion[i] = styleFor(rect, burn.delay);
+      });
+      this.setData({seatMotion,boardMotion,handMotion,burnMotion,motionPending:false,motionReady:true,motionHand:deal.hand,motionBoardFrom:deal.boardFrom});
     });
   },
   onResize() {
@@ -130,6 +136,7 @@ Page({
     const sequence = ++this.motionSeq;
     this.setData({
       motionPending:!!deal, motionReady:false, motionHand:!!(deal && deal.hand), motionBoardFrom:deal ? deal.boardFrom : -1, dealCount:deal ? deal.count : 0,
+      burnCards:[0,3,4].filter(index => index < (s.board || []).length).map((_,index) => ({index, dealing:!!(deal && deal.plan.burns.some(b => b.index === index))})),
       winningHands, boardHighlights, handHighlights, winCelebrate,
       potStacks: Array.from({length:stackCount},(_,i)=>({id:i,colour:['ivory','red','blue','gold','green','red','gold'][i]})),
       betFlights: this.betFlights,
@@ -186,10 +193,12 @@ Page({
     const newHand = this.s.hand !== this.lastHand;
     const boardCount = (this.s.board || []).length;
     const newBoard = !newHand && boardCount > this.boardCount;
-    const cardCount = (newHand ? M.dealOrder(this.s.players, this.s.dealer).length * 2 : 0) + (newHand ? boardCount : newBoard ? boardCount - this.boardCount : 0);
+    const boardFrom = newHand ? 0 : newBoard ? this.boardCount : boardCount;
+    const plan = M.boardDealPlan(boardFrom, boardCount, newHand ? M.dealOrder(this.s.players, this.s.dealer).length * 2 : 0);
+    const cardCount = plan.steps;
     if (newHand || newBoard) {
       this.dealing = true;
-      this.pendingDeal = {hand:newHand, boardFrom:newHand && boardCount ? 0 : newBoard ? this.boardCount : -1, count:cardCount};
+      this.pendingDeal = {hand:newHand, boardFrom:newHand && boardCount ? 0 : newBoard ? this.boardCount : -1, count:cardCount, plan};
     }
     this.lastHand = this.s.hand; this.boardCount = boardCount;
     this.render();

@@ -86,3 +86,9 @@
 @keyframes winning-announce{from{opacity:0;transform:translateY(1.8cqh) scale(.8)}to{opacity:1;transform:translateY(0) scale(1)}}
 .poker-card.winning-card,.seat-cards.revealed span.winning-card{transform:translateY(-.7cqh)}
 @keyframes winning-lift{0%{transform:translateY(0) scale(1)}45%{transform:translateY(-2cqh) scale(1.16)}100%{transform:translateY(-.7cqh) scale(1)}}
+.burn-pile{position:absolute;left:-4%;top:38%;width:5cqh;height:8cqh;pointer-events:none}
+.burn-pile.has-cards:after{content:'烧牌';position:absolute;top:100%;left:0;width:100%;color:#e4d0a1;font-size:clamp(8px,2cqh,11px);white-space:nowrap;text-align:center}
+.burn-card{position:absolute;left:0;top:0;box-sizing:border-box;width:4.8cqh;height:6.8cqh;border:1px solid #eee1c9;border-radius:2px;background:repeating-linear-gradient(45deg,#743c35 0 2px,#d7b79b 2px 3px);box-shadow:0 2px 5px #0007}
+.burn-card:nth-child(2){left:.7cqh;top:-.4cqh}.burn-card:nth-child(3){left:1.4cqh;top:-.8cqh}
+.poker:not(.motion-ready) .burn-card.dealing{animation:none!important}
+.poker.motion-ready .burn-card.dealing{animation:dealer-to-card .42s cubic-bezier(.18,.7,.22,1) both}

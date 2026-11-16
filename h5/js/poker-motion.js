@@ -25,6 +25,16 @@
   // Each card lands before the next leaves the dealer; allow time for the last landing.
   const DEAL_STEP = 460;
   function dealDuration(count) { return Math.max(500, count * DEAL_STEP + 200); }
+  // One face-down burn precedes the flop, turn and river, even on an all-in runout.
+  function boardDealPlan(from, to, initialSteps = 0) {
+    const cards = [], burns = []; let step = initialSteps;
+    for (let i = from; i < to; i++) {
+      const burnIndex = [0,3,4].indexOf(i);
+      if (burnIndex >= 0) burns.push({index:burnIndex, delay:step++ * DEAL_STEP});
+      cards[i] = step++ * DEAL_STEP;
+    }
+    return {cards,burns,steps:step};
+  }
   // Seat coordinates skip players who were not dealt a hand and deal from left of button.
   function dealOrder(players, dealer) {
     const seats=[]; if(dealer<0) return seats;
@@ -35,6 +45,6 @@
     }
     return seats;
   }
-  const api={toLocal,matrixFromCss,center,between,dealOrder,DEAL_STEP,dealDuration};
+  const api={toLocal,matrixFromCss,center,between,dealOrder,DEAL_STEP,dealDuration,boardDealPlan};
   if(typeof module!=='undefined') module.exports=api; else root.PokerMotion=api;
 })(typeof window!=='undefined'?window:globalThis);

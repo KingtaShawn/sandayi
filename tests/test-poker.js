@@ -209,6 +209,7 @@ test('winners exclude an uncalled-bet refund, including multiple side pots',()=>
   s.players[2].hole=[c(12,0),c(12,1)];s.players[3].hole=[c(11,0),c(11,1)];
   s.deck=[c(9,0),c(7,3),c(8,3),c(6,3),c(4,2),c(3,1),c(2,0),c(5,3)];
   assert.equal(s.turn,3);E.action(s,'raise',200);E.action(s,'call');E.action(s,'call');E.action(s,'fold');
+  assert.deepEqual(s.board,[c(2,0),c(3,1),c(4,2),c(8,3),c(9,0)]);
   assert.equal(s.done,true);assert.deepEqual(s.awards,[170,100,0,100]);assert.deepEqual(s.winners,[0,1]);
   E.start(s,()=>0.3);assert.deepEqual(s.winners,[]);
 });

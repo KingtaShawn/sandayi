@@ -43,6 +43,21 @@ async function main(){
       assert.ok(sequence.duration<460 && sequence.early[0]>0 && sequence.early[1]===0 && sequence.next[0]===1 && sequence.next[1]>0 && sequence.disabled,JSON.stringify(sequence));
       await page.close();console.log('✓ seven-handed: each card lands before the next is dealt');
     }
+    {
+      const page=await browser.newPage();await page.setViewport({width:844,height:390,isMobile:true,hasTouch:true});
+      await page.setRequestInterception(true);
+      page.on('request',request=>{
+        if(new URL(request.url()).pathname.endsWith('/js/poker-engine.js')) {
+          const source=fs.readFileSync(path.join(root,'js/poker-engine.js'),'utf8');
+          const fixture=`;const originalCreate=window.Poker.create;window.Poker.create=(...args)=>{const s=originalCreate(...args);s.hand=1;s.dealer=0;s.done=true;s.board=[37,49,7,5,26];s.players[0].hole=[12,25];s.players[1].hole=[14,15];s.awards=[200,0,0,0,0,0,0];s.winners=[0];return s;};`;
+          request.respond({status:200,contentType:'text/javascript',body:source+fixture});
+        } else request.continue();
+      });
+      await page.goto('http://127.0.0.1:'+server.address().port);await page.click('#btn-enter-poker');
+      const runout=await page.evaluate(()=>({burn:[...document.querySelectorAll('.burn-card.dealing')].map(e=>e.style.animationDelay),board:[...document.querySelectorAll('#poker-board .dealing')].map(e=>e.style.animationDelay)}));
+      assert.deepEqual(runout.burn,['1840ms','3680ms','4600ms']);assert.deepEqual(runout.board,['2300ms','2760ms','3220ms','4140ms','5060ms']);
+      await page.close();console.log('✓ all-in runout: burn before flop, turn and river');
+    }
     for(const [width,height] of [[844,390],[390,844]]) for(const mode of ['board','payout']){
       const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
       await page.setViewport({width,height,isMobile:true,hasTouch:true});
@@ -66,6 +81,14 @@ async function main(){
         await page.waitForFunction(()=>document.querySelectorAll('#poker-board .dealing').length===3,{timeout:5000});
         const board=await page.evaluate((center,distance)=>{const c=eval('('+center+')'),d=eval('('+distance+')'),dealer=c(document.querySelector('.dealer-portrait'));return [...document.querySelectorAll('#poker-board .dealing')].map(e=>d(c(e),dealer))},center.toString(),distance.toString());
         assert.ok(board.every(x=>x<3),JSON.stringify(board));
+        const burn=await page.evaluate((center,distance)=>{
+          const c=eval('('+center+')'),d=eval('('+distance+')'),card=document.querySelector('.burn-card.dealing');
+          const start=d(c(card),c(document.querySelector('.dealer-portrait'))),a=card.getAnimations()[0];
+          a.currentTime=a.effect.getComputedTiming().duration*.999;
+          const landing=c(card),delay=card.style.animationDelay;card.classList.remove('dealing');
+          return {start,end:d(landing,c(card)),delay,board:[...document.querySelectorAll('#poker-board .dealing')].map(e=>e.style.animationDelay)};
+        },center.toString(),distance.toString());
+        assert.ok(burn.start<3 && burn.end<3,JSON.stringify(burn));assert.equal(burn.delay,'0ms');assert.deepEqual(burn.board,['460ms','920ms','1380ms']);
       }else{
         await page.waitForFunction(()=>document.querySelector('.payout'),{timeout:8000});
         const payout=await page.evaluate((center,distance)=>{const c=eval('('+center+')'),d=eval('('+distance+')'),e=document.querySelector('.payout');const start=d(c(e),c(document.querySelector('#poker-chips')));const a=e.getAnimations()[0];a.currentTime=a.effect.getComputedTiming().duration*.999;return {start,end:d(c(e),c(document.querySelector('.poker-seat.winner')))}},center.toString(),distance.toString());

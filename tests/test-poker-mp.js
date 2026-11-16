@@ -83,8 +83,9 @@ test('小程序：荷官发牌与筹码运动使用实测目标座位坐标',()=
   assert.equal(page.data.betFlights.length,2);
   assert.match(page.data.betFlights[0].style,/left:155px;top:84px;--dx:-85px;--dy:40px/);
   rects[5]=[rect(170,70,20,30),rect(195,70,20,30),rect(220,70,20,30)];
+  rects[7]=[rect(100,90,20,30,{burnIndex:0})];
   page.s.board=[0,1,2];page.loop();assert.equal(page.data.motionReady,true);assert.equal(page.data.motionBoardFrom,0);
-  assert.equal(lastDelay,M.dealDuration(3));assert.match(page.data.boardMotion[1],/animation-delay:460ms/);assert.match(page.data.boardMotion[2],/animation-delay:920ms/);
+  assert.equal(lastDelay,M.dealDuration(4));assert.match(page.data.burnMotion[0],/animation-delay:0ms/);assert.match(page.data.boardMotion[0],/animation-delay:460ms/);assert.match(page.data.boardMotion[1],/animation-delay:920ms/);assert.match(page.data.boardMotion[2],/animation-delay:1380ms/);
   assert.match(page.data.boardMotion[0],/--deal-x:-60px;--deal-y:-55px/);
   page.onUnload();
 });

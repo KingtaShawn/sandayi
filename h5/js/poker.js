@@ -21,7 +21,7 @@ window.createPokerUI = function ({ navigate }) {
       const span = document.createElement("span");
       const isWinning = highlighted && highlighted.has(c);
       span.className = "poker-card" + (Math.floor(c / 13) % 2 ? " red" : "") + (i >= animateFrom ? " dealing" : "") + (isWinning ? " winning-card" + (celebrate ? " win-lift" : "") : "");
-      span.style.animationDelay = (dealDelays ? dealDelays[i] : startDelay + Math.max(0, i - animateFrom) * M.DEAL_STEP) + "ms";
+      span.style.animationDelay = (dealDelays ? (dealDelays[i] || 0) : startDelay + Math.max(0, i - animateFrom) * M.DEAL_STEP) + "ms";
       const value = E.card(c);
       span.innerHTML = '<span class="card-corner"></span><span class="card-suit"></span>';
       span.firstChild.textContent = value.slice(1);
@@ -53,7 +53,7 @@ window.createPokerUI = function ({ navigate }) {
     if (!dealer || !layer.offsetWidth || !layer.offsetHeight) return;
     const origin = pointInTable(dealer);
     if (!origin) return;
-    document.querySelectorAll('#view-poker .poker-card.dealing, #view-poker .card-back.dealing').forEach(card => {
+    document.querySelectorAll('#view-poker .poker-card.dealing, #view-poker .card-back.dealing, #view-poker .burn-card.dealing').forEach(card => {
       const target = pointInTable(card);
       if (!target) return;
       const offset = M.between(target, origin);
@@ -92,6 +92,15 @@ window.createPokerUI = function ({ navigate }) {
     const increases = s.players.map((p,i) => Math.max(0, (p.total || 0) - (newHand ? 0 : (totalsSeen[i] || 0))));
     recentBet = increases.some(Boolean);
     const newBoardFrom = newHand ? 0 : boardSeen.length <= board.length && boardSeen.every((c, i) => board[i] === c) ? boardSeen.length : board.length;
+    const plan = M.boardDealPlan(newBoardFrom, board.length, newHand ? order.length * 2 : 0);
+    const burnCount = [0,3,4].filter(index => index < board.length).length;
+    $("burn").replaceChildren(...Array.from({length:burnCount}, (_,i) => {
+      const card = document.createElement('span'), burn = plan.burns.find(item => item.index === i);
+      card.className = 'burn-card' + (burn ? ' dealing' : '');
+      if (burn) card.style.animationDelay = burn.delay + 'ms';
+      return card;
+    }));
+    $("burn").classList.toggle('has-cards', burnCount > 0);
     $("seats").dataset.count = String(s.players.length);
     $("seats").replaceChildren(
       ...s.players.map((p, i) => {
@@ -140,7 +149,7 @@ window.createPokerUI = function ({ navigate }) {
         return node;
       }),
     );
-    cards($("board"), board, newBoardFrom, null, boardHighlights, celebrate, newHand ? order.length * 2 * M.DEAL_STEP : 0);
+    cards($("board"), board, newBoardFrom, plan.cards, boardHighlights, celebrate);
     const hero = winningHands.find(hand => hand.seat === 0);
     cards($("hand"), s.players[0].hole || [], newHand ? 0 : Infinity, newHand ? dealDelays(0) : null, new Set(hero ? hero.cards : []), celebrate);
     $("winning-hands").replaceChildren(...winningHands.map(hand => {
@@ -152,7 +161,7 @@ window.createPokerUI = function ({ navigate }) {
     if (celebrate) celebratedHand = s.hand;
     placeDealOrigins();
     view.classList.add('motion-ready');
-    const dealCount = (newHand ? order.length * 2 : 0) + Math.max(0, board.length - newBoardFrom);
+    const dealCount = plan.steps;
     $("dealer").style.setProperty('--deal-count', dealCount);
     $("dealer").classList.toggle('is-dealing', dealCount > 0);
     dealtHand = s.hand; boardSeen = board.slice();
@@ -216,7 +225,7 @@ window.createPokerUI = function ({ navigate }) {
     clearTimeout(timer);
     const newHand = s.hand !== dealtHand;
     const newCards = !newHand && (s.board || []).length > boardSeen.length;
-    const cardCount = (newHand ? M.dealOrder(s.players, s.dealer).length * 2 : 0) + (newHand ? (s.board || []).length : newCards ? s.board.length - boardSeen.length : 0);
+    const cardCount = M.boardDealPlan(newHand ? 0 : newCards ? boardSeen.length : (s.board || []).length, (s.board || []).length, newHand ? M.dealOrder(s.players, s.dealer).length * 2 : 0).steps;
     if (newHand || newCards) dealing = true;
     render();
     if (!visible) return;
