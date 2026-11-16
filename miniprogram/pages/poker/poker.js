@@ -7,6 +7,7 @@ Page({
     sizingLabels: ["⅓ 底池", "½ 底池", "3倍当前注", "4倍当前注"],
     sizingValues: ["third", "half", "triple", "quad"],
     sizingIndex: 0,
+    sizingOpen: false,
     players: [],
     board: [],
     hole: [],
@@ -27,6 +28,7 @@ Page({
   },
   onHide() {
     this.visible = false;
+    this.setData({ sizingOpen: false });
     clearTimeout(this.timer);
     this.settling = false; this.payoutFlights = [];
   },
@@ -89,6 +91,8 @@ Page({
       canRaise: l.raise,
       call: l.call || 0,
       raiseTo: !this.dealing && !s.done && s.turn === 0 && l.raise ? E.raiseTarget(s, this.data.sizingValues[this.data.sizingIndex]) : null,
+      sizingOpen: !this.dealing && !s.done && s.turn === 0 && l.raise ? this.data.sizingOpen : false,
+      sizingOptions: this.data.sizingLabels.map((label, i) => ({label, target: !this.dealing && !s.done && s.turn === 0 && l.raise ? E.raiseTarget(s, this.data.sizingValues[i]) : null, selected: i === this.data.sizingIndex})),
       pot: displayPot,
       status: this.dealing ? "荷官正在发牌…" : s.done
         ? (s.awards && this.payoutHand !== s.hand ? "正在结算…" : s.result || "点击下一手开始")
@@ -153,8 +157,15 @@ Page({
       wx.showToast({ title: err.message, icon: "none" });
     }
   },
-  sizing(e) {
-    this.setData({ sizingIndex: Number(e.detail.value) });
+  noop() {},
+  openSizing() {
+    if (this.data.human && this.data.canRaise) this.setData({ sizingOpen: true });
+  },
+  closeSizing() { this.setData({ sizingOpen: false }); },
+  selectSizing(e) {
+    const index = Number(e.currentTarget.dataset.index);
+    if (!this.data.sizingOpen || !Number.isInteger(index) || index < 0 || index >= this.data.sizingValues.length) return;
+    this.setData({ sizingIndex: index, sizingOpen: false });
     this.render();
   },
   count(e) {

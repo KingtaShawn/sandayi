@@ -12,6 +12,9 @@ window.createPokerUI = function ({ navigate }) {
   let totalsSeen = [];
   let payoutHand = 0;
   let recentBet = false;
+  let selectedSizing = 'third';
+  let sizingOpen = false;
+  const sizingLabels = {third:'⅓ 底池', half:'½ 底池', triple:'3倍当前注', quad:'4倍当前注'};
   function cards(node, cs, animateFrom) {
     node.replaceChildren(...cs.map((c, i) => {
       const span = document.createElement("span");
@@ -126,12 +129,18 @@ window.createPokerUI = function ({ navigate }) {
       (k) => ($(k).disabled = !human || !l.raise),
     );
     $("call").textContent = l.call ? "跟注 " + l.call : "过牌";
-    const optionLabels = {third:'⅓ 底池', half:'½ 底池', triple:'3倍当前注', quad:'4倍当前注'};
-    Array.from($("amount").options).forEach(option => {
-      const target = human && l.raise ? E.raiseTarget(s, option.value) : null;
-      option.textContent = optionLabels[option.value] + (target == null ? '' : ' · 至 ' + target);
+    if (!human || !l.raise) sizingOpen = false;
+    $("sizing-panel").hidden = !sizingOpen;
+    $("amount").setAttribute('aria-expanded', String(sizingOpen));
+    $("amount").textContent = sizingLabels[selectedSizing] + ' ▾';
+    document.querySelectorAll('.poker-size-options button').forEach(option => {
+      const preset = option.dataset.preset;
+      const target = human && l.raise ? E.raiseTarget(s, preset) : null;
+      option.querySelector('small').textContent = target == null ? '' : '加至 ' + target;
+      option.classList.toggle('selected', preset === selectedSizing);
+      option.setAttribute('aria-pressed', String(preset === selectedSizing));
     });
-    const raiseTo = human && l.raise ? E.raiseTarget(s, $("amount").value) : null;
+    const raiseTo = human && l.raise ? E.raiseTarget(s, selectedSizing) : null;
     $("raise").textContent = raiseTo == null ? '加注' : '加注至 ' + raiseTo;
     $("next").disabled = dealing || settling || !s.done;
     $("log").replaceChildren(
@@ -184,8 +193,30 @@ window.createPokerUI = function ({ navigate }) {
   }
   $("fold").onclick = () => act("fold");
   $("call").onclick = () => act("call");
-  $("amount").onchange = () => render();
-  $("raise").onclick = () => act("raise", E.raiseTarget(s, $("amount").value));
+  function closeSizing(restoreFocus = true) {
+    sizingOpen = false; render();
+    if (restoreFocus && visible && !$("amount").disabled) $("amount").focus();
+  }
+  $("amount").onclick = () => {
+    if ($("amount").disabled) return;
+    sizingOpen = true; render();
+    $('size-' + selectedSizing).focus();
+  };
+  $("size-close").onclick = () => closeSizing();
+  $("sizing-panel").onclick = e => { if (e.target === $("sizing-panel")) closeSizing(); };
+  document.querySelectorAll('.poker-size-options button').forEach(option => {
+    option.onclick = () => { selectedSizing = option.dataset.preset; closeSizing(); };
+  });
+  document.addEventListener('keydown', e => {
+    if (!visible || !sizingOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeSizing(); return; }
+    if (e.key !== 'Tab') return;
+    const items = [$("size-close"), ...document.querySelectorAll('.poker-size-options button')];
+    const i = items.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); items[items.length - 1].focus(); }
+    else if (!e.shiftKey && (i === items.length - 1 || i < 0)) { e.preventDefault(); items[0].focus(); }
+  });
+  $("raise").onclick = () => act("raise", E.raiseTarget(s, selectedSizing));
   $("allin").onclick = () => act("raise", E.legal(s).max);
   $("next").onclick = () => {
     try {
@@ -198,7 +229,7 @@ window.createPokerUI = function ({ navigate }) {
   $("reset").onclick = () => {
     if (s.hand && !confirm("重新开桌会清空本桌筹码，继续？")) return;
     s = E.create(Number($("count").value));
-    dealtHand = 0; boardSeen = []; totalsSeen = []; payoutHand = 0; dealing = false; settling = false; $("flights").replaceChildren();
+    dealtHand = 0; boardSeen = []; totalsSeen = []; payoutHand = 0; dealing = false; settling = false; sizingOpen = false; selectedSizing = 'third'; $("flights").replaceChildren();
     $("error").textContent = "";
     loop();
   };
@@ -213,7 +244,7 @@ window.createPokerUI = function ({ navigate }) {
       loop();
     },
     close() {
-      visible = false; settling = false;
+      visible = false; settling = false; sizingOpen = false;
       clearTimeout(timer); $("flights").replaceChildren();
     },
   };

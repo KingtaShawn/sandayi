@@ -50,6 +50,6 @@ test('小程序：选择半池后按预设合法金额加注',()=>{
     Page:p=>{page=p},require:()=>E,setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer},clearTimeout:id=>timers.delete(id),wx:{}
   });
   page.setData=patch=>Object.assign(page.data,patch);page.onLoad();page.s=E.create(2);E.start(page.s,()=>0.3);page.dealing=false;page.render();
-  assert.equal(page.data.human,true);page.sizing({detail:{value:'1'}});assert.equal(page.data.raiseTo,45);
+  assert.equal(page.data.human,true);page.openSizing();assert.equal(page.data.sizingOpen,true);assert.equal(page.data.sizingOptions[1].target,45);page.selectSizing({currentTarget:{dataset:{index:1}}});assert.equal(page.data.sizingOpen,false);assert.equal(page.data.raiseTo,45);
   page.act({currentTarget:{dataset:{type:'raise'}}});assert.equal(page.s.players[0].bet,45);page.onUnload();
 });
