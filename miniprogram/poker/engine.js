@@ -439,26 +439,28 @@
       cost = o.current - p.bet,
       odds = cost / (pot + cost || 1),
       max = p.bet + p.chips;
-    const position = (o.seat - o.dealer + o.players.length) % o.players.length;
-    const aggression = [0, 0.12, 0.09, 0.06, 0.1, 0.15, 0.08, 0.11, 0.14][o.seat] || 0.1;
-    const suited = Math.floor(o.hole[0] / 13) === Math.floor(o.hole[1] / 13),
-      ranks = o.hole.map(rank);
-    const draw =
-      o.board.length > 0 &&
-      o.board.length < 5 &&
-      ((suited &&
-        o.board.filter((c) => Math.floor(c / 13) === Math.floor(o.hole[0] / 13))
-          .length >= 2) ||
-        Math.abs(ranks[0] - ranks[1]) <= 2);
-    const bluff =
-      rng() <
-      aggression * (opponents === 1 ? 1.5 : 0.45) * (position === 0 ? 1.4 : 1);
+    // Six different styles, with more frequent bluffs in position and heads-up.
+    const order = i => (i - o.dealer - 1 + o.players.length) % o.players.length;
+    const inPosition = o.players.every((q, i) => i === o.seat || q.folded || order(i) < order(o.seat));
+    const aggression = [0, 0.22, 0.14, 0.10, 0.26, 0.20, 0.15, 0.18, 0.20][o.seat] || 0.14;
+    const cards = o.hole.concat(o.board), ranks = new Set(cards.map(rank));
+    if (ranks.has(14)) ranks.add(1);
+    const flushDraw = o.hole.some(h => cards.filter(c => Math.floor(c / 13) === Math.floor(h / 13)).length === 4);
+    const straightDraw = Array.from({length:10}, (_,i) => i + 1).some(low => {
+      const sequence = [low,low+1,low+2,low+3,low+4];
+      return sequence.filter(r => ranks.has(r)).length === 4 && o.hole.some(h => sequence.includes(rank(h)) || rank(h) === 14 && low === 1);
+    });
+    const draw = o.board.length < 5 && (flushDraw || straightDraw);
+    const frequency = aggression * (opponents === 1 ? 1 : opponents === 2 ? 0.75 : 0.55) * (inPosition ? 1.25 : 1);
+    // Raising into a bet is rarer; avoid expensive bluffs or unintentional shoves.
+    const affordable = cost <= pot * 0.35 && cost <= p.chips * 0.18;
+    const bluff = affordable && rng() < frequency * (cost > 0 ? (draw ? 0.65 : 0.30) : 1);
     const value = equity > Math.max(0.56, 1 / (opponents + 1) + 0.22);
     if (
       o.canRaise &&
       max > o.current &&
       o.players.some((q, i) => i !== o.seat && !q.folded && q.chips > 0) &&
-      (value || (bluff && (cost === 0 || draw)))
+      (value || bluff)
     ) {
       let target =
         o.current +
@@ -467,7 +469,7 @@
           Math.round(((pot + cost) * (value ? 0.65 : 0.75)) / 10) * 10,
         );
       target = Math.min(max, target);
-      if (target >= o.current + o.minRaise || target === max)
+      if ((value || target - p.bet <= p.chips * 0.4) && (target >= o.current + o.minRaise || target === max))
         return { type: "raise", target };
     }
     if (

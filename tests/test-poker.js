@@ -202,6 +202,16 @@ test('selected AI players use wider preflop ranges without removing stack risk l
   assert.equal(E.decide(wide,()=>0.5,4).type,'fold');
 });
 
+test('postflop bluffing can pressure a small bet but avoids expensive or forced shoves',()=>{
+  const players=Array.from({length:7},(_,i)=>({chips:1500,bet:0,total:30,folded:i>3}));
+  const o={hole:[0,18],board:[33,48,11],street:1,dealer:0,seat:1,current:0,minRaise:20,players,canRaise:true};
+  assert.equal(E.decide(o,()=>0,32).type,'raise');
+  o.current=20;assert.equal(E.decide(o,()=>0,32).type,'raise');
+  o.current=100;assert.equal(E.decide(o,()=>0,32).type,'fold');
+  o.current=20;o.players[1].chips=50;assert.equal(E.decide(o,()=>0,32).type,'fold');
+  o.canRaise=false;assert.notEqual(E.decide(o,()=>0,32).type,'raise');
+});
+
 test('winners exclude an uncalled-bet refund, including multiple side pots',()=>{
   const s=E.create(3);s.players[0].chips=50;s.players[1].chips=100;
   E.start(s,()=>0.3);
