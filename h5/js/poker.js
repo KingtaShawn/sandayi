@@ -42,7 +42,7 @@ window.createPokerUI = function ({ navigate }) {
         if (p.position) { const position = document.createElement('span'); position.className = 'seat-position'; position.textContent = p.position; heading.append(position); }
         const chips = document.createElement('span'); chips.textContent = '◈ ' + p.chips;
         const action = document.createElement('small');
-        const label = {ready:'待发牌', survived:'在座', 'in-hand':'在局', 'all-in':'全押', folded:'弃牌', eliminated:'出局'}[status];
+        const label = {ready:'待发牌', survived:'在座', 'in-hand':'在局', 'all-in':'全押', folded:'弃牌', eliminated:'待补码'}[status];
         action.textContent = status === 'in-hand' ? label + ' · ' + (p.action || (s.turn === i ? '行动中' : '等待')) : label;
         info.append(heading, chips, action); node.append(avatar, info);
         if (i === s.dealer) { const d = document.createElement('b'); d.className = 'dealer-button'; d.textContent = 'D'; node.append(d); }
@@ -86,10 +86,7 @@ window.createPokerUI = function ({ navigate }) {
     $("amount").max = l.max || 2000;
     if (document.activeElement !== $("amount"))
       $("amount").value = Math.min(l.min || 20, l.max || 2000);
-    $("next").disabled =
-      dealing || !s.done ||
-      s.players[0].chips === 0 ||
-      s.players.filter((p) => p.chips > 0).length < 2;
+    $("next").disabled = dealing || !s.done;
     $("log").replaceChildren(
       ...(s.log || []).slice(-12).map((v) => {
         const li = document.createElement("li");

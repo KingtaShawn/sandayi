@@ -47,7 +47,7 @@ Page({
         active: s.turn === i,
         action: (() => {
           const status = E.seatStatus(s, i);
-          const label = {ready:'待发牌', survived:'在座', 'in-hand':'在局', 'all-in':'全押', folded:'弃牌', eliminated:'出局'}[status];
+          const label = {ready:'待发牌', survived:'在座', 'in-hand':'在局', 'all-in':'全押', folded:'弃牌', eliminated:'待补码'}[status];
           return status === 'in-hand' ? label + ' · ' + (p.action || (s.turn === i ? '行动中' : '等待')) : label;
         })(),
         cards:
@@ -71,10 +71,7 @@ Page({
         : s.turn === 0
           ? "轮到你行动" + (s.log.length ? " · " + s.log[s.log.length - 1] : "")
           : (s.log.length ? s.log[s.log.length - 1] + " · " : "") + s.players[s.turn].name + " 正在思考",
-      canNext:
-        !this.dealing && s.done &&
-        s.players[0].chips > 0 &&
-        s.players.filter((p) => p.chips > 0).length > 1,
+      canNext: !this.dealing && s.done,
     });
   },
   loop() {

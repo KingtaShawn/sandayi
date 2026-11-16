@@ -19,7 +19,7 @@ test('H5 发布产物：所有本地 CSS/JS/manifest 引用存在且使用同一
   assert.match(html, /id="btn-enter-match3"/);
 });
 
-function boot(saved, { normalMotion = false, starSaved } = {}) {
+function boot(saved, { normalMotion = false, starSaved, pokerSetup } = {}) {
   const errors = [];
   const console = new VirtualConsole();
   console.on('jsdomError', (error) => errors.push(error));
@@ -38,7 +38,13 @@ function boot(saved, { normalMotion = false, starSaved } = {}) {
   w.setInterval = (fn, ms, ...args) => interval(fn, Math.min(ms, 2), ...args);
   if (starSaved) w.localStorage.setItem('popstar:progress:v1', starSaved);
   if (saved) w.localStorage.setItem(KEY, saved);
-  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'poker-engine.js', 'poker.js', 'app.js']) w.eval(fs.readFileSync(path.join(H5, 'js', script), 'utf8'));
+  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'poker-engine.js', 'poker.js', 'app.js']) {
+    w.eval(fs.readFileSync(path.join(H5, 'js', script), 'utf8'));
+    if (script === 'poker-engine.js' && pokerSetup) {
+      const create = w.Poker.create;
+      w.Poker.create = (...args) => { const state = create(...args); pokerSetup(state); return state; };
+    }
+  }
   const $ = (id) => w.document.getElementById(id);
   const click = (id) => $(id).click();
   const state = () => JSON.parse(JSON.stringify(w.GameCore.storage.get(KEY).current));
@@ -256,3 +262,5 @@ test('H5 德州入口、合法行动、暂停恢复与人数重置',async()=>{co
 test('H5 荷官发手牌，回到牌桌不会重复发牌',()=>{const p=boot();try{p.click('btn-enter-poker');assert.ok(p.$('poker-dealer'));p.click('poker-next');assert.equal(p.$('poker-hand').querySelectorAll('.dealing').length,2);p.click('poker-home');p.click('btn-enter-poker');assert.equal(p.$('poker-hand').querySelectorAll('.dealing').length,0);}finally{p.close();}});
 
 test('H5 玩家手牌位于牌桌内，操作区包含完整操作',()=>{const p=boot();try{p.click('btn-enter-poker');assert.ok(p.$('poker-hand').closest('.poker-table'));assert.deepEqual(Array.from(p.w.document.querySelectorAll('.poker-actions button'),e=>e.id),['poker-fold','poker-call','poker-raise','poker-allin','poker-next','poker-reset']);}finally{p.close();}});
+
+ test('H5 真人和 AI 清台后可继续，其他玩家筹码保留',async()=>{const p=boot(null,{pokerSetup:s=>{s.hand=1;s.dealer=0;s.players[0].chips=0;s.players[1].chips=1270;s.players[2].chips=0;s.players[3].chips=3110;}});try{p.click('btn-enter-poker');await sleep(30);assert.equal(p.$('poker-next').disabled,false);assert.equal(p.w.document.querySelectorAll('.poker-seat.eliminated').length,2);p.click('poker-next');const seats=Array.from(p.w.document.querySelectorAll('.poker-seat'));const total=i=>{const seat=seats[i],stack=Number(seat.querySelector('.seat-info > span').textContent.replace(/\D/g,'')),bet=seat.querySelector('.seat-bet');return stack+(bet?Number(bet.textContent.replace(/\D/g,'')):0);};assert.deepEqual([0,1,2,3].map(total),[2000,1270,2000,3110]);assert.match(p.$('poker-log').textContent,/你：补码 2000/);assert.match(p.$('poker-log').textContent,/儿颠颠：补码 2000/);}finally{p.close();}});

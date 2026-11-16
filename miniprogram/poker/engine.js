@@ -100,11 +100,10 @@
   }
   function start(s, rng = Math.random) {
     if (!s.done) throw Error("本手尚未结束");
-    if (
-      s.players.filter((p) => p.chips > 0).length < 2 ||
-      s.players[0].chips === 0
-    )
-      throw Error("请重新开桌");
+    // Rebuy only between hands, after settlement and before posting blinds.
+    const rebuys = s.players.map((p, i) => p.chips === 0 ? i : -1).filter(i => i >= 0);
+    rebuys.forEach(i => { s.players[i].chips += 2000; });
+    s.rebuys = rebuys;
     s.hand++;
     s.done = false;
     s.board = [];
@@ -112,14 +111,14 @@
     s.street = 0;
     s.current = 20;
     s.minRaise = 20;
-    s.log = [];
-    s.players.forEach((p) =>
+    s.log = rebuys.map(i => s.players[i].name + "：补码 2000");
+    s.players.forEach((p, i) =>
       Object.assign(p, {
         hole: [],
         bet: 0,
         total: 0,
         folded: p.chips === 0,
-        action: "",
+        action: rebuys.includes(i) ? "补码 2000" : "",
         position: "",
       }),
     );
