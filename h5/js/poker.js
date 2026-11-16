@@ -1,6 +1,6 @@
 "use strict";
 window.createPokerUI = function ({ navigate }) {
-  const E = window.Poker,
+  const E = window.Poker, M = window.PokerMotion,
     $ = (id) => document.getElementById("poker-" + id);
   let s = E.create(),
     timer = null,
@@ -15,11 +15,11 @@ window.createPokerUI = function ({ navigate }) {
   let selectedSizing = 'half';
   let sizingOpen = false;
   const sizingLabels = {half:'½ 底池', pot:'全池', double:'2倍当前注', triple:'3倍当前注'};
-  function cards(node, cs, animateFrom) {
+  function cards(node, cs, animateFrom, dealDelays) {
     node.replaceChildren(...cs.map((c, i) => {
       const span = document.createElement("span");
       span.className = "poker-card" + (Math.floor(c / 13) % 2 ? " red" : "") + (i >= animateFrom ? " dealing" : "");
-      span.style.animationDelay = Math.max(0, i - animateFrom) * 230 + "ms";
+      span.style.animationDelay = (dealDelays ? dealDelays[i] : Math.max(0, i - animateFrom) * 230) + "ms";
       const value = E.card(c);
       span.innerHTML = '<span class="card-corner"></span><span class="card-suit"></span>';
       span.firstChild.textContent = value.slice(1);
@@ -38,24 +38,51 @@ window.createPokerUI = function ({ navigate }) {
       return stack;
     }));
   }
+  function pointInTable(element) {
+    const layer = $("flights"), box = layer.getBoundingClientRect();
+    const view = document.getElementById('view-poker');
+    const matrix = M.matrixFromCss(window.getComputedStyle(view).transform);
+    if (!matrix) return null;
+    return M.toLocal(M.center(element.getBoundingClientRect()), box, layer.offsetWidth, layer.offsetHeight, matrix);
+  }
+  function placeDealOrigins() {
+    const dealer = document.querySelector('.dealer-portrait');
+    const layer = $("flights");
+    if (!dealer || !layer.offsetWidth || !layer.offsetHeight) return;
+    const origin = pointInTable(dealer);
+    if (!origin) return;
+    document.querySelectorAll('#view-poker .poker-card.dealing, #view-poker .card-back.dealing').forEach(card => {
+      const target = pointInTable(card);
+      if (!target) return;
+      const offset = M.between(target, origin);
+      card.style.setProperty('--deal-x', offset.x + 'px');
+      card.style.setProperty('--deal-y', offset.y + 'px');
+    });
+  }
   function flyChips(from, to, delay = 0, type = 'payout') {
     if (!from || !to || !visible) return;
-    const layer = $("flights"), box = layer.getBoundingClientRect();
-    const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
-    if (!box.width || !box.height) return;
+    const layer = $("flights");
+    if (!layer.offsetWidth || !layer.offsetHeight) return;
+    const a = pointInTable(from), b = pointInTable(to);
+    if (!a || !b) return;
+    const delta = M.between(a, b);
     const chip = document.createElement('span'); chip.className = 'flying-chips ' + type;
-    chip.style.left = (a.left + a.width / 2 - box.left) + 'px';
-    chip.style.top = (a.top + a.height / 2 - box.top) + 'px';
-    chip.style.setProperty('--dx', (b.left + b.width / 2 - a.left - a.width / 2) + 'px');
-    chip.style.setProperty('--dy', (b.top + b.height / 2 - a.top - a.height / 2) + 'px');
+    chip.style.left = a.x + 'px';
+    chip.style.top = a.y + 'px';
+    chip.style.setProperty('--dx', delta.x + 'px');
+    chip.style.setProperty('--dy', delta.y + 'px');
     chip.style.animationDelay = delay + 'ms';
     chip.innerHTML = '<i></i><i></i><i></i>';
     chip.addEventListener('animationend', () => chip.remove(), {once:true});
     layer.append(chip);
   }
   function render() {
+    const view = document.getElementById('view-poker');
+    view.classList.remove('motion-ready');
     const newHand = s.hand !== dealtHand;
     const board = s.board || [];
+    const order = M.dealOrder(s.players, s.dealer);
+    const dealDelays = (i) => [order.indexOf(i) * 110, (order.indexOf(i) + order.length) * 110];
     const increases = s.players.map((p,i) => Math.max(0, (p.total || 0) - (newHand ? 0 : (totalsSeen[i] || 0))));
     recentBet = increases.some(Boolean);
     const newBoardFrom = newHand ? 0 : boardSeen.length <= board.length && boardSeen.every((c, i) => board[i] === c) ? boardSeen.length : board.length;
@@ -88,11 +115,16 @@ window.createPokerUI = function ({ navigate }) {
         const reveal = s.done && !dealing && payoutHand === s.hand && !!s.awards;
         if (reveal && p.hole && p.hole.length) node.classList.add('showdown');
         if (p.hole && p.hole.length && i !== 0 && (!p.folded || reveal)) {
-          const h = document.createElement('div'); h.className = 'seat-cards' + (newHand ? ' dealing' : '') + (reveal ? ' revealed' : '');
-          if (newHand) h.style.animationDelay = (i - 1) * 120 + 'ms';
+          const h = document.createElement('div'); h.className = 'seat-cards' + (reveal ? ' revealed' : '');
           if (reveal) {
             p.hole.forEach(c => {const v=document.createElement('span');v.className = Math.floor(c/13)%2 ? 'red' : '';v.textContent=E.card(c);h.append(v);});
-          } else h.innerHTML = '<span class="card-back"></span><span class="card-back"></span>';
+          } else {
+            for (let k = 0; k < 2; k++) {
+              const back = document.createElement('span'); back.className = 'card-back' + (newHand ? ' dealing' : '');
+              if (newHand) back.style.animationDelay = dealDelays(i)[k] + 'ms';
+              h.append(back);
+            }
+          }
           node.appendChild(h);
         }
         if (p.bet && !s.done) {const bet=document.createElement('div');bet.className='seat-bet' + (increases[i] ? ' bet-pulse' : '');bet.textContent='◉ '+p.bet;node.append(bet);}
@@ -101,7 +133,9 @@ window.createPokerUI = function ({ navigate }) {
       }),
     );
     cards($("board"), board, newBoardFrom);
-    cards($("hand"), s.players[0].hole || [], newHand ? 0 : Infinity);
+    cards($("hand"), s.players[0].hole || [], newHand ? 0 : Infinity, newHand ? dealDelays(0) : null);
+    placeDealOrigins();
+    view.classList.add('motion-ready');
     $("dealer").classList.toggle('is-dealing', newHand || newBoardFrom < board.length);
     dealtHand = s.hand; boardSeen = board.slice();
     totalsSeen = s.players.map(p => p.total || 0);
@@ -168,7 +202,7 @@ window.createPokerUI = function ({ navigate }) {
     render();
     if (!visible) return;
     if (dealing) {
-      timer = setTimeout(() => { dealing = false; loop(); }, newHand ? 2000 : 1900);
+      timer = setTimeout(() => { dealing = false; loop(); }, newHand ? 2800 : 1900);
     } else if (s.done && s.hand && s.awards && payoutHand !== s.hand) {
       const waitForBet = recentBet;
       settling = true; render();
@@ -245,6 +279,12 @@ window.createPokerUI = function ({ navigate }) {
   $("count").onchange = () => {
     $("error").textContent = "人数在重新开桌后生效";
   };
+  window.addEventListener('resize', () => {
+    if (!visible) return;
+    // Cancel in-flight visuals if the viewport rotates; the game state is unchanged.
+    $("flights").replaceChildren();
+    document.querySelectorAll('#view-poker .dealing').forEach(element => element.classList.remove('dealing'));
+  });
   $("home").onclick = () => navigate("lobby");
   document.getElementById("btn-enter-poker").onclick = () => navigate("poker");
   return {

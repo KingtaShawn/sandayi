@@ -13,12 +13,14 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 test('H5 发布产物：所有本地 CSS/JS/manifest 引用存在且使用同一版本', () => {
   const html = fs.readFileSync(path.join(H5, 'dist/index.html'), 'utf8');
   const refs = Array.from(html.matchAll(/(?:src|href)="((?:css|js)\/[^"?]+|manifest\.webmanifest)\?v=([^"]+)"/g));
-  assert.equal(refs.length, 15);
+  assert.equal(refs.length, 16);
   assert.equal(new Set(refs.map((ref) => ref[2])).size, 1);
   refs.forEach((ref) => assert.ok(fs.existsSync(path.join(H5, 'dist', ref[1])), ref[1]));
   assert.match(html, /id="btn-enter-match3"/);
   assert.match(html, /id="btn-enter-breakout"/);
   assert.match(html, /id="btn-enter-sudoku"/);
+  assert.match(html, /src="icons\/poker-dealer\.jpg"/);
+  assert.ok(fs.existsSync(path.join(H5, 'dist/icons/poker-dealer.jpg')));
 });
 
 function boot(saved, { normalMotion = false, starSaved, pokerSetup, sudokuSaved } = {}) {
@@ -42,7 +44,7 @@ function boot(saved, { normalMotion = false, starSaved, pokerSetup, sudokuSaved 
   if (starSaved) w.localStorage.setItem('popstar:progress:v1', starSaved);
   if (saved) w.localStorage.setItem(KEY, saved);
   if (sudokuSaved) w.localStorage.setItem('sudoku:progress:v1', sudokuSaved);
-  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'poker-engine.js', 'poker.js', 'mini-games.js', 'app.js']) {
+  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'poker-engine.js', 'poker-motion.js', 'poker.js', 'mini-games.js', 'app.js']) {
     w.eval(fs.readFileSync(path.join(H5, 'js', script), 'utf8'));
     if (script === 'poker-engine.js' && pokerSetup) {
       const create = w.Poker.create;
@@ -373,3 +375,5 @@ test('H5 弹球：移动发球、切换暂停恢复、清关、失败与重开�
     p.click('breakout-home'); assert.equal(frames.size, 0);
   } finally { p.close(); }
 });
+
+test('H5 发牌按庄家左侧顺序逐张发两轮',()=>{const p=boot();try{p.click('btn-enter-poker');p.click('poker-next');const seat1=p.w.document.querySelectorAll('.seat-1 .card-back');const seat2=p.w.document.querySelectorAll('.seat-2 .card-back');const hand=p.$('poker-hand').children;assert.equal(seat1.length,2);assert.equal(seat1[0].style.animationDelay,'0ms');assert.equal(seat2[0].style.animationDelay,'110ms');assert.equal(seat1[1].style.animationDelay,'770ms');assert.equal(hand[0].style.animationDelay,'660ms');assert.equal(hand[1].style.animationDelay,'1430ms');}finally{p.close();}});

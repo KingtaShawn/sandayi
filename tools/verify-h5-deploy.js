@@ -16,7 +16,7 @@ const args = process.argv.slice(2);
 assert.ok(args.length === 0 || (args.length === 2 && args[0] === '--site'
   && Object.prototype.hasOwnProperty.call(ENTRANCES, args[1])), '用法：node tools/verify-h5-deploy.js [--site github|cloudflare]');
 const SITES = args.length ? [ENTRANCES[args[1]]] : Object.values(ENTRANCES);
-const ASSETS = ['js/game-bundle.js', 'js/app.js', 'js/cloud.js', 'js/sound.js', 'js/match3.js', 'js/popstar.js', 'js/arcade-motion.js', 'css/style.css', 'css/arcade.css', 'manifest.webmanifest'];
+const ASSETS = ['js/game-bundle.js', 'js/app.js', 'js/cloud.js', 'js/sound.js', 'js/match3.js', 'js/popstar.js', 'js/arcade-motion.js', 'js/poker-engine.js', 'js/poker-motion.js', 'js/poker.js', 'css/poker.css', 'icons/poker-dealer.jpg', 'css/style.css', 'css/arcade.css', 'manifest.webmanifest'];
 const html = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8');
 const version = html.match(/js\/game-bundle\.js\?v=([^"\s]+)/)?.[1];
 assert.ok(version && !version.endsWith('-dirty'), '发布产物必须有已提交的版本号');

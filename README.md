@@ -91,3 +91,5 @@ AI 使用仅含本人底牌和公共信息的观察对象，蒙特卡洛胜率�
 九人桌策略基准：`node tools/poker-bench.js ./baselines/poker-v1.js 1500`（旧版自我对照在末尾加 `baseline`）。固定随机种子，每手重置 2000 筹码、轮换测试座位，测试牌手面对 8 个旧版 AI；每次决策采样 24 次以控制耗时，实际游戏使用 160 次。该模拟统计每百手筹码变化，牌局和下注随机路径会随策略变化，结果波动较大，不代表职业牌手或真实玩家对局水平。
 
 七人桌入池率基准：`node tools/poker-vpip-bench.js ../miniprogram/poker/engine 3000 392117`。模拟将七个座位都交给 AI，每手重置筹码并轮换庄位；统计翻牌前自愿跟注或加注，不计强制盲注和免费过牌。评估时每次翻后决策采样 12 次以控制耗时（实际游戏为 160 次）。固定种子自对弈用于观察风格，不同策略的随机路径会分叉，不应视为同一组牌的严格配对或职业强度认证。与这次调整前比较时，可先执行 `git show 0cc949a:miniprogram/poker/engine.js > /tmp/sandayi-poker-vpip-before.js`，再运行 `node tools/poker-vpip-bench.js /tmp/sandayi-poker-vpip-before.js 3000 392117`。
+
+德州牌桌的荷官肖像由 AI 生成。发牌按荷官到座位的方向逐张进行，下注与收池分别连接下注座位、底池和实际获款座位；页面旋转时按牌桌坐标换算。若本机装有 Chromium，可运行 `node h5/test/poker-motion-e2e.js` 检查横持与竖持旋转下的实际起终点（也可用 `PUPPETEER_EXECUTABLE_PATH` 指定浏览器）。

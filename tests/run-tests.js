@@ -12,6 +12,7 @@ const TEST_FILES = [
   'test-sudoku.js',
   'test-mini-games-mp.js',
   'test-poker.js',
+  'test-poker-motion.js',
   'test-poker-mp.js',
   'test-match3.js',
   'test-popstar.js',
