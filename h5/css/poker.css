@@ -40,3 +40,16 @@
 .poker-seat.in-hand .seat-info small,.poker-seat.all-in .seat-info small,.poker-seat.survived .seat-info small,.poker-seat.ready .seat-info small{color:#b7ffcd;font-weight:700}
 .poker-seat.active{border-color:#ffe08a;background:linear-gradient(135deg,#776126,#433716);box-shadow:0 0 0 3px #f4d47a99,0 0 18px #d9b45088,0 5px 18px #0009}
 .poker-seat.folded,.poker-seat.eliminated{opacity:.43;filter:grayscale(.7);border-color:#777;background:#222b26}
+/* Chips are illustrative stacks; the adjacent number is the exact pot. */
+.poker-chips{height:5cqh;min-height:14px;align-items:flex-end;gap:1cqh;position:relative;z-index:2;margin:1cqh 0}
+.poker-chips .chip-stack{--chip:#e5c68b;position:relative;display:block;width:4.1cqh;min-width:14px;height:100%}
+.poker-chips .chip-stack.red{--chip:#be5244}.poker-chips .chip-stack.blue{--chip:#4287a7}.poker-chips .chip-stack.gold{--chip:#d6a83d}.poker-chips .chip-stack.green{--chip:#4ba276}
+.poker-chips .chip-stack i{position:absolute;display:block;bottom:calc(var(--level) * .7cqh);left:0;width:100%;height:2.2cqh;min-height:7px;margin:0;border-radius:50%;border:2px dashed #f5e8cf;background:var(--chip);box-shadow:0 1px 0 #122a22,0 2px 3px #001b17aa}
+.poker-flight-layer{position:absolute;inset:0;overflow:visible;z-index:8;pointer-events:none}
+.flying-chips{position:absolute;width:5cqh;height:3cqh;pointer-events:none;animation:chip-travel 1.05s cubic-bezier(.3,.02,.18,1) both;filter:drop-shadow(0 3px 3px #001a16aa)}
+.flying-chips i{position:absolute;left:0;width:4.4cqh;height:2.4cqh;border-radius:50%;border:2px dashed #fff1ce;background:#d9af53}.flying-chips i:nth-child(2){top:-.6cqh;left:.5cqh;background:#bd5346}.flying-chips i:nth-child(3){top:-1.2cqh;left:1cqh;background:#448ba4}
+.flying-chips.bet-flight{animation-duration:.85s}.poker-seat.winner{border-color:#ffd87f;box-shadow:0 0 0 3px #edbf5f88,0 0 18px #e8b44f77,0 5px 16px #0009}.seat-award{position:absolute;top:-3cqh;left:50%;transform:translateX(-50%);white-space:nowrap;color:#fff2bd;background:#745729;border:1px solid #eec86f;border-radius:9px;padding:1px 5px;font-size:clamp(9px,2.5cqh,15px);font-weight:800}.seat-award.award-animate{animation:award-pop .7s cubic-bezier(.2,1.4,.4,1) both}.seat-bet.bet-pulse{animation:bet-pop .55s ease both}
+@keyframes chip-travel{0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}15%{opacity:1}75%{opacity:1}100%{opacity:0;transform:translate(calc(var(--dx) - 50%),calc(var(--dy) - 50%)) scale(.65)}}
+@keyframes award-pop{from{opacity:0;transform:translate(-50%,1cqh) scale(.7)}to{opacity:1;transform:translate(-50%,0) scale(1)}}@keyframes bet-pop{from{opacity:.2;transform:translateX(-50%) scale(.6)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+@media(prefers-reduced-motion:reduce){.poker *{animation-duration:.01ms!important;animation-delay:0ms!important}}
+.poker-seat.winner{z-index:6}.seat-award{left:110%}

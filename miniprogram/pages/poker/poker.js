@@ -16,6 +16,7 @@ Page({
     this.s = E.create();
     this.visible = true;
     this.lastHand = 0; this.boardCount = 0; this.dealing = false;
+    this.settling = false; this.payoutHand = 0; this.totalsHand = 0; this.totalsSeen = []; this.payoutFlights = []; this.betFlights = [];
     this.render();
   },
   onShow() {
@@ -25,24 +26,44 @@ Page({
   onHide() {
     this.visible = false;
     clearTimeout(this.timer);
+    this.settling = false; this.payoutFlights = [];
   },
   onUnload() {
     this.visible = false;
     clearTimeout(this.timer);
+    this.settling = false; this.payoutFlights = [];
   },
   render() {
     const s = this.s,
       l = E.legal(s);
+    const pot = s.players.reduce((n, p) => n + (p.total || 0), 0);
+    const displayPot = s.done && this.payoutHand === s.hand && !this.settling ? 0 : pot;
+    const stackCount = displayPot <= 0 ? 0 : Math.min(7, Math.max(1, Math.ceil(Math.log2(displayPot / 20 + 1))));
+    const newHand = this.totalsHand !== s.hand;
+    const increases = s.players.map((p,i) => Math.max(0, (p.total || 0) - (newHand ? 0 : (this.totalsSeen[i] || 0))));
+    const flightStyle = (i) => {
+      const angle = 2 * Math.PI * i / s.players.length;
+      return '--dx:' + (-31.58 * Math.sin(angle)) + 'vw;--dy:' + (6.46 + 30.36 * Math.cos(angle)) + 'vh;';
+    };
+    const freshBets = increases.map((amount,i) => amount ? {id:i, style:flightStyle(i)} : null).filter(Boolean);
+    this.recentBet = freshBets.length > 0;
+    this.betFlights = freshBets.length ? freshBets : (s.done && this.settling && this.payoutHand !== s.hand ? this.betFlights : []);
+    this.totalsHand = s.hand; this.totalsSeen = s.players.map(p => p.total || 0);
     this.setData({
+      potStacks: Array.from({length:stackCount},(_,i)=>({id:i,colour:['ivory','red','blue','gold','green','red','gold'][i]})),
+      betFlights: this.betFlights,
+      payoutFlights: this.payoutFlights,
+      settling: this.settling,
       players: s.players.map((p, i) => ({
         name: p.name,
         status: E.seatStatus(s, i),
+        award: s.done && !this.dealing && this.payoutHand === s.hand && s.awards ? s.awards[i] || 0 : 0,
         position: p.position || "",
         dealer: s.dealer === i,
         me: i === 0,
         style: 'left:' + (50 - 47 * Math.sin(2 * Math.PI * i / s.players.length)) + '%;top:' + (50 + 47 * Math.cos(2 * Math.PI * i / s.players.length)) + '%;',
         avatar: i === 0 ? '你' : ['','♠','♦','♣','♥','♠','♦','♣','♥'][i],
-        chips: p.chips,
+        chips: s.done && s.awards && (this.payoutHand !== s.hand || this.settling) ? p.chips - (s.awards[i] || 0) : p.chips,
         bet: p.bet || 0,
         active: s.turn === i,
         action: (() => {
@@ -65,13 +86,13 @@ Page({
       canRaise: l.raise,
       call: l.call || 0,
       amount: String(Math.min(l.min || 20, l.max || 2000)),
-      pot: s.done ? 0 : s.players.reduce((n, p) => n + p.total, 0),
+      pot: displayPot,
       status: this.dealing ? "荷官正在发牌…" : s.done
-        ? s.result || "点击下一手开始"
+        ? (s.awards && this.payoutHand !== s.hand ? "正在结算…" : s.result || "点击下一手开始")
         : s.turn === 0
           ? "轮到你行动" + (s.log.length ? " · " + s.log[s.log.length - 1] : "")
           : (s.log.length ? s.log[s.log.length - 1] + " · " : "") + s.players[s.turn].name + " 正在思考",
-      canNext: !this.dealing && s.done,
+      canNext: !this.dealing && !this.settling && s.done,
     });
   },
   loop() {
@@ -84,6 +105,20 @@ Page({
     if (!this.visible) return;
     if (this.dealing) {
       this.timer = setTimeout(() => { this.dealing = false; this.loop(); }, 2000);
+    } else if (this.s.done && this.s.hand && this.s.awards && this.payoutHand !== this.s.hand) {
+      const waitForBet = this.recentBet;
+      this.settling = true; this.render();
+      const distribute = () => {
+        this.payoutHand = this.s.hand;
+        this.payoutFlights = this.s.awards.map((amount, i) => {
+          if (!amount) return null;
+          const angle = 2 * Math.PI * i / this.s.players.length;
+          return {id:i, style:'--dx:' + (-31.58 * Math.sin(angle)) + 'vw;--dy:' + (6.46 + 30.36 * Math.cos(angle)) + 'vh;animation-delay:' + (i * 80) + 'ms;'};
+        }).filter(Boolean);
+        this.render();
+        this.timer = setTimeout(() => { this.settling = false; this.payoutFlights = []; this.render(); }, 1700);
+      };
+      if (waitForBet) this.timer = setTimeout(distribute, 900); else distribute();
     } else if (!this.s.done && this.s.turn !== 0) {
       this.timer = setTimeout(() => {
         const m = E.decide(E.observation(this.s, this.s.turn));
@@ -129,6 +164,7 @@ Page({
         if (r.confirm) {
           this.s = E.create(this.data.count + 2);
           this.dealing = false; this.lastHand = 0; this.boardCount = 0;
+          this.settling = false; this.payoutHand = 0; this.totalsHand = 0; this.totalsSeen = []; this.payoutFlights = []; this.betFlights = [];
           this.loop();
         }
       },
