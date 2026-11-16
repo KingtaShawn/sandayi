@@ -164,13 +164,17 @@ test('all-in players are never rebought until their current hand is settled',()=
 
 test('raise presets apply pot odds, minimum raise and short all-in limits',()=>{
   const s=E.create(2);E.start(s,()=>0.3);
+  assert.equal(E.raiseTarget(s,'quarter'),40);
   assert.equal(E.raiseTarget(s,'third'),40);
   assert.equal(E.raiseTarget(s,'half'),45);
+  assert.equal(E.raiseTarget(s,'twoThirds'),53);
+  assert.equal(E.raiseTarget(s,'threeQuarters'),58);
+  assert.equal(E.raiseTarget(s,'pot'),70);
   assert.equal(E.raiseTarget(s,'triple'),60);
   assert.equal(E.raiseTarget(s,'quad'),80);
   assert.throws(()=>E.raiseTarget(s,'unknown'),/未知下注选项/);
   s.players[s.turn].chips=35;
-  for(const preset of ['third','half','triple','quad']) assert.equal(E.raiseTarget(s,preset),35);
+  for(const preset of ['quarter','third','half','twoThirds','threeQuarters','pot','triple','quad']) assert.equal(E.raiseTarget(s,preset),35);
   E.action(s,'raise',E.raiseTarget(s,'third'));
   assert.equal(s.players[0].chips,0);
 });
@@ -180,4 +184,19 @@ test('pot fraction sizes are based on the pot after calling',()=>{
   const p=s.players[s.turn],l=E.legal(s),pot=s.players.reduce((a,q)=>a+q.total,0);
   assert.equal(E.raiseTarget(s,'half'),Math.max(l.min,s.current+Math.round((pot+l.call)/2)));
   assert.equal(p.chips+p.bet,l.max);
+});
+
+test('selected AI players use wider preflop ranges without removing stack risk limits',()=>{
+  const reference=E.create(6);E.start(reference,()=>0.3);
+  let extra=0, regressions=0;
+  for(let a=0;a<52;a++)for(let b=a+1;b<52;b++){
+    const narrow=E.observation(reference,2),wide=E.observation(reference,1);
+    narrow.dealer=2;wide.dealer=1;narrow.hole=[a,b];wide.hole=[a,b];narrow.players[2].bet=0;wide.players[1].bet=0;narrow.players[2].chips=2000;wide.players[1].chips=2000;
+    const n=E.decide(narrow,()=>0.5,4),w=E.decide(wide,()=>0.5,4);
+    if(n.type==='fold'&&w.type!=='fold')extra++;
+    if(n.type!=='fold'&&w.type==='fold')regressions++;
+  }
+  assert.ok(extra>40);assert.equal(regressions,0);
+  const wide=E.observation(reference,1);wide.current=2000;wide.players[1].bet=0;wide.players[1].chips=2000;wide.hole=[0,14];
+  assert.equal(E.decide(wide,()=>0.5,4).type,'fold');
 });

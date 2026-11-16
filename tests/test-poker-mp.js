@@ -50,6 +50,14 @@ test('小程序：选择半池后按预设合法金额加注',()=>{
     Page:p=>{page=p},require:()=>E,setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer},clearTimeout:id=>timers.delete(id),wx:{}
   });
   page.setData=patch=>Object.assign(page.data,patch);page.onLoad();page.s=E.create(2);E.start(page.s,()=>0.3);page.dealing=false;page.render();
-  assert.equal(page.data.human,true);page.openSizing();assert.equal(page.data.sizingOpen,true);assert.equal(page.data.sizingOptions[1].target,45);page.selectSizing({currentTarget:{dataset:{index:1}}});assert.equal(page.data.sizingOpen,false);assert.equal(page.data.raiseTo,45);
+  assert.equal(page.data.human,true);page.openSizing();assert.equal(page.data.sizingOpen,true);assert.equal(page.data.sizingOptions.find(o=>o.label==='½ 底池').target,45);page.selectSizing({currentTarget:{dataset:{index:2}}});assert.equal(page.data.sizingOpen,false);assert.equal(page.data.raiseTo,45);
   page.act({currentTarget:{dataset:{type:'raise'}}});assert.equal(page.s.players[0].bet,45);page.onUnload();
+});
+
+test('小程序：多人底池预设按真实金额递增，选择仍对应正确尺度',()=>{
+  let page;const timers=new Map();let nextTimer=0;
+  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname,'../miniprogram/pages/poker/poker.js'),'utf8'),{Page:p=>{page=p},require:()=>E,setTimeout:fn=>{timers.set(++nextTimer,fn);return nextTimer},clearTimeout:id=>timers.delete(id),wx:{}});
+  page.setData=patch=>Object.assign(page.data,patch);page.onLoad();E.start(page.s,()=>0.3);page.s.street=1;page.s.board=[35,36,37];page.s.current=20;page.s.players.forEach((p,i)=>{p.bet=i===1?20:0;p.total=200+p.bet;p.chips=2000-p.total});page.s.turn=0;page.s.rights=[0];page.dealing=false;page.render();
+  const options=Array.from(page.data.sizingOptions);assert.deepEqual(options.map(o=>o.target),options.map(o=>o.target).slice().sort((a,b)=>a-b));assert.equal(options[0].label,'3倍当前注');
+  page.openSizing();const half=options.find(o=>o.label==='½ 底池');page.selectSizing({currentTarget:{dataset:{index:half.index}}});assert.equal(page.data.raiseTo,half.target);page.onUnload();
 });

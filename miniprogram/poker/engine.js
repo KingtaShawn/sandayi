@@ -179,8 +179,9 @@
     if (!l.raise) return null;
     const pot = s.players.reduce((sum, p) => sum + (p.total || 0), 0);
     let desired;
-    if (preset === "third" || preset === "half") {
-      desired = s.current + Math.round((pot + l.call) * (preset === "third" ? 1 / 3 : 1 / 2));
+    const fractions = {quarter: 1 / 4, third: 1 / 3, half: 1 / 2, twoThirds: 2 / 3, threeQuarters: 3 / 4, pot: 1};
+    if (Object.prototype.hasOwnProperty.call(fractions, preset)) {
+      desired = s.current + Math.round((pot + l.call) * fractions[preset]);
     } else if (preset === "triple" || preset === "quad") {
       desired = s.current * (preset === "triple" ? 3 : 4);
     } else { throw Error("未知下注选项"); }
@@ -375,7 +376,9 @@
       const late = pos === 0 || pos >= o.players.length - 2;
       const cost = Math.max(0, o.current - p.bet);
       const unopened = o.current <= 20;
-      const threshold = unopened ? (late ? 43 : 48) : 58 + Math.min(10, Math.max(0, o.current / 20 - 3));
+      // A few opponents play a wider range, without bypassing price or stack limits.
+      const looseness = [0, 4, 0, 0, 5, 0, 4, 0, 0][o.seat] || 0;
+      const threshold = (unopened ? (late ? 43 : 48) : 58 + Math.min(10, Math.max(0, o.current / 20 - 3))) - looseness;
       const canRaise = o.canRaise && p.bet + p.chips > o.current && o.players.some((q,i)=>i!==o.seat&&!q.folded&&q.chips>0);
       if (canRaise && strength >= threshold) {
         const desired = unopened ? (late ? 50 : 60) : Math.round(o.current * 3 / 10) * 10;
@@ -384,7 +387,7 @@
       }
       // Defend blinds and speculative hands only at a tolerable price.
       if (cost === 0) return {type: "call"};
-      const callThreshold = unopened ? (late ? 38 : 42) : 48 + Math.min(12, Math.max(0, o.current / 20 - 3));
+      const callThreshold = (unopened ? (late ? 38 : 42) : 48 + Math.min(12, Math.max(0, o.current / 20 - 3))) - looseness;
       if (strength < callThreshold || cost > p.chips * (pair && r[0]>=11 ? 0.65 : 0.18)) return {type: "fold"};
       return {type: "call"};
     }

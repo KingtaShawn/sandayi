@@ -14,7 +14,7 @@ window.createPokerUI = function ({ navigate }) {
   let recentBet = false;
   let selectedSizing = 'third';
   let sizingOpen = false;
-  const sizingLabels = {third:'⅓ 底池', half:'½ 底池', triple:'3倍当前注', quad:'4倍当前注'};
+  const sizingLabels = {quarter:'¼ 底池', third:'⅓ 底池', half:'½ 底池', twoThirds:'⅔ 底池', threeQuarters:'¾ 底池', pot:'1 倍底池', triple:'3倍当前注', quad:'4倍当前注'};
   function cards(node, cs, animateFrom) {
     node.replaceChildren(...cs.map((c, i) => {
       const span = document.createElement("span");
@@ -133,13 +133,20 @@ window.createPokerUI = function ({ navigate }) {
     $("sizing-panel").hidden = !sizingOpen;
     $("amount").setAttribute('aria-expanded', String(sizingOpen));
     $("amount").textContent = sizingLabels[selectedSizing] + ' ▾';
-    document.querySelectorAll('.poker-size-options button').forEach(option => {
+    const options = Array.from(document.querySelectorAll('.poker-size-options button'));
+    options.forEach(option => {
       const preset = option.dataset.preset;
       const target = human && l.raise ? E.raiseTarget(s, preset) : null;
       option.querySelector('small').textContent = target == null ? '' : '加至 ' + target;
       option.classList.toggle('selected', preset === selectedSizing);
       option.setAttribute('aria-pressed', String(preset === selectedSizing));
     });
+    // Pot fractions and multiples can cross in multiway pots; order by real target.
+    if (human && l.raise) {
+      options.sort((a, b) => E.raiseTarget(s, a.dataset.preset) - E.raiseTarget(s, b.dataset.preset));
+      const list = document.querySelector('.poker-size-options');
+      if (options.some((option, i) => list.children[i] !== option)) options.forEach(option => list.append(option));
+    }
     const raiseTo = human && l.raise ? E.raiseTarget(s, selectedSizing) : null;
     $("raise").textContent = raiseTo == null ? '加注' : '加注至 ' + raiseTo;
     $("next").disabled = dealing || settling || !s.done;

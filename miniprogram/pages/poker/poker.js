@@ -4,9 +4,9 @@ Page({
   data: {
     counts: [2, 3, 4, 5, 6, 7, 8],
     count: 4,
-    sizingLabels: ["⅓ 底池", "½ 底池", "3倍当前注", "4倍当前注"],
-    sizingValues: ["third", "half", "triple", "quad"],
-    sizingIndex: 0,
+    sizingLabels: ["¼ 底池", "⅓ 底池", "½ 底池", "⅔ 底池", "¾ 底池", "1 倍底池", "3倍当前注", "4倍当前注"],
+    sizingValues: ["quarter", "third", "half", "twoThirds", "threeQuarters", "pot", "triple", "quad"],
+    sizingIndex: 1,
     sizingOpen: false,
     players: [],
     board: [],
@@ -92,7 +92,7 @@ Page({
       call: l.call || 0,
       raiseTo: !this.dealing && !s.done && s.turn === 0 && l.raise ? E.raiseTarget(s, this.data.sizingValues[this.data.sizingIndex]) : null,
       sizingOpen: !this.dealing && !s.done && s.turn === 0 && l.raise ? this.data.sizingOpen : false,
-      sizingOptions: this.data.sizingLabels.map((label, i) => ({label, target: !this.dealing && !s.done && s.turn === 0 && l.raise ? E.raiseTarget(s, this.data.sizingValues[i]) : null, selected: i === this.data.sizingIndex})),
+      sizingOptions: this.data.sizingLabels.map((label, i) => ({index:i, label, target: !this.dealing && !s.done && s.turn === 0 && l.raise ? E.raiseTarget(s, this.data.sizingValues[i]) : null, selected: i === this.data.sizingIndex})).sort((a,b) => (a.target - b.target) || (a.index - b.index)),
       pot: displayPot,
       status: this.dealing ? "荷官正在发牌…" : s.done
         ? (s.awards && this.payoutHand !== s.hand ? "正在结算…" : s.result || "点击下一手开始")
