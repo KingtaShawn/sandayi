@@ -1,7 +1,7 @@
 "use strict";
 // Shared no-limit hold'em engine. Chips are integers; bots receive only public information.
 (function (root) {
-  const names = ["你", "暗潮", "猎隼", "冷锋", "夜航", "赤焰"];
+  const names = ["你", "暗潮", "猎隼", "冷锋", "夜航", "赤焰", "玄石", "霜刃", "逐浪"];
   const labels = [
     "高牌",
     "一对",
@@ -74,8 +74,8 @@
       ({ 11: "J", 12: "Q", 13: "K", 14: "A" }[rank(c)] || rank(c))
     );
   }
-  function create(n = 5) {
-    if (!Number.isInteger(n) || n < 2 || n > 5) throw Error("AI 数量需为 2～5");
+  function create(n = 8) {
+    if (!Number.isInteger(n) || n < 2 || n > 8) throw Error("AI 数量需为 2～8");
     return {
       players: names.slice(0, n + 1).map((name) => ({ name, chips: 2000 })),
       dealer: -1,
@@ -321,6 +321,32 @@
       unknown = Array.from({ length: 52 }, (_, i) => i).filter(
         (c) => !known.has(c),
       );
+    // Opening ranges avoid limping almost every hand at a full table. The
+    // threshold tightens in early position and when facing a raise.
+    if (o.street === 0) {
+      const r = o.hole.map(rank).sort((a, b) => b - a);
+      const suited = Math.floor(o.hole[0] / 13) === Math.floor(o.hole[1] / 13);
+      const pair = r[0] === r[1];
+      let strength = pair ? 45 + r[0] * 3 : r[0] * 2 + r[1];
+      if (!pair && suited) strength += 5;
+      if (!pair && r[0] - r[1] <= 2) strength += 3;
+      const pos = (o.seat - o.dealer + o.players.length) % o.players.length;
+      const late = pos === 0 || pos >= o.players.length - 2;
+      const cost = Math.max(0, o.current - p.bet);
+      const unopened = o.current <= 20;
+      const threshold = unopened ? (late ? 43 : 48) : 58 + Math.min(10, Math.max(0, o.current / 20 - 3));
+      const canRaise = o.canRaise && p.bet + p.chips > o.current && o.players.some((q,i)=>i!==o.seat&&!q.folded&&q.chips>0);
+      if (canRaise && strength >= threshold) {
+        const desired = unopened ? (late ? 50 : 60) : Math.round(o.current * 3 / 10) * 10;
+        const target = Math.min(p.bet + p.chips, Math.max(o.current + o.minRaise, desired));
+        return {type: "raise", target};
+      }
+      // Defend blinds and speculative hands only at a tolerable price.
+      if (cost === 0) return {type: "call"};
+      const callThreshold = unopened ? (late ? 38 : 42) : 48 + Math.min(12, Math.max(0, o.current / 20 - 3));
+      if (strength < callThreshold || cost > p.chips * (pair && r[0]>=11 ? 0.65 : 0.18)) return {type: "fold"};
+      return {type: "call"};
+    }
     let equity = 0;
     for (let t = 0; t < trials; t++) {
       let pool = unknown.slice();
@@ -343,7 +369,7 @@
       odds = cost / (pot + cost || 1),
       max = p.bet + p.chips;
     const position = (o.seat - o.dealer + o.players.length) % o.players.length;
-    const aggression = [0, 0.12, 0.09, 0.06, 0.1, 0.15][o.seat] || 0.1;
+    const aggression = [0, 0.12, 0.09, 0.06, 0.1, 0.15, 0.08, 0.11, 0.14][o.seat] || 0.1;
     const suited = Math.floor(o.hole[0] / 13) === Math.floor(o.hole[1] / 13),
       ranks = o.hole.map(rank);
     const draw =

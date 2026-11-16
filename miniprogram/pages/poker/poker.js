@@ -2,8 +2,8 @@
 const E = require("../../poker/engine");
 Page({
   data: {
-    counts: [2, 3, 4, 5],
-    count: 3,
+    counts: [2, 3, 4, 5, 6, 7, 8],
+    count: 6,
     amount: "",
     players: [],
     board: [],

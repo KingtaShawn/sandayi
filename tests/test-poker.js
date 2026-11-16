@@ -20,7 +20,7 @@ test("wheel, royal flush, full house and kickers", () => {
 test("random legal hands conserve chips and finish including all-ins", () => {
   let seed = 7;
   const rng = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
-  for (let n = 2; n <= 5; n++) {
+  for (let n = 2; n <= 8; n++) {
     const s = E.create(n);
     for (let h = 0; h < 100; h++) {
       s.players.forEach((p) => (p.chips = 2000));
@@ -100,3 +100,5 @@ test("heads-up dealer posts small blind and acts first before flop", () => {
   assert.equal(s.turn, s.dealer);
   assert.equal(s.players[s.dealer].bet, 10);
 });
+
+ test("nine-handed table defaults to eight opponents and accepts full-table play",()=>{const s=E.create();assert.equal(s.players.length,9);E.start(s,()=>0.3);assert.equal(s.players.filter(p=>p.hole.length===2).length,9);assert.equal(new Set(s.players.flatMap(p=>p.hole)).size,18);});
