@@ -1,21 +1,13 @@
 <view class="lobby">
   <view class="brand">✦ 游戏小院</view>
-  <view class="eyebrow">给自己一点轻松时间</view>
-  <view class="title">今天，玩点什么？</view>
-  <view class="subtitle">一桌好牌，一园好心情。</view>
-  <button class="entry cards" bindtap="onCards" aria-label="进入三打一">
-    <view class="tag">经典牌局</view><view class="art">♠ ♥ ♣</view>
-    <view class="name">三打一</view>
-    <view class="desc"><view>一人坐庄，三家默契配合。</view><view>和老朋友一样熟悉的牌桌。</view></view>
-    <view class="foot"><text>1 真人 + 3 AI</text><text>去牌桌 ↗</text></view>
-  </button>
-  <button class="entry fruit" bindtap="onMatch3" aria-label="进入果园消消乐">
-    <view class="tag">新游戏 · 12 关挑战</view><view class="art">🍎 🍋 🍇</view>
-    <view class="name">果园消消乐</view>
-    <view class="desc"><view>交换水果，收获连锁惊喜。</view><view>动动指尖，让快乐多一点。</view></view>
-    <view class="foot"><text>相邻交换 · 三个就消</text><text>去果园 ↗</text></view>
-  </button>
-  <button class="entry stars" bindtap="onPopstar" aria-label="进入消灭星星"><view class="tag">新玩法 · 成片点消</view><view class="art">★ ✦ ★</view><view class="name">消灭星星</view><view class="desc"><view>轻点一片，点亮满天星光。</view><view>慢慢想，凑出更大的惊喜。</view></view><view class="foot"><text>同色相连 · 两颗就消</text><text>去摘星 ↗</text></view></button>
-  <button class="entry cards" bindtap="onPoker"><view class="tag">无限注 · 策略对决</view><view class="art">♠ ♥</view><view class="name">德州扑克</view><view class="desc">读牌、设局、适时诈唬</view><view class="foot">1 真人 + 6 AI · 入座 ↗</view></button>
+  <view class="lobby-main">
+    <view class="title">今天，玩点什么？</view>
+    <view class="entries">
+      <button class="entry poker" bindtap="onPoker" aria-label="进入德州扑克"><text class="icon" aria-hidden="true">♠</text><text class="name">德州扑克</text></button>
+      <button class="entry cards" bindtap="onCards" aria-label="进入三打一"><text class="icon" aria-hidden="true">♥</text><text class="name">三打一</text></button>
+      <button class="entry fruit" bindtap="onMatch3" aria-label="进入果园消消乐"><text class="icon" aria-hidden="true">🍎</text><text class="name">果园消消乐</text></button>
+      <button class="entry stars" bindtap="onPopstar" aria-label="进入消灭星星"><text class="icon" aria-hidden="true">★</text><text class="name">消灭星星</text></button>
+    </view>
+  </view>
   <view class="footer">单人畅玩 · 随时切换</view>
 </view>
