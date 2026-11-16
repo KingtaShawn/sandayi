@@ -212,6 +212,30 @@ test('postflop bluffing can pressure a small bet but avoids expensive or forced 
   o.canRaise=false;assert.notEqual(E.decide(o,()=>0,32).type,'raise');
 });
 
+test('genuine flush, open-ended and gutshot draws continue even facing an all-in',()=>{
+  const players=Array.from({length:7},()=>({chips:50,bet:0,total:30,folded:false}));
+  const o={street:1,dealer:0,seat:1,current:2000,minRaise:20,players,canRaise:false};
+  const cases=[
+    {hole:[c(2,1),c(7,1)],board:[c(14,1),c(11,1),c(13,0)]},
+    {hole:[c(5,0),c(6,1)],board:[c(7,2),c(8,3),c(13,1)]},
+    {hole:[c(14,0),c(5,1)],board:[c(2,2),c(3,3),c(13,1)]},
+    {hole:[c(8,0),c(10,1)],board:[c(7,2),c(9,3),c(13,1),c(2,2)]},
+  ];
+  for(const spot of cases) {
+    Object.assign(o,spot,{street:spot.board.length===3?1:2});
+    assert.equal(E.decide(o,()=>0.99,32).type,'call');
+  }
+  // A three-card backdoor flush on the flop is not a one-card draw.
+  Object.assign(o,{street:1,hole:[c(2,1),c(7,1)],board:[c(14,1),c(11,2),c(13,0)]});
+  assert.equal(E.decide(o,()=>0.99,32).type,'fold');
+  // Four cards in the community alone do not give a private straight draw.
+  Object.assign(o,{street:2,hole:[c(2,0),c(13,1)],board:[c(5,2),c(6,3),c(7,2),c(8,3)]});
+  assert.equal(E.decide(o,()=>0.99,32).type,'fold');
+  // There is no future card to draw on the river.
+  Object.assign(o,{street:3,hole:[c(2,1),c(7,1)],board:[c(14,1),c(11,1),c(13,0),c(4,2),c(9,3)]});
+  assert.equal(E.decide(o,()=>0.99,32).type,'fold');
+});
+
 test('winners exclude an uncalled-bet refund, including multiple side pots',()=>{
   const s=E.create(3);s.players[0].chips=50;s.players[1].chips=100;
   E.start(s,()=>0.3);
