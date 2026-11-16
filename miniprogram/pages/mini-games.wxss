@@ -1,0 +1,15 @@
+page { background: #153b33; color: #f7f3e7; }
+.mini-game { box-sizing: border-box; max-width: 540px; margin: 0 auto; padding: 12px 16px; padding-bottom: calc(24px + env(safe-area-inset-bottom)); font-size: 14px; }
+.mini-game button { box-sizing: border-box; margin: 0; padding: 10px 12px; min-height: 44px; line-height: 1.5; border-radius: 10px; font-size: 14px; color: #e9efdd; background: #ffffff12; }
+.mini-game button::after { border: 0; }
+.mini-game button[disabled] { opacity: .5; }
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.nav button { background: transparent; padding: 8px 0; }
+.nav > text { font-weight: 700; font-size: 18px; }
+.stats { display: flex; justify-content: space-between; margin: 12px 0; gap: 12px; }
+.stats text { display: block; font-size: 11px; color: #bdd0c3; }
+.stats .number { font-size: 24px; color: #f2d79b; font-weight: 700; }
+.message { min-height: 32px; margin: 8px 0; color: #f6dfaa; font-size: 13px; text-align: center; }
+.tools { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.mini-game .primary { color: #263e2f; background: #efd08c; }
+.save-note { text-align: center; font-size: 11px; color: #a9c3b1; }

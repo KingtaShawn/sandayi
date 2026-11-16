@@ -8515,6 +8515,265 @@ class PopstarSession {
 module.exports = { PopstarSession, KEY };
 
 });
+__def("breakout/draw", function (exports, __require, module) {
+'use strict';
+const E = __require('breakout/engine');
+const COLORS = ['#f2b88b', '#efd08c', '#9fceb3', '#9cc8df', '#c5b2e3'];
+// Shared Canvas 2D renderer for browsers and the WeChat canvas node.
+function draw(ctx, s) {
+  ctx.clearRect(0, 0, E.WIDTH, E.HEIGHT);
+  ctx.fillStyle = '#132e33'; ctx.fillRect(0, 0, E.WIDTH, E.HEIGHT);
+  ctx.fillStyle = '#ffffff08';
+  for (let x = 18; x < E.WIDTH; x += 24) for (let y = 18; y < E.HEIGHT; y += 24) ctx.fillRect(x, y, 2, 2);
+  for (const brick of s.bricks) {
+    if (!brick.hp) continue;
+    ctx.fillStyle = COLORS[brick.color]; ctx.fillRect(brick.x, brick.y, brick.w, brick.h);
+    ctx.fillStyle = '#ffffff45'; ctx.fillRect(brick.x, brick.y, brick.w, 3);
+    if (brick.hp > 1) { ctx.fillStyle = '#193a41'; ctx.fillRect(brick.x + 15, brick.y + 7, 8, 4); }
+  }
+  ctx.fillStyle = '#9fceb3'; ctx.fillRect(s.paddle - E.PADDLE_WIDTH / 2, E.PADDLE_Y, E.PADDLE_WIDTH, 10);
+  ctx.fillStyle = '#eef8d5'; ctx.fillRect(s.paddle - E.PADDLE_WIDTH / 2, E.PADDLE_Y, E.PADDLE_WIDTH, 3);
+  ctx.beginPath(); ctx.arc(s.ball.x, s.ball.y, E.RADIUS, 0, Math.PI * 2); ctx.fillStyle = '#fff7da'; ctx.fill();
+  if (s.status !== 'playing' || s.paused) {
+    ctx.fillStyle = '#132e33b8'; ctx.fillRect(0, 210, E.WIDTH, 80);
+    ctx.fillStyle = '#fff1cb'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(s.paused ? '已暂停' : s.status === 'ready' ? '准备好了吗？' : s.status === 'won' ? '漂亮，全部击破！' : '再试一次吧', E.WIDTH / 2, 246);
+    ctx.font = '13px sans-serif'; ctx.fillText(E.actionLabel(s), E.WIDTH / 2, 272);
+  }
+}
+module.exports = { draw };
+
+});
+__def("breakout/engine", function (exports, __require, module) {
+'use strict';
+const WIDTH = 360, HEIGHT = 480, RADIUS = 7, PADDLE_Y = 440, PADDLE_WIDTH = 76, LEVELS = 6;
+const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+function bricksFor(level) {
+  const bricks = [];
+  for (let row = 0; row < Math.min(3 + level, 7); row++) for (let col = 0; col < 8; col++) {
+    bricks.push({ x: 12 + col * 42, y: 48 + row * 25, w: 38, h: 18, hp: level >= 4 && row % 2 === 0 ? 2 : 1, color: row % 5 });
+  }
+  return bricks;
+}
+function dock(s) { s.ball = { x: s.paddle, y: PADDLE_Y - RADIUS - 1, vx: 0, vy: 0 }; }
+function createGame() {
+  const s = { level: 1, score: 0, lives: 3, paddle: WIDTH / 2, bricks: bricksFor(1), status: 'ready', paused: false };
+  dock(s); return s;
+}
+function movePaddle(s, x) {
+  if (!Number.isFinite(x) || s.paused || !['ready', 'playing'].includes(s.status)) return;
+  s.paddle = clamp(x, PADDLE_WIDTH / 2, WIDTH - PADDLE_WIDTH / 2);
+  if (s.status === 'ready') dock(s);
+}
+function launch(s) {
+  if (s.status !== 'ready' || s.paused) return false;
+  const speed = 270 + s.level * 24;
+  s.ball.vx = speed * .35; s.ball.vy = -speed * Math.sqrt(1 - .35 * .35); s.status = 'playing'; return true;
+}
+function next(s) {
+  if (s.status !== 'won' || s.level >= LEVELS) return false;
+  s.level++; s.bricks = bricksFor(s.level); s.status = 'ready'; s.paused = false; dock(s); return true;
+}
+function pause(s) { if (s.status === 'playing') s.paused = true; }
+function resume(s) { s.paused = false; }
+// Substeps keep travel below the radius, including at the maximum speed.
+function step(s, seconds) {
+  if (s.status !== 'playing' || s.paused || !Number.isFinite(seconds) || seconds <= 0) return;
+  const dt = Math.min(seconds, .05), steps = Math.ceil(dt * 240), delta = dt / steps;
+  for (let n = 0; n < steps && s.status === 'playing'; n++) {
+    const b = s.ball, previousY = b.y;
+    b.x += b.vx * delta; b.y += b.vy * delta;
+    if (b.x < RADIUS) { b.x = RADIUS; b.vx = Math.abs(b.vx); }
+    if (b.x > WIDTH - RADIUS) { b.x = WIDTH - RADIUS; b.vx = -Math.abs(b.vx); }
+    if (b.y < RADIUS) { b.y = RADIUS; b.vy = Math.abs(b.vy); }
+    if (b.vy > 0 && previousY + RADIUS <= PADDLE_Y && b.y + RADIUS >= PADDLE_Y && Math.abs(b.x - s.paddle) <= PADDLE_WIDTH / 2 + RADIUS) {
+      const speed = Math.hypot(b.vx, b.vy), angle = clamp((b.x - s.paddle) / (PADDLE_WIDTH / 2), -.95, .95) * Math.PI / 3;
+      b.vx = speed * Math.sin(angle); b.vy = -speed * Math.cos(angle); b.y = PADDLE_Y - RADIUS;
+    }
+    for (const brick of s.bricks) {
+      if (!brick.hp) continue;
+      const nearX = clamp(b.x, brick.x, brick.x + brick.w), nearY = clamp(b.y, brick.y, brick.y + brick.h);
+      const dx = b.x - nearX, dy = b.y - nearY, distance = Math.hypot(dx, dy);
+      if (distance > RADIUS) continue;
+      if (distance > 0) {
+        const nx = dx / distance, ny = dy / distance, dot = b.vx * nx + b.vy * ny;
+        if (dot >= 0) continue;
+        b.vx -= 2 * dot * nx; b.vy -= 2 * dot * ny;
+        b.x = nearX + nx * (RADIUS + .01); b.y = nearY + ny * (RADIUS + .01);
+      } else { b.vy *= -1; b.y = previousY; }
+      // Avoid an almost horizontal trajectory after a corner bounce.
+      const speed = Math.hypot(b.vx, b.vy);
+      if (Math.abs(b.vy) < speed * .25) { b.vy = (b.vy < 0 ? -1 : 1) * speed * .25; b.vx = (b.vx < 0 ? -1 : 1) * Math.sqrt(speed * speed - b.vy * b.vy); }
+      brick.hp--; s.score += 10;
+      if (s.bricks.every((v) => v.hp === 0)) s.status = 'won';
+      break;
+    }
+    if (s.status === 'playing' && b.y - RADIUS > HEIGHT) {
+      s.lives--; s.status = s.lives ? 'ready' : 'lost'; s.paused = false; dock(s);
+    }
+  }
+}
+function message(s) {
+  if (s.status === 'won') return s.level === LEVELS ? '六关全部完成！再来挑战最高分吧' : '本关完成！点击下一关继续';
+  if (s.status === 'lost') return '本局结束，重新挑战吧';
+  if (s.paused) return '已暂停，点击继续游戏';
+  return s.status === 'ready' ? '移动挡板，点击发球开始' : '接住小球，清空所有砖块';
+}
+function actionLabel(s) { return s.status === 'won' ? (s.level < LEVELS ? '下一关' : '再来一局') : s.status === 'lost' ? '再来一局' : s.status === 'ready' ? '发球' : s.paused ? '继续游戏' : '暂停'; }
+module.exports = { WIDTH, HEIGHT, RADIUS, PADDLE_Y, PADDLE_WIDTH, LEVELS, createGame, movePaddle, launch, next, pause, resume, step, message, actionLabel };
+
+});
+__def("breakout/session", function (exports, __require, module) {
+'use strict';
+const E = __require('breakout/engine');
+const KEY = 'breakout:best:v1';
+class BreakoutSession {
+  constructor(storage) {
+    this.storage = storage; this.state = E.createGame();
+    let saved; try { saved = storage.get(KEY); } catch (e) { /* optional storage */ }
+    this.best = saved && Number.isSafeInteger(saved.best) && saved.best >= 0 ? saved.best : 0;
+  }
+  save() {
+    if (this.state.score <= this.best) return;
+    this.best = this.state.score;
+    try { this.storage.set(KEY, { version: 1, best: this.best }); } catch (e) { /* keep playing */ }
+  }
+  step(seconds) { E.step(this.state, seconds); this.save(); }
+  action() {
+    const s = this.state;
+    if (s.status === 'ready') E.launch(s);
+    else if (s.status === 'won') { if (!E.next(s)) this.restart(); }
+    else if (s.status === 'lost') this.restart();
+    else if (s.paused) E.resume(s); else E.pause(s);
+  }
+  restart() { this.save(); this.state = E.createGame(); }
+}
+module.exports = { BreakoutSession, KEY };
+
+});
+__def("sudoku/engine", function (exports, __require, module) {
+'use strict';
+
+const DIFFICULTIES = { easy: { name: '简单', clues: 42 }, medium: { name: '中等', clues: 34 }, hard: { name: '困难', clues: 28 } };
+const box = (i) => Math.floor(i / 27) * 3 + Math.floor(i % 9 / 3);
+const peers = (a, b) => a !== b && (Math.floor(a / 9) === Math.floor(b / 9) || a % 9 === b % 9 || box(a) === box(b));
+const validBoard = (board) => Array.isArray(board) && board.length === 81 && board.every((n) => Number.isInteger(n) && n >= 0 && n <= 9);
+function conflicts(board) {
+  return board.map((n, i) => !!n && board.some((v, j) => v === n && peers(i, j)));
+}
+function complete(board) { return validBoard(board) && board.every(Boolean) && !conflicts(board).some(Boolean); }
+
+// MRV search stops after two solutions: removing a clue must preserve a unique answer.
+function countSolutions(input, limit = 2) {
+  if (!validBoard(input) || conflicts(input).some(Boolean)) return 0;
+  const board = input.slice(); let count = 0;
+  function visit() {
+    let chosen = -1, options;
+    for (let i = 0; i < 81; i++) {
+      if (board[i]) continue;
+      const used = new Set();
+      for (let j = 0; j < 81; j++) if (peers(i, j) && board[j]) used.add(board[j]);
+      const available = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter((n) => !used.has(n));
+      if (!available.length) return;
+      if (!options || available.length < options.length) { chosen = i; options = available; }
+      if (available.length === 1) break;
+    }
+    if (chosen < 0) { count++; return; }
+    for (const n of options) {
+      board[chosen] = n; visit(); board[chosen] = 0;
+      if (count >= limit) return;
+    }
+  }
+  visit(); return count;
+}
+function shuffle(values, rng) {
+  const a = values.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function createGame(difficulty = 'easy', rng = Math.random) {
+  if (!Object.prototype.hasOwnProperty.call(DIFFICULTIES, difficulty)) difficulty = 'easy';
+  const order = () => shuffle([0, 1, 2], rng).flatMap((band) => shuffle([0, 1, 2], rng).map((row) => band * 3 + row));
+  const rows = order(), cols = order(), digits = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9], rng);
+  const solution = rows.flatMap((r) => cols.map((c) => digits[(r * 3 + Math.floor(r / 3) + c) % 9]));
+  const givens = solution.slice(); let clues = 81;
+  for (const i of shuffle(Array.from({ length: 81 }, (_, n) => n), rng)) {
+    if (clues <= DIFFICULTIES[difficulty].clues) break;
+    const n = givens[i]; givens[i] = 0;
+    if (countSolutions(givens) === 1) clues--; else givens[i] = n;
+  }
+  return { difficulty, givens, solution, board: givens.slice(), notes: Array(81).fill(0), elapsedMs: 0, hints: 0, status: 'playing' };
+}
+function enter(state, index, value, pencil = false) {
+  if (state.status !== 'playing' || !Number.isInteger(index) || index < 0 || index >= 81 || state.givens[index] || !Number.isInteger(value) || value < 0 || value > 9) return false;
+  if (pencil && value) {
+    if (state.board[index]) return false;
+    state.notes[index] ^= 1 << (value - 1);
+  } else {
+    if (state.board[index] === value && !state.notes[index]) return false;
+    state.board[index] = value; state.notes[index] = 0;
+    if (value) state.notes.forEach((mask, i) => { if (peers(index, i)) state.notes[i] = mask & ~(1 << (value - 1)); });
+  }
+  state.status = complete(state.board) ? 'won' : 'playing'; return true;
+}
+function hintIndex(state, selected) {
+  if (state.status !== 'playing') return -1;
+  if (Number.isInteger(selected) && selected >= 0 && selected < 81 && state.board[selected] !== state.solution[selected]) return selected;
+  return state.board.findIndex((n, i) => n !== state.solution[i]);
+}
+function restore(s) {
+  if (!s || !Object.prototype.hasOwnProperty.call(DIFFICULTIES, s.difficulty) || !validBoard(s.givens) || !validBoard(s.board) || !complete(s.solution)) return null;
+  if (s.givens.some((n, i) => n && (n !== s.solution[i] || n !== s.board[i])) || countSolutions(s.givens) !== 1) return null;
+  if (!Array.isArray(s.notes) || s.notes.length !== 81 || s.notes.some((n) => !Number.isInteger(n) || n < 0 || n > 511)) return null;
+  if (!Number.isSafeInteger(s.elapsedMs) || s.elapsedMs < 0 || !Number.isSafeInteger(s.hints) || s.hints < 0) return null;
+  return { difficulty: s.difficulty, givens: s.givens.slice(), solution: s.solution.slice(), board: s.board.slice(), notes: s.notes.map((n, i) => s.board[i] ? 0 : n), elapsedMs: s.elapsedMs, hints: s.hints, status: complete(s.board) ? 'won' : 'playing' };
+}
+function timeLabel(ms) { const seconds = Math.floor(ms / 1000); return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`; }
+function cells(state, selected) {
+  const errors = conflicts(state.board);
+  return state.board.map((value, i) => ({
+    id: i, value: value || '', given: !!state.givens[i], selected: i === selected,
+    related: selected >= 0 && peers(i, selected), same: !!value && value === state.board[selected], conflict: errors[i],
+    right: i % 9 === 2 || i % 9 === 5, bottom: Math.floor(i / 9) === 2 || Math.floor(i / 9) === 5,
+    notes: Array.from({ length: 9 }, (_, n) => state.notes[i] & (1 << n) ? n + 1 : '')
+  }));
+}
+module.exports = { DIFFICULTIES, peers, conflicts, complete, countSolutions, createGame, enter, hintIndex, restore, timeLabel, cells };
+
+});
+__def("sudoku/session", function (exports, __require, module) {
+'use strict';
+const E = __require('sudoku/engine');
+const KEY = 'sudoku:progress:v1';
+class SudokuSession {
+  constructor(storage, rng = Math.random) {
+    this.storage = storage; this.rng = rng; this.history = [];
+    let saved; try { saved = storage.get(KEY); } catch (e) { /* persistence is optional */ }
+    this.state = (saved && saved.version === 1 && E.restore(saved.current)) || E.createGame('easy', rng);
+  }
+  save() { try { this.storage.set(KEY, { version: 1, current: this.state }); } catch (e) { /* keep playing */ } }
+  move(index, value, pencil = false) {
+    const before = { board: this.state.board.slice(), notes: this.state.notes.slice() };
+    if (!E.enter(this.state, index, value, pencil)) return false;
+    this.history.push(before); if (this.history.length > 100) this.history.shift();
+    this.save(); return true;
+  }
+  undo() {
+    if (!this.history.length || this.state.status !== 'playing') return false;
+    const last = this.history.pop(); this.state.board = last.board; this.state.notes = last.notes;
+    this.save(); return true;
+  }
+  hint(selected) {
+    const index = E.hintIndex(this.state, selected);
+    if (index < 0) return -1;
+    this.state.hints++; this.move(index, this.state.solution[index]); return index;
+  }
+  addTime(ms) { if (this.state.status === 'playing' && Number.isFinite(ms) && ms > 0) this.state.elapsedMs += Math.round(ms); }
+  restart(difficulty = this.state.difficulty) { this.state = E.createGame(difficulty, this.rng); this.history = []; this.save(); }
+}
+module.exports = { SudokuSession, KEY };
+
+});
 __def("rule-config", function (exports, __require, module) {
 /**
  * rule-config.js —— 【三打一规则后台配置】
@@ -8660,6 +8919,11 @@ module.exports = {
 });
 
 var out = {
+  Breakout: __req('root', 'breakout/engine'),
+  BreakoutSession: __req('root', 'breakout/session').BreakoutSession,
+  drawBreakout: __req('root', 'breakout/draw').draw,
+  Sudoku: __req('root', 'sudoku/engine'),
+  SudokuSession: __req('root', 'sudoku/session').SudokuSession,
   Popstar: __req('root', 'popstar/engine'),
   PopstarSession: __req('root', 'popstar/session').PopstarSession,
   Match3: __req('root', 'match3/engine'),

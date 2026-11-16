@@ -1,0 +1,20 @@
+@import "../mini-games.wxss";
+.difficulty { display: inline-block; background: #e4eddb; color: #244d3f; padding: 12px 18px; border-radius: 8px; }
+.board-wrap { position: relative; }
+.board { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); border: 3px solid #48675d; border-radius: 6px; overflow: hidden; background: #fbf6e8; }
+.mini-game .cell { position: relative; width: 100%; height: 70rpx; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0; border-radius: 0; border-right: 1px solid #c6d2c2; border-bottom: 1px solid #c6d2c2; color: #22745c; background: #fffaf0; font-size: 40rpx; font-weight: 500; }
+.mini-game .cell:nth-child(9n) { border-right: 0; }
+.mini-game .cell:nth-child(n+73) { border-bottom: 0; }
+.mini-game .right { border-right: 2px solid #48675d; }
+.mini-game .bottom { border-bottom: 2px solid #48675d; }
+.mini-game .given { color: #263e35; font-weight: 750; }
+.mini-game .related { background: #edf0e2; }
+.mini-game .same { background: #d4e5d4; }
+.mini-game .selected { background: #c0dbd0; box-shadow: inset 0 0 0 2px #2b735b; }
+.mini-game .conflict { color: #b42b3e; background: #ffe0d8; text-decoration: underline; }
+.notes { position: absolute; inset: 2px; display: grid; grid-template-columns: repeat(3, 1fr); color: #546d61; font-size: 18rpx; line-height: 1; font-weight: 500; }
+.notes text { display: flex; align-items: center; justify-content: center; }
+.cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #183c34; border: 1px solid #749889; border-radius: 6px; color: #f1d398; font-size: 22px; }
+.digits { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; margin-top: 14px; }
+.digits button { padding: 6px 0; min-width: 0; width: 100%; background: #e4eddb; color: #244d3f; border-radius: 7px; font-size: 22px; }
+.tools button { padding: 10px; }

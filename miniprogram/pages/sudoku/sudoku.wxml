@@ -1,0 +1,15 @@
+<view class="mini-game">
+  <view class="nav"><button bindtap="onHome">← 游戏大厅</button><text>数独</text><button bindtap="onRules">玩法</button></view>
+  <picker range="{{difficulties}}" value="{{difficulty}}" bindchange="onDifficulty"><view class="difficulty">难度：{{difficulties[difficulty]}} ▾</view></picker>
+  <view class="stats"><view><text>用时</text><text class="number">{{time}}</text></view><view><text>已填</text><text class="number">{{filled}} / 81</text></view><view><text>提示</text><text class="number">{{hints}}</text></view></view>
+  <view class="message" aria-role="status">{{message}}</view>
+  <view class="board-wrap"><view class="board">
+    <button wx:for="{{cells}}" wx:key="id" data-index="{{item.id}}" bindtap="onCell" disabled="{{paused}}" aria-label="{{item.label}}" class="cell {{item.given ? 'given' : ''}} {{item.related ? 'related' : ''}} {{item.same ? 'same' : ''}} {{item.selected ? 'selected' : ''}} {{item.conflict ? 'conflict' : ''}} {{item.right ? 'right' : ''}} {{item.bottom ? 'bottom' : ''}}">
+      <text>{{item.value}}</text><view class="notes"><text wx:for="{{item.notes}}" wx:for-item="note" wx:key="id">{{note.value}}</text></view>
+    </button>
+  </view><view wx:if="{{paused}}" class="cover">已暂停 · 休息一下</view></view>
+  <view class="digits"><button wx:for="{{digits}}" wx:key="*this" data-value="{{item}}" bindtap="onDigit" disabled="{{paused || won}}" aria-label="填入数字{{item}}">{{item}}</button></view>
+  <view class="tools"><button bindtap="onPencil" class="{{pencil ? 'primary' : ''}}" disabled="{{paused || won}}">笔记：{{pencil ? '开' : '关'}}</button><button bindtap="onErase" disabled="{{paused || won}}">擦除</button><button bindtap="onUndo" disabled="{{paused || won || !canUndo}}">撤销</button><button bindtap="onHint" disabled="{{paused || won}}">提示</button><button bindtap="onCheck" disabled="{{paused || won}}">检查</button></view>
+  <view class="tools"><button bindtap="onPause" disabled="{{won}}">{{paused ? '继续游戏' : '暂停'}}</button><button bindtap="onNew" class="primary">换一题</button></view>
+  <view class="save-note">进度自动保存在本机 · 离开页面不计时</view>
+</view>

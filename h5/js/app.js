@@ -70,17 +70,29 @@
   let match3UI = null;
   let popstarUI = null;
   let pokerUI = null;
+  let breakoutUI = null;
+  let sudokuUI = null;
   function showView(name) {
     if (match3UI) match3UI.close();
     if (popstarUI) popstarUI.close();
     if (pokerUI) pokerUI.close();
-    ['lobby', 'match3', 'popstar', 'poker', 'home', 'rules', 'table'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
-    const arcade = name === 'poker' || name === 'lobby' || name === 'match3' || name === 'popstar';
+    if (breakoutUI) breakoutUI.close();
+    if (sudokuUI) sudokuUI.close();
+    ['lobby', 'match3', 'popstar', 'poker', 'breakout', 'sudoku', 'home', 'rules', 'table'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
+    const arcade = ['poker', 'lobby', 'match3', 'popstar', 'breakout', 'sudoku'].includes(name);
     document.documentElement.classList.toggle('arcade-mode', arcade);
     if (Sfx.setActive) Sfx.setActive(!arcade);
     if (name === 'match3' && match3UI) match3UI.open();
     if (name === 'popstar' && popstarUI) popstarUI.open();
     if (name === 'poker' && pokerUI) pokerUI.open();
+    if (name === 'breakout') {
+      if (!breakoutUI) breakoutUI = window.createBreakoutUI({ navigate: showView, storage });
+      breakoutUI.open();
+    }
+    if (name === 'sudoku') {
+      if (!sudokuUI) sudokuUI = window.createSudokuUI({ navigate: showView, storage });
+      sudokuUI.open();
+    }
   }
 
   /* ========== 卡牌 DOM ========== */
@@ -1472,6 +1484,8 @@
   $('btn-enter-sandayi').addEventListener('click', () => { renderHome(); showView('home'); });
   $('btn-enter-popstar').addEventListener('click', () => showView('popstar'));
   $('btn-enter-match3').addEventListener('click', () => showView('match3'));
+  $('btn-enter-breakout').addEventListener('click', () => showView('breakout'));
+  $('btn-enter-sudoku').addEventListener('click', () => showView('sudoku'));
   $('btn-home-lobby').addEventListener('click', returnToLobby);
   $('btn-table-lobby').addEventListener('click', returnToLobby);
   $('btn-start').addEventListener('click', () => {

@@ -14,9 +14,11 @@ page { background: #123d32; }
 .fruit { background: #e7efcf; }
 .stars { background: #e8e2f7; color: #42365e; }
 .stars .icon { color: #8b6023; }
+.breakout { background: #d9eaf1; color: #254b5b; }
+.sudoku { background: #f1e5cc; color: #66502c; }
 .footer { flex-shrink: 0; color: #acc5b7; font-size: 12px; text-align: center; }
 @media (min-width: 760px) {
-  .entries { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .entries { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
   .name { font-size: 18px; }
 }
 @media (max-height: 480px) {
