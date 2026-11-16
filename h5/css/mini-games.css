@@ -1,21 +1,30 @@
 .game-entry--breakout { background: #d9eaf1; color: #254b5b; }
 .game-entry--sudoku { background: #f1e5cc; color: #66502c; }
-.mini-game { background: radial-gradient(ellipse at 60% 35%, #31594f, #153b33 75%); }
-.mini-layout { width: min(940px, 100%); margin: 0 auto; padding: 12px 24px 30px; display: grid; grid-template-columns: 240px minmax(0, 440px); justify-content: center; gap: 48px; align-items: center; }
+/* Reserve room for controls first; only the playing field uses the remaining space. */
+.mini-game { display: flex; flex-direction: column; height: 100%; height: 100dvh; min-height: 0; overflow: hidden; background: radial-gradient(ellipse at 60% 35%, #31594f, #153b33 75%); }
+.mini-game > .arcade-nav { flex: none; padding: max(8px, env(safe-area-inset-top)) 24px 8px; }
+.mini-layout { flex: 1; min-height: 0; width: min(1100px, 100%); margin: 0 auto; padding: 8px 24px max(12px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 480px); grid-template-rows: minmax(0, 1fr); justify-content: center; gap: 40px; }
+.mini-info { min-width: 0; align-self: center; }
 .mini-info h1 { font-size: 36px; margin: 14px 0 24px; line-height: 1.3; }
 .mini-info p { font-size: 13px; color: #c0d1c5; line-height: 1.9; margin: 20px 0; }
 .mini-best { font-size: 12px; color: #c0d1c5; margin-bottom: 12px; }
-.mini-stats { display: flex; justify-content: space-between; gap: 12px; margin: 18px 0; font-variant-numeric: tabular-nums; }
+.mini-stats { display: flex; justify-content: space-between; gap: 10px; margin: 18px 0; font-variant-numeric: tabular-nums; }
 .mini-stats span { display: block; font-size: 11px; color: #bdd0c3; }
-.mini-stats strong { display: block; font-size: 25px; color: #f2d79b; }
-.mini-status { font-size: 13px; text-align: center; color: #f6dfaa; min-height: 44px; margin-bottom: 8px; }
-.mini-tools { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 14px 0; }
-.mini-tools .arcade-button { padding: 10px 16px; }
-.breakout-play { width: min(100%, 360px); margin: auto; }
-#breakout-canvas { width: 100%; aspect-ratio: 3 / 4; display: block; border: 1px solid #7bada7; border-radius: 15px; touch-action: none; box-shadow: 0 18px 50px #061f284d; }
-.sudoku-wrap { position: relative; }
-.sudoku-board { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); border: 3px solid #48675d; border-radius: 6px; overflow: hidden; background: #fbf6e8; }
-.sudoku-board .sudoku-cell { position: relative; aspect-ratio: 1; min-width: 0; padding: 0; border-right: 1px solid #c6d2c2; border-bottom: 1px solid #c6d2c2; color: #22745c; background: #fffaf0; border-radius: 0; font-size: clamp(18px, 3vw, 26px); font-weight: 500; }
+.mini-stats strong { display: block; font-size: 25px; color: #f2d79b; white-space: nowrap; }
+.mini-status { font-size: 13px; line-height: 1.4; text-align: center; color: #f6dfaa; min-height: 28px; margin: 0; align-content: center; }
+.mini-tools { display: flex; gap: 8px; justify-content: center; margin: 0; }
+.mini-tools .arcade-button { min-height: 40px; padding: 8px 16px; white-space: nowrap; }
+.breakout-play, .sudoku-play { min-width: 0; min-height: 0; display: grid; gap: 8px; }
+.breakout-play { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+/* Size containers have an explicit grid allocation; square boards cannot push tools offscreen. */
+.breakout-court, .sudoku-wrap { min-width: 0; min-height: 0; position: relative; container-type: size; }
+#breakout-canvas { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(100cqw, 75cqh, 360px); height: min(133.3333cqw, 100cqh, 480px); display: block; border: 1px solid #7bada7; border-radius: 15px; touch-action: none; box-shadow: 0 18px 50px #061f284d; }
+.sudoku-play { grid-template-areas: 'status' 'board' 'digits' 'tools' 'actions' 'save'; grid-template-rows: auto minmax(0, 1fr) auto auto auto auto; }
+#sudoku-status { grid-area: status; }
+.sudoku-wrap { grid-area: board; }
+.sudoku-board, .sudoku-cover { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(100cqw, 100cqh, 440px); height: min(100cqw, 100cqh, 440px); }
+.sudoku-board { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); grid-template-rows: repeat(9, minmax(0, 1fr)); border: 3px solid #48675d; border-radius: 6px; overflow: hidden; background: #fbf6e8; }
+.sudoku-board .sudoku-cell { position: relative; min-width: 0; min-height: 0; padding: 0; border-right: 1px solid #c6d2c2; border-bottom: 1px solid #c6d2c2; color: #22745c; background: #fffaf0; border-radius: 0; font-size: clamp(14px, 5cqmin, 26px); font-weight: 500; }
 .sudoku-cell:nth-child(9n) { border-right: 0; }
 .sudoku-cell:nth-child(n+73) { border-bottom: 0; }
 .sudoku-board .is-right { border-right: 2px solid #48675d; }
@@ -25,33 +34,65 @@
 .sudoku-board .is-same { background: #d4e5d4; }
 .sudoku-board .is-selected { background: #c0dbd0; box-shadow: inset 0 0 0 2px #2b735b; }
 .sudoku-board .is-conflict { color: #b42b3e; background: #ffe0d8; text-decoration: underline; }
-.sudoku-notes { display: grid; grid-template-columns: repeat(3, 1fr); position: absolute; inset: 2px; font-size: clamp(8px, 1.2vw, 11px); color: #546d61; line-height: 1; font-weight: 500; }
+.sudoku-notes { display: grid; grid-template-columns: repeat(3, 1fr); position: absolute; inset: 2px; font-size: clamp(7px, 2cqmin, 11px); color: #546d61; line-height: 1; font-weight: 500; }
 .sudoku-notes span { display: grid; place-items: center; }
-.sudoku-cover { position: absolute; inset: 0; display: grid; place-items: center; background: #183c34; border: 1px solid #749889; border-radius: 6px; font-size: 22px; color: #f1d398; }
-.sudoku-digits { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 5px; margin-top: 14px; }
-.sudoku-digits button { min-width: 0; min-height: 44px; color: #244d3f; background: #e4eddb; border-radius: 7px; font-size: 22px; }
+.sudoku-cover { display: grid; place-items: center; background: #183c34; border: 1px solid #749889; border-radius: 6px; font-size: 20px; color: #f1d398; }
+.sudoku-digits { grid-area: digits; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+.sudoku-digits button { min-width: 0; min-height: 40px; color: #244d3f; background: #e4eddb; border-radius: 7px; font-size: 22px; }
 .sudoku-digits button:disabled { opacity: .5; }
+.sudoku-tools { grid-area: tools; display: grid; grid-template-columns: 1.6fr repeat(4, minmax(0, 1fr)); gap: 4px; }
+.sudoku-tools .arcade-button { min-width: 0; padding: 8px 4px; }
+.sudoku-actions { grid-area: actions; }
+.sudoku-actions button { min-width: 100px; }
+.sudoku-play > .match-save { grid-area: save; }
 #sudoku-pencil[aria-pressed="true"] { background: #efd08c; color: #263e2f; }
-.sudoku-difficulty { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #d0ded1; }
-.sudoku-difficulty select { font: inherit; background: #e4eddb; color: #244d3f; border: 0; border-radius: 8px; min-height: 44px; padding: 8px 16px; }
+.sudoku-difficulty { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #d0ded1; white-space: nowrap; }
+.sudoku-difficulty select { min-width: 0; font: inherit; background: #e4eddb; color: #244d3f; border: 0; border-radius: 8px; min-height: 40px; padding: 6px 12px; }
 .sudoku-difficulty select:focus-visible { outline: 3px solid #ffd174; }
+.mini-game > .arcade-nav, .mini-layout { --mini-gutter: 24px; padding-left: max(var(--mini-gutter), env(safe-area-inset-left)); padding-right: max(var(--mini-gutter), env(safe-area-inset-right)); }
 @media (min-width: 760px) { .game-entries { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 720px) {
-  .mini-layout { grid-template-columns: minmax(0, 440px); padding: 0 16px max(24px, env(safe-area-inset-bottom)); gap: 0; }
+  .mini-game > .arcade-nav { --mini-gutter: 16px; padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: 6px; }
+  .mini-layout { --mini-gutter: 12px; grid-template-columns: minmax(0, 440px); grid-template-rows: auto minmax(0, 1fr); padding-top: 0; padding-bottom: max(8px, env(safe-area-inset-bottom)); gap: 6px; }
   .mini-info h1, .mini-info p, .mini-info .arcade-eyebrow { display: none; }
-  .mini-stats { margin: 8px 0 12px; }
-  .mini-stats strong { font-size: 23px; }
-  .mini-game .arcade-nav { padding-bottom: 8px; }
-  .mini-status { min-height: 28px; font-size: 12px; }
-  .mini-tools .arcade-button { padding: 8px 11px; font-size: 13px; }
-  .sudoku-notes { font-size: clamp(8px, 2.5vw, 11px); }
-  .sudoku-board .sudoku-cell { font-size: clamp(19px, 5.6vw, 26px); }
-  .breakout-play { width: min(100%, 360px, calc((100dvh - 285px) * .75)); min-width: 210px; }
+  .mini-stats { margin: 0; }
+  .mini-stats strong { font-size: clamp(17px, 4.6vw, 22px); }
+  .mini-best { margin: 2px 0 0; font-size: 11px; }
+  #view-sudoku .mini-info { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 14px; }
+  .sudoku-difficulty { gap: 6px; font-size: 12px; }
+  .sudoku-difficulty select { padding: 6px; }
+  .mini-status { font-size: 12px; }
+  .mini-tools .arcade-button { font-size: 12px; }
 }
+/* A shorter browser viewport needs less chrome, while the game and every control remain visible. */
+@media (max-height: 600px) {
+  .mini-game > .arcade-nav { padding-top: max(4px, env(safe-area-inset-top)); padding-bottom: 4px; }
+  .mini-game .arcade-back, .mini-game .arcade-link { min-height: 32px; }
+  .mini-game .arcade-brand { font-size: 15px; }
+  .mini-layout { gap: 4px 16px; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+  .mini-info h1, .mini-info p, .mini-info .arcade-eyebrow { display: none; }
+  .mini-stats { margin: 0; }
+  .mini-stats strong { font-size: 18px; }
+  .mini-stats span { font-size: 10px; }
+  .mini-status { min-height: 24px; font-size: 11px; }
+  .breakout-play, .sudoku-play { gap: 5px; }
+  .mini-tools .arcade-button, .sudoku-digits button, .sudoku-difficulty select { min-height: 32px; padding-top: 5px; padding-bottom: 5px; }
+  .mini-tools .arcade-button { font-size: 12px; }
+  .mini-game .match-save { display: none; }
+  .breakout-play { grid-template-rows: auto minmax(0, 1fr) auto; }
+  .sudoku-play { grid-template-areas: 'status' 'board' 'digits' 'tools' 'actions'; grid-template-rows: auto minmax(0, 1fr) auto auto auto; }
+}
+/* In landscape, place the keypad and tools beside the square board. */
 @media (orientation: landscape) and (max-height: 600px) {
-  .mini-layout { grid-template-columns: 190px minmax(0, 360px); gap: 24px; }
-  .mini-info p, .mini-info h1 { display: none; }
-  .mini-game .arcade-nav { padding: 6px 24px; }
-  .breakout-play { width: min(100%, calc((100dvh - 160px) * .75)); min-width: 150px; }
-  .sudoku-play { width: min(100%, 310px); }
+  .mini-layout { --mini-gutter: 16px; grid-template-columns: minmax(0, 160px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; padding-top: 4px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  #view-sudoku .mini-info { display: block; }
+  .sudoku-difficulty { margin-bottom: 12px; }
+  .mini-best { margin: 8px 0 0; }
+  .sudoku-play { grid-template-columns: minmax(0, 1fr) 156px; grid-template-rows: auto minmax(0, 1fr) auto auto; grid-template-areas: 'status status' 'board digits' 'board tools' 'board actions'; gap: 6px 12px; }
+  .sudoku-digits { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); }
+  .sudoku-digits button { min-height: 28px; padding: 0; }
+  .sudoku-tools { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sudoku-tools .arcade-button { padding: 5px 2px; font-size: 11px; }
+  .sudoku-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+  .sudoku-actions button { min-width: 0; padding: 5px 2px; }
 }

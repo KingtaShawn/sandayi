@@ -57,7 +57,7 @@
         <p>触屏拖动 · 鼠标移动 · ← →<br>挡板边缘改变小球的反弹方向</p>
       </aside>
       <div class="breakout-play"><div id="breakout-status" class="mini-status" role="status" aria-live="polite">移动挡板，点击发球开始</div>
-        <canvas id="breakout-canvas" width="360" height="480" tabindex="0" aria-label="弹球场地">请使用支持 Canvas 的浏览器玩经典弹球。</canvas>
+        <div class="breakout-court"><canvas id="breakout-canvas" width="360" height="480" tabindex="0" aria-label="弹球场地">请使用支持 Canvas 的浏览器玩经典弹球。</canvas></div>
         <div class="mini-tools"><button id="breakout-action" class="arcade-button">发球</button><button id="breakout-restart" class="arcade-button arcade-button--light">重新开始</button></div>
         <p class="match-save">离开自动暂停 · 最高分保存在本机</p>
       </div>
@@ -75,8 +75,8 @@
       <div class="sudoku-play"><div id="sudoku-status" class="mini-status" role="status" aria-live="polite">每题只有一个解，慢慢来</div>
         <div class="sudoku-wrap"><div id="sudoku-board" class="sudoku-board" role="group" aria-label="9 行 9 列数独棋盘"></div><div id="sudoku-cover" class="sudoku-cover" hidden>已暂停 · 休息一下</div></div>
         <div id="sudoku-digits" class="sudoku-digits" role="group" aria-label="填入数字"></div>
-        <div class="mini-tools"><button id="sudoku-pencil" class="arcade-button arcade-button--light" aria-pressed="false">笔记：关</button><button id="sudoku-erase" class="arcade-button arcade-button--light">擦除</button><button id="sudoku-undo" class="arcade-button arcade-button--light">撤销</button><button id="sudoku-hint" class="arcade-button arcade-button--light">提示</button><button id="sudoku-check" class="arcade-button arcade-button--light">检查</button></div>
-        <div class="mini-tools"><button id="sudoku-pause" class="arcade-button arcade-button--light">暂停</button><button id="sudoku-new" class="arcade-button">换一题</button></div>
+        <div class="mini-tools sudoku-tools"><button id="sudoku-pencil" class="arcade-button arcade-button--light" aria-pressed="false">笔记：关</button><button id="sudoku-erase" class="arcade-button arcade-button--light">擦除</button><button id="sudoku-undo" class="arcade-button arcade-button--light">撤销</button><button id="sudoku-hint" class="arcade-button arcade-button--light">提示</button><button id="sudoku-check" class="arcade-button arcade-button--light">检查</button></div>
+        <div class="mini-tools sudoku-actions"><button id="sudoku-pause" class="arcade-button arcade-button--light">暂停</button><button id="sudoku-new" class="arcade-button">换一题</button></div>
         <p class="match-save">进度自动保存在本机 · 离开页面不计时</p>
       </div>
     </main>

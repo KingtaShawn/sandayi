@@ -9,6 +9,7 @@
   "scripts": {
     "test": "node tests/run-tests.js",
     "test:h5": "node --test h5/test/test-arcade-dom.js",
+    "test:h5:layout": "node --test h5/test/test-mini-game-layout.js",
     "test:engine": "node --test tests/test-config.js tests/test-deck.js tests/test-trump.js tests/test-combo.js",
     "test:rules": "node --test tests/test-bid.js tests/test-validate-play.js tests/test-trick.js tests/test-settle.js",
     "test:core": "node --test tests/test-statemachine.js tests/test-ai-legal.js",
