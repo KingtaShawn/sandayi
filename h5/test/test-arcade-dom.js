@@ -252,3 +252,5 @@ test('H5 消灭星星：动画中退出保留稳定结果，旧动画不能改�
 });
 
 test('H5 德州入口、合法行动、暂停恢复与人数重置',async()=>{const p=boot();try{p.click('btn-enter-poker');assert.equal(p.$('view-poker').hidden,false);p.click('poker-next');assert.equal(p.$('poker-seats').children.length,9);assert.equal(p.$('poker-hand').children.length,2);p.click('poker-home');const log=p.$('poker-log').textContent;await sleep(550);assert.equal(p.$('poker-log').textContent,log);p.click('btn-enter-poker');for(let i=0;i<100&&p.$('poker-call').disabled;i++)await sleep(100);assert.equal(p.$('poker-call').disabled,false);p.click('poker-call');assert.equal(p.$('poker-error').textContent,'');p.w.confirm=()=>true;p.$('poker-count').value='2';p.click('poker-reset');assert.equal(p.$('poker-seats').children.length,3);assert.equal(p.$('poker-next').disabled,false);}finally{p.close();}});
+
+test('H5 荷官发手牌，回到牌桌不会重复发牌',()=>{const p=boot();try{p.click('btn-enter-poker');assert.ok(p.$('poker-dealer'));p.click('poker-next');assert.equal(p.$('poker-hand').querySelectorAll('.dealing').length,2);p.click('poker-home');p.click('btn-enter-poker');assert.equal(p.$('poker-hand').querySelectorAll('.dealing').length,0);}finally{p.close();}});

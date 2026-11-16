@@ -33,7 +33,11 @@ Page({
       l = E.legal(s);
     this.setData({
       players: s.players.map((p, i) => ({
-        name: (s.dealer === i ? "Ⓓ " : "") + p.name,
+        name: p.name,
+        dealer: s.dealer === i,
+        me: i === 0,
+        style: 'left:' + (50 - 47 * Math.sin(2 * Math.PI * i / s.players.length)) + '%;top:' + (50 + 47 * Math.cos(2 * Math.PI * i / s.players.length)) + '%;',
+        avatar: i === 0 ? '你' : ['','♠','♦','♣','♥','♠','♦','♣','♥'][i],
         chips: p.chips,
         bet: p.bet || 0,
         active: s.turn === i,

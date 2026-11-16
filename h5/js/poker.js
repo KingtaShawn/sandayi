@@ -5,43 +5,56 @@ window.createPokerUI = function ({ navigate }) {
   let s = E.create(),
     timer = null,
     visible = false;
-  function cards(node, cs) {
-    node.replaceChildren(
-      ...cs.map((c) => {
-        const span = document.createElement("span");
-        span.className = "poker-card" + (Math.floor(c / 13) % 2 ? " red" : "");
-        span.textContent = E.card(c);
-        return span;
-      }),
-    );
+  let dealtHand = 0;
+  let boardSeen = [];
+  function cards(node, cs, animateFrom) {
+    node.replaceChildren(...cs.map((c, i) => {
+      const span = document.createElement("span");
+      span.className = "poker-card" + (Math.floor(c / 13) % 2 ? " red" : "") + (i >= animateFrom ? " dealing" : "");
+      span.style.animationDelay = Math.max(0, i - animateFrom) * 120 + "ms";
+      const value = E.card(c);
+      span.innerHTML = '<span class="card-corner"></span><span class="card-suit"></span>';
+      span.firstChild.textContent = value.slice(1);
+      span.lastChild.textContent = value.slice(0, 1);
+      span.setAttribute('aria-label', value);
+      return span;
+    }));
   }
   function render() {
+    const newHand = s.hand !== dealtHand;
+    const board = s.board || [];
+    const newBoardFrom = newHand ? 0 : boardSeen.length <= board.length && boardSeen.every((c, i) => board[i] === c) ? boardSeen.length : board.length;
     $("seats").replaceChildren(
       ...s.players.map((p, i) => {
         const node = document.createElement("div");
-        node.className = "poker-seat" + (s.turn === i ? " active" : "");
-        node.textContent =
-          (i === s.dealer ? "Ⓓ " : "") +
-          p.name +
-          " · " +
-          p.chips +
-          " 筹码 · " +
-          (p.folded ? "已弃牌" : p.action || "等待") +
-          " · 投入 " +
-          (p.bet || 0);
+        node.className = "poker-seat seat-" + i + (s.turn === i ? " active" : "") + (p.folded ? " folded" : "");
+        const angle = 2 * Math.PI * i / s.players.length;
+        node.style.setProperty('--seat-x', (50 - 48 * Math.sin(angle)) + '%');
+        node.style.setProperty('--seat-y', (50 + 47 * Math.cos(angle)) + '%');
+        const avatar = document.createElement('div');
+        avatar.className = 'seat-avatar';
+        avatar.textContent = i === 0 ? '你' : ['','♠','♦','♣','♥','♠','♦','♣','♥'][i];
+        const info = document.createElement('div'); info.className = 'seat-info';
+        const name = document.createElement('strong'); name.textContent = p.name;
+        const chips = document.createElement('span'); chips.textContent = '◈ ' + p.chips;
+        const action = document.createElement('small'); action.textContent = p.folded ? '弃牌' : p.action || (s.turn === i ? '思考中' : '等待');
+        info.append(name, chips, action); node.append(avatar, info);
+        if (i === s.dealer) { const d = document.createElement('b'); d.className = 'dealer-button'; d.textContent = 'D'; node.append(d); }
         if (p.hole && i !== 0 && !p.folded) {
-          const h = document.createElement("small");
-          h.textContent =
-            s.done && s.board.length === 5
-              ? p.hole.map(E.card).join(" ")
-              : "▧ ▧";
+          const h = document.createElement('div'); h.className = 'seat-cards' + (newHand ? ' dealing' : '');
+          if (s.done && s.board.length === 5) {
+            p.hole.forEach(c => {const v=document.createElement('span');v.className = Math.floor(c/13)%2 ? 'red' : '';v.textContent=E.card(c);h.append(v);});
+          } else h.innerHTML = '<span class="card-back"></span><span class="card-back"></span>';
           node.appendChild(h);
         }
+        if (p.bet) {const bet=document.createElement('div');bet.className='seat-bet';bet.textContent='◉ '+p.bet;node.append(bet);}
         return node;
       }),
     );
-    cards($("board"), s.board || []);
-    cards($("hand"), s.players[0].hole || []);
+    cards($("board"), board, newBoardFrom);
+    cards($("hand"), s.players[0].hole || [], newHand ? 0 : Infinity);
+    $("dealer").classList.toggle('is-dealing', newHand || newBoardFrom < board.length);
+    dealtHand = s.hand; boardSeen = board.slice();
     $("pot").textContent = s.done
       ? "第 " + s.hand + " 手 · 结算"
       : "第 " +
@@ -116,6 +129,7 @@ window.createPokerUI = function ({ navigate }) {
   $("reset").onclick = () => {
     if (s.hand && !confirm("重新开桌会清空本桌筹码，继续？")) return;
     s = E.create(Number($("count").value));
+    dealtHand = 0; boardSeen = [];
     $("error").textContent = "";
     loop();
   };
