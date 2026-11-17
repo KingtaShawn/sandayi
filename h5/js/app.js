@@ -471,23 +471,25 @@
     wrap._flightRoutes = null;
   }
 
-  function flightRoutes(wrap) {
-    const layer = wrap.parentElement;
-    const source = layer.querySelector('.deal-anim__deck, .grab-anim__glow').getBoundingClientRect();
-    const center = (r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-    const origin = center(source);
+  function tableVector(source, target) {
+    const dx = target.left + target.width / 2 - source.left - source.width / 2;
+    const dy = target.top + target.height / 2 - source.top - source.height / 2;
     // getBoundingClientRect 是屏幕坐标；竖屏整桌旋转 90°，需逆变换回牌桌坐标。
     const transform = getComputedStyle($('app')).transform;
     const matrix = window.DOMMatrix ? new DOMMatrix(transform === 'none' ? undefined : transform) : null;
     const inverse = matrix && matrix.inverse();
+    return {
+      x: inverse ? inverse.a * dx + inverse.c * dy : dx,
+      y: inverse ? inverse.b * dx + inverse.d * dy : dy
+    };
+  }
+
+  function flightRoutes(wrap) {
+    const layer = wrap.parentElement;
+    const source = layer.querySelector('.deal-anim__deck, .grab-anim__glow').getBoundingClientRect();
     return ['#hand-row', '#seat-1', '#seat-2', '#seat-3'].map((selector, seat) => {
-      const target = center(document.querySelector(selector).getBoundingClientRect());
-      const dx = target.x - origin.x, dy = target.y - origin.y;
-      return {
-        x: inverse ? inverse.a * dx + inverse.c * dy : dx,
-        y: inverse ? inverse.b * dx + inverse.d * dy : dy,
-        angle: [0, -90, 180, 90][seat]
-      };
+      const vector = tableVector(source, document.querySelector(selector).getBoundingClientRect());
+      return Object.assign(vector, { angle: [0, -90, 180, 90][seat] });
     });
   }
 
@@ -516,7 +518,43 @@
     });
   }
 
+  function renderBottomReserve(st) {
+    const reserve = $('bottom-reserve');
+    const cards = $('bottom-reserve-cards');
+    const visible = st && st.config.gameMode === 'san_da_yi' && (st.bottomCards || []).length
+      && st.phase !== 'INIT_DEAL' && !G._dealAnimating;
+    reserve.hidden = !visible;
+    if (!visible) {
+      // 新发牌隐藏并重置印记；下一次八张牌落位只播放一遍。
+      if (cards.children.length) cards.replaceChildren();
+      reserve.dataset.roundKey = '';
+      return;
+    }
+    const count = st.bottomCards.length;
+    const roundKey = [st.seed, st.roundNo, st.redEalCount || 0, count].join(':');
+    if (reserve.dataset.roundKey !== roundKey) {
+      reserve.dataset.roundKey = roundKey;
+      cards.replaceChildren();
+      for (let i = 0; i < count; i++) {
+        const card = el('div', 'bottom-reserve__card');
+        card.style.setProperty('--bottom-index', i);
+        cards.appendChild(card); // 印记始终只用牌背，不读取牌面。
+      }
+    }
+    const stage = G.grabBottom.active ? 'grabbing'
+      : ['PLAYING', 'SCORING', 'GAME_OVER'].includes(st.phase) ? 'buried'
+        : st.bottomMerged ? 'held' : 'waiting';
+    reserve.className = 'bottom-reserve bottom-reserve--' + stage;
+    $('bottom-reserve-label').textContent = `底牌 ×${count}`;
+    $('bottom-reserve-status').textContent = stage === 'waiting' ? '已留底 · 等待拿取'
+      : stage === 'grabbing' ? `庄家拿底 ${G.grabBottom.flyCount}/${count}`
+        : stage === 'held' ? '庄家已收 · 待埋底'
+          : (st.phase === 'GAME_OVER' || (st.phase === 'SCORING' && !G.settlePause)) ? '本局底牌已结算'
+            : '已埋好 · 等待扣底';
+  }
+
   function renderAnim() {
+    renderBottomReserve(G.service && G.service.getState());
     // 发牌动画层
     const da = $('deal-anim');
     da.hidden = !G.dealAnim.active;
@@ -548,6 +586,7 @@
     } else {
       clearFlights($('grab-anim-fly'));
       $('grab-anim-cards').replaceChildren();
+      $('grab-anim').querySelector('.grab-anim__pile').classList.remove('grab-anim__pile--opening');
     }
   }
 
@@ -905,6 +944,13 @@
     G.newGrabIds = reveal ? st.bottomCards.map((c) => c.id) : null;
     G.grabBottom = { active: true, stage: 'show', dealerIdx, cards, flyCount: 0, flyCards: [], reveal };
     render(); // 立即展示中央底牌
+    // 从常驻底牌区展开到桌心，再沿既有轨迹飞向庄家。
+    const pile = $('grab-anim').querySelector('.grab-anim__pile');
+    const opening = tableVector($('grab-anim').querySelector('.grab-anim__glow').getBoundingClientRect(),
+      $('bottom-reserve-cards').getBoundingClientRect());
+    pile.style.setProperty('--bottom-open-x', opening.x + 'px');
+    pile.style.setProperty('--bottom-open-y', opening.y + 'px');
+    pile.classList.add('grab-anim__pile--opening');
     if (reveal) Sfx.play('play'); // 翻面一记拍牌声
     G._grabTimer = setTimeout(() => {
       try { grabFlyTick(0, bottomCount, dealerIdx, dealerIsHuman, []); }
