@@ -198,6 +198,8 @@
     accountedRoundNo: -1          // 已落账的局号（结算的两个出口共用落账，防双记；新局重置）
   };
   const DOUBLE_TAP_MS = 320;
+  const DEAL_STEP_MS = 32;
+  const CARD_FLIGHT_MS = 440;
 
   /** 合并规则配置（rule-config 文件覆盖 → 存档覆盖 → 默认） */
   function buildConfig() {
@@ -344,31 +346,45 @@
     const isDealing = all.length > n;
     const newIdSet = new Set(newIds || []);
     const grabFlashSet = new Set(G.newGrabIds || []);
-    // keyed diff：仅当手牌集合变化才重建（防动画重放）；selected 变化走轻量 class 切换
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // 按牌 id 复用节点：发入一张只让新牌入场，已有手牌不再整排闪回。
     const handKey = sorted.map((c) => c.id).join(',') + '|' + n + '|' + (dense ? 1 : 0);
     if (handKey !== G.lastHandKey) {
       G.lastHandKey = handKey;
-      row.innerHTML = '';
+      const existing = new Map(Array.from(row.querySelectorAll('[data-card-id]'), (d) => [d.dataset.cardId, d]));
+      const wanted = new Set(sorted.map((c) => c.id));
+      existing.forEach((d, id) => { if (!wanted.has(id)) d.remove(); });
+      const divider = row.querySelector('.hand-area__divider') || el('div', 'hand-area__divider');
+      let position = 0, hasDivider = false;
+      const place = (d) => {
+        const at = row.children[position++] || null;
+        if (at !== d) row.insertBefore(d, at);
+      };
       let firstTrumpSeen = false;
       const built = []; // 先建卡不带间距，量出首张实际像素宽后统一回填
       sorted.forEach((c, i) => {
         const isTrumpHead = c.isTrump && !firstTrumpSeen;
         if (isTrumpHead) firstTrumpSeen = true;
-        if (isTrumpHead && i > 0) row.appendChild(el('div', 'hand-area__divider'));
-        const playIn = isDealing || newIdSet.has(c.id);
-        const d = cardEl(c, {
-          selected: G.selectedIds.includes(c.id),
-          dense, playIn,
-          playInDelay: isDealing ? (i % 5) * 30 : 0,
-          flash: grabFlashSet.has(c.id)
-        });
-        d.dataset.cardId = c.id;
-        d.addEventListener('click', () => onCardTap(c));
-        // 桌面端右键选牌/出牌（e.button===2 过滤，避免吃掉手机长按的系统菜单）
-        d.addEventListener('contextmenu', (e) => onCardContext(e, c));
-        row.appendChild(d);
+        if (isTrumpHead && i > 0) { place(divider); hasDivider = true; }
+        let d = existing.get(c.id);
+        if (!d) {
+          d = cardEl(c, { playIn: !reduceMotion && (isDealing || G._dealAnimating || newIdSet.has(c.id)) });
+          d.dataset.cardId = c.id;
+          d.addEventListener('click', () => onCardTap(c));
+          d.addEventListener('contextmenu', (e) => onCardContext(e, c));
+          d.addEventListener('animationend', (e) => {
+            if (e.animationName === 'hand-arrive') d.classList.remove('anim-play-in');
+          });
+        }
+        d.classList.toggle('card--trump', !!c.isTrump);
+        d.classList.toggle('card--selected', G.selectedIds.includes(c.id));
+        d.classList.toggle('card--dense', dense);
+        d.classList.toggle('card--flash', grabFlashSet.has(c.id));
+        d.style.marginLeft = '';
+        place(d);
         built.push({ d, isTrumpHead, i });
       });
+      if (!hasDivider) divider.remove();
       // 间距全程按实测像素，不经 rem 换算：华为等内核根字号（textZoom/无障碍缩放）的
       // 实际渲染值可能与 getComputedStyle 报告不一致，rem 路线会整把算缩（挤中间两侧空白）
       const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 1;
@@ -450,45 +466,88 @@
     area.appendChild(seatRow(bySeat[0])); // 南
   }
 
-  function renderAnim(st) {
+  function clearFlights(wrap) {
+    wrap.replaceChildren();
+    wrap._flightRoutes = null;
+  }
+
+  function flightRoutes(wrap) {
+    const layer = wrap.parentElement;
+    const source = layer.querySelector('.deal-anim__deck, .grab-anim__glow').getBoundingClientRect();
+    const center = (r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    const origin = center(source);
+    // getBoundingClientRect 是屏幕坐标；竖屏整桌旋转 90°，需逆变换回牌桌坐标。
+    const transform = getComputedStyle($('app')).transform;
+    const matrix = window.DOMMatrix ? new DOMMatrix(transform === 'none' ? undefined : transform) : null;
+    const inverse = matrix && matrix.inverse();
+    return ['#hand-row', '#seat-1', '#seat-2', '#seat-3'].map((selector, seat) => {
+      const target = center(document.querySelector(selector).getBoundingClientRect());
+      const dx = target.x - origin.x, dy = target.y - origin.y;
+      return {
+        x: inverse ? inverse.a * dx + inverse.c * dy : dx,
+        y: inverse ? inverse.b * dx + inverse.d * dy : dy,
+        angle: [0, -90, 180, 90][seat]
+      };
+    });
+  }
+
+  function renderFlights(wrap, flights) {
+    const refreshRoutes = !wrap._flightRoutes;
+    if (flights.length && refreshRoutes) wrap._flightRoutes = flightRoutes(wrap);
+    const existing = new Map(Array.from(wrap.children, (d) => [d.dataset.flightId, d]));
+    const wanted = new Set(flights.map((f) => f.id));
+    existing.forEach((d, id) => { if (!wanted.has(id)) d.remove(); });
+    flights.forEach((f) => {
+      let d = existing.get(f.id);
+      if (d && !refreshRoutes) return; // 正在飞的牌保留节点与动画时间，不重复起飞。
+      const fresh = !d;
+      if (fresh) {
+        d = el('div', 'deal-anim__fly');
+        d.dataset.flightId = f.id;
+        d.dataset.seat = f.seat;
+        d.style.animationDelay = (f.delayMs || 0) + 'ms';
+        d.style.animationDuration = CARD_FLIGHT_MS + 'ms';
+      }
+      const route = wrap._flightRoutes[f.seat];
+      d.style.setProperty('--flight-x', route.x + 'px');
+      d.style.setProperty('--flight-y', route.y + 'px');
+      d.style.setProperty('--flight-angle', route.angle + 'deg');
+      if (fresh) wrap.appendChild(d);
+    });
+  }
+
+  function renderAnim() {
     // 发牌动画层
     const da = $('deal-anim');
     da.hidden = !G.dealAnim.active;
-    if (G.dealAnim.active) {
-      const wrap = $('deal-anim-fly');
-      wrap.innerHTML = '';
-      G.dealAnim.flyCards.forEach((f) => {
-        const d = el('div', 'deal-anim__fly deal-anim__fly--s' + f.seat);
-        d.style.animationDelay = f.delayMs + 'ms';
-        wrap.appendChild(d);
-      });
-    }
+    if (G.dealAnim.active) renderFlights($('deal-anim-fly'), G.dealAnim.flyCards);
+    else clearFlights($('deal-anim-fly'));
     // 抓底牌动画层（真人庄家 reveal：底牌翻面亮出，看清抓到了什么）
     const ga = $('grab-anim');
     ga.hidden = !G.grabBottom.active;
     if (G.grabBottom.active) {
       const cardsWrap = $('grab-anim-cards');
-      cardsWrap.innerHTML = '';
+      const existing = new Map(Array.from(cardsWrap.children, (d) => [d.dataset.bottomId, d]));
       G.grabBottom.cards.forEach((c, i) => {
-        const gone = i < G.grabBottom.flyCount ? ' grab-anim__card--gone' : '';
-        if (G.grabBottom.reveal && c.card) {
-          const w = el('div', 'grab-anim__card grab-anim__card--face' + gone);
-          w.style.animationDelay = c.delay + 'ms';
-          w.appendChild(cardEl(c.card, {}));
-          cardsWrap.appendChild(w);
-        } else {
-          const d = el('div', 'grab-anim__card' + gone);
+        let d = existing.get(c.id);
+        if (!d) {
+          d = el('div', 'grab-anim__card');
+          d.dataset.bottomId = c.id;
           d.style.animationDelay = c.delay + 'ms';
+          if (G.grabBottom.reveal && c.card) {
+            d.classList.add('grab-anim__card--face');
+            d.appendChild(cardEl(c.card, {}));
+          }
           cardsWrap.appendChild(d);
         }
+        d.classList.toggle('grab-anim__card--gone', i < G.grabBottom.flyCount);
       });
       const label = $('grab-anim-label');
       if (label) label.textContent = (G.grabBottom.reveal && G.grabBottom.stage === 'show') ? '底牌已翻开' : `底牌 ×${G.grabBottom.cards.length}`;
-      const flyWrap = $('grab-anim-fly');
-      flyWrap.innerHTML = '';
-      G.grabBottom.flyCards.forEach((f) => {
-        flyWrap.appendChild(el('div', 'deal-anim__fly deal-anim__fly--s' + f.seat));
-      });
+      renderFlights($('grab-anim-fly'), G.grabBottom.flyCards);
+    } else {
+      clearFlights($('grab-anim-fly'));
+      $('grab-anim-cards').replaceChildren();
     }
   }
 
@@ -765,41 +824,51 @@
     G._dealAnimating = true;
     G.handVisibleCount = 0;
     G.dealAnim = { active: true, counts: [0, 0, 0, 0], flyCards: [] };
+    clearFlights($('deal-anim-fly'));
     Sfx.play('shuffle');
     const counts = [0, 0, 0, 0];
-    const flyCards = [];
-    let dealt = 0, flySeq = 0;
+    const total = per * 4;
+    const started = performance.now();
+    let launched = 0, landed = 0;
+    let flyCards = [];
     G._dealTimer = setInterval(() => {
       try {
-        Sfx.play('deal');
-        for (let k = 0; k < 4 && dealt < per * 4; k++) {
-          const seat = dealt % 4;
-          counts[seat] += 1;
-          flySeq += 1;
-          flyCards.push({ id: 'fly-' + flySeq, seat, delayMs: (k % 4) * 30 });
-          dealt += 1;
+        const elapsed = performance.now() - started;
+        const nextLaunch = Math.min(total, Math.floor(elapsed / DEAL_STEP_MS));
+        for (; launched < nextLaunch; launched++) {
+          const at = (launched + 1) * DEAL_STEP_MS;
+          // 后台或掉帧后跳过已落地的飞牌；轻微延迟用负 delay 追上统一时间线。
+          if (elapsed - at < CARD_FLIGHT_MS) {
+            flyCards.push({ id: 'fly-' + launched, seat: launched % 4, at, delayMs: at - elapsed });
+            if (launched % 4 === 0 && elapsed - at < DEAL_STEP_MS) Sfx.play('deal');
+          }
         }
-        while (flyCards.length > 8) flyCards.shift();
-        G.handVisibleCount = counts[0];
+        flyCards = flyCards.filter((f) => elapsed - f.at < CARD_FLIGHT_MS + DEAL_STEP_MS * 2);
+        const nextLanded = Math.max(0, Math.min(total, Math.floor((elapsed - CARD_FLIGHT_MS) / DEAL_STEP_MS)));
+        const previousHumanCount = counts[0];
+        for (; landed < nextLanded; landed++) counts[landed % 4]++;
         G.dealAnim = { active: true, counts: counts.slice(), flyCards: flyCards.slice() };
-        renderAnim(G.service.getState());
-        // 手牌同步逐张亮出（小程序版靠 setData 自动重渲，H5 需显式刷）
-        renderHand(G.service.getState(), []);
-        // 座位牌数轻量更新
+        renderAnim();
+        // 飞牌抵达后才入手；仅南家收牌时更新手牌，其余帧不重排整手牌。
+        if (counts[0] !== previousHumanCount) {
+          G.handVisibleCount = counts[0];
+          renderHand(G.service.getState(), []);
+        }
         [2, 3, 1].forEach((i) => {
           const meta = $('seat-' + i).querySelector('.seat-info__cards');
-          if (meta) meta.textContent = `剩 ${counts[i]} 张`;
+          const text = `剩 ${counts[i]} 张`;
+          if (meta && meta.textContent !== text) meta.textContent = text;
         });
-        if (dealt >= per * 4) {
+        if (landed >= total) {
           clearInterval(G._dealTimer);
           G._dealTimer = null;
-          G._dealWatchdog = setTimeout(endDealAnim, 420);
+          G._dealWatchdog = setTimeout(endDealAnim, DEAL_STEP_MS * 2);
         }
       } catch (e) {
         console.error('发牌动画异常', e);
         endDealAnim();
       }
-    }, 110);
+    }, DEAL_STEP_MS);
   }
 
   function endDealAnim() {
@@ -820,6 +889,8 @@
     const bottomCount = st.config.bottomCards || 8;
     const dealerIsHuman = !!st.players[dealerIdx].isHuman;
     G._grabAnimating = true;
+    clearFlights($('grab-anim-fly'));
+    $('grab-anim-cards').replaceChildren();
     Sfx.play('grab');
     // 真人庄家：底牌翻面亮出（engine 已并底，bottomCards 仍保留牌面），停顿加长供对照手牌；
     // AI 庄家保持牌背 700ms（不给真人偷看 AI 的底牌）
@@ -845,17 +916,17 @@
     const next = flown + 1;
     Sfx.play('deal'); // 底牌逐张飞入的轻响
     const newFly = flyCards.concat([{ id: 'grab-fly-' + next, seat: dealerIdx }]);
-    while (newFly.length > 3) newFly.shift();
+    // 120ms 一张，保留到 440ms 飞行结束后；不能把半途的牌提前移除。
+    while (newFly.length > Math.ceil(CARD_FLIGHT_MS / 120) + 1) newFly.shift();
     G.grabBottom = {
       active: true, stage: 'fly', dealerIdx,
       cards: G.grabBottom.cards, flyCount: next, flyCards: newFly, reveal: G.grabBottom.reveal
     };
     if (dealerIsHuman) G.handVisibleCount += 1;
-    renderAnim(G.service.getState());
     // 庄家座位牌数递增（庄家是真人时手牌区由 handVisibleCount 驱动）
     render();
     if (next >= total) {
-      G._grabTimer = setTimeout(endGrabBottom, 480);
+      G._grabTimer = setTimeout(endGrabBottom, CARD_FLIGHT_MS + DEAL_STEP_MS * 2);
       return;
     }
     G._grabTimer = setTimeout(() => {
@@ -1475,6 +1546,7 @@
     G._grabAnimating = false;
     G.dealAnim.active = false;
     G.grabBottom.active = false;
+    renderAnim();
     G.handVisibleCount = 999;
     G.lastHandKey = '';
     if (G.settlePause) G.settleBtnReady = true;
@@ -1570,6 +1642,8 @@
     _resizeTimer = setTimeout(() => {
       _resizeTimer = null;
       if (G.service && !$('view-table').hidden) {
+        $('deal-anim-fly')._flightRoutes = null;
+        $('grab-anim-fly')._flightRoutes = null;
         G.lastHandKey = '';
         render();
       }
