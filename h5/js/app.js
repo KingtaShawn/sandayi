@@ -528,6 +528,7 @@
       // 新发牌隐藏并重置印记；下一次八张牌落位只播放一遍。
       if (cards.children.length) cards.replaceChildren();
       reserve.dataset.roundKey = '';
+      reserve.style.removeProperty('top');
       return;
     }
     const count = st.bottomCards.length;
@@ -551,6 +552,25 @@
         : stage === 'held' ? '庄家已收 · 待埋底'
           : (st.phase === 'GAME_OVER' || (st.phase === 'SCORING' && !G.settlePause)) ? '本局底牌已结算'
             : '已埋好 · 等待扣底';
+  }
+
+  function positionBottomReserve() {
+    const reserve = $('bottom-reserve'), area = $('trick-area'), actions = $('action-slot');
+    const center = reserve.parentElement;
+    if (reserve.hidden || !center.clientHeight) return;
+    // 拿底展开时沿用刚才的桌心位置，不因叫分条消失而先跳动一次。
+    if (G.grabBottom.active && reserve.style.top) return;
+    let top = area.offsetTop, bottom = top + area.offsetHeight;
+    if (actions.children.length) bottom = Math.min(bottom, actions.offsetTop);
+    if (reserve.classList.contains('bottom-reserve--buried') && area.children.length) {
+      const north = area.firstElementChild, south = area.lastElementChild;
+      top = Math.max(top, area.offsetTop + north.offsetTop + north.offsetHeight);
+      bottom = Math.min(bottom, area.offsetTop + south.offsetTop);
+    }
+    const half = reserve.offsetHeight / 2;
+    const middle = area.offsetTop + area.offsetHeight / 2;
+    const y = Math.max(top + half + 1, Math.min(middle, bottom - half - 1));
+    reserve.style.top = (100 * y / center.clientHeight) + '%';
   }
 
   function renderAnim() {
@@ -804,6 +824,7 @@
       view.bidTipText = `你是庄家（合同 ${st.contractScore} 分）——选花色做主牌；王与 2 共 ${alwaysTrumps} 张常主`;
     }
     renderActionBar(st, view);
+    positionBottomReserve();
 
     // 结算
     const settleView = {};

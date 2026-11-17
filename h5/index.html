@@ -172,12 +172,6 @@
 
   <!-- ===== 牌桌 ===== -->
   <section id="view-table" class="table view" hidden>
-    <!-- 底牌印记独立于发牌/抓底动画，整局保留且不显示隐藏牌面。 -->
-    <div class="bottom-reserve" id="bottom-reserve" role="group" aria-label="底牌信息" hidden>
-      <div class="bottom-reserve__cards" id="bottom-reserve-cards" aria-hidden="true"></div>
-      <div class="bottom-reserve__label" id="bottom-reserve-label">底牌 ×8</div>
-      <div class="bottom-reserve__status" id="bottom-reserve-status">待庄家拿取</div>
-    </div>
     <!-- 顶部：北家 -->
     <div class="table__north" id="seat-2"></div>
 
@@ -187,6 +181,12 @@
       <div class="table__center">
         <div class="status-bar" id="status-bar"></div>
         <div class="trick-area" id="trick-area"></div>
+        <!-- 底牌留在牌桌中央，独立于重渲染的出牌区保留动画节点。 -->
+        <div class="bottom-reserve" id="bottom-reserve" role="group" aria-label="底牌信息" hidden>
+          <div class="bottom-reserve__cards" id="bottom-reserve-cards" aria-hidden="true"></div>
+          <div class="bottom-reserve__label" id="bottom-reserve-label">底牌 ×8</div>
+          <div class="bottom-reserve__status" id="bottom-reserve-status">待庄家拿取</div>
+        </div>
         <!-- v2.0 发牌动画层 -->
         <div class="deal-anim" id="deal-anim" hidden>
           <div class="deal-anim__deck">

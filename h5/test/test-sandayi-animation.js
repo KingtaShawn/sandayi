@@ -85,21 +85,30 @@ test('三打一：连续飞牌、四家落点、八张底牌印记及拿底/埋�
     async function checkReserve(stage) {
       const result = await page.evaluate(() => {
         const reserve = document.getElementById('bottom-reserve'), r = reserve.getBoundingClientRect();
+        const field = document.getElementById('trick-area').getBoundingClientRect();
+        const dx = r.x + r.width / 2 - field.x - field.width / 2;
+        const dy = r.y + r.height / 2 - field.y - field.height / 2;
+        const transform = getComputedStyle(document.getElementById('app')).transform;
+        const inverse = new DOMMatrix(transform === 'none' ? undefined : transform).inverse();
         const intersects = (t) => Math.min(r.right, t.right) - Math.max(r.left, t.left) > 1
           && Math.min(r.bottom, t.bottom) - Math.max(r.top, t.top) > 1;
-        const covered = [...document.querySelectorAll('.table__tools button, #action-slot button, #action-slot .bid-bar__option, #action-slot .bid-bar__pass, #seat-2 .seat-info')]
+        const covered = [...document.querySelectorAll('.table__tools button, #action-slot > *, #status-bar, #trick-area .card, #seat-2 .seat-info')]
           .filter((el) => intersects(el.getBoundingClientRect())).map((el) => el.id || el.className);
         return { hidden: reserve.hidden, classes: reserve.className,
           count: reserve.querySelectorAll('.bottom-reserve__card').length,
           title: document.getElementById('bottom-reserve-label').textContent,
           faces: reserve.querySelectorAll('.card__rank, [data-card-id]').length,
-          inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, covered };
+          inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+          inPlayArea: r.left >= field.left - 1 && r.top >= field.top - 1 && r.right <= field.right + 1 && r.bottom <= field.bottom + 1,
+          centerOffset: Math.abs(inverse.a * dx + inverse.c * dy), covered };
       });
       assert.equal(result.hidden, false);
       assert.ok(result.classes.includes('bottom-reserve--' + stage));
       assert.equal(result.count, 8); assert.equal(result.title, '底牌 ×8'); assert.equal(result.faces, 0);
       assert.equal(result.inside, true, '底牌区完整留在屏内');
-      assert.deepEqual(result.covered, [], '底牌印记不遮住座位和按钮');
+      assert.equal(result.inPlayArea, true, '底牌位于中央出牌区内');
+      assert.ok(result.centerOffset < 1, '横竖屏底牌都沿牌桌中线居中');
+      assert.deepEqual(result.covered, [], '底牌印记不遮住座位、已出的牌和操作条');
     }
 
     async function checkOpening() {
@@ -115,8 +124,20 @@ test('三打一：连续飞牌、四家落点、八张底牌印记及拿底/埋�
       assert.ok(distance < 2, `拿底从常驻底牌区开始展开，误差 ${distance}px`);
     }
 
-    for (const [width, height] of [[568, 320], [844, 390], [320, 568], [390, 844], [1280, 720], [1920, 1080]]) {
-      await start(width, height);
+    async function humanBiddingTurn() {
+      await page.evaluate(() => {
+        for (let i = 0; i < 4 && testService.getState().turnIdx !== 0; i++) {
+          testService.dispatch({ type: 'PASS_BID', playerIdx: testService.getState().turnIdx });
+        }
+        window.dispatchEvent(new Event('resize'));
+      });
+      await page.waitForSelector('.bid-bar__option');
+      await checkReserve('waiting');
+    }
+
+    const viewports = [[568, 320], [844, 390], [320, 568], [390, 844], [1280, 720], [1920, 1080]];
+    for (const [width, height] of viewports) {
+      await start(width, height, true);
       await page.waitForSelector('#deal-anim-fly [data-seat="3"]');
       assert.equal(await page.$$eval('#deal-anim-fly .deal-anim__fly', (nodes) => new Set(nodes.map((n) => n.dataset.seat)).size), 4);
       await checkLanding('#deal-anim-fly .deal-anim__fly');
@@ -128,6 +149,7 @@ test('三打一：连续飞牌、四家落点、八张底牌印记及拿底/埋�
       }
       await page.waitForFunction(() => document.getElementById('deal-anim').hidden);
       await checkReserve('waiting');
+      await humanBiddingTurn();
       await page.tap('#btn-table-lobby');
       assert.equal(await page.$$eval('.deal-anim__fly', (nodes) => nodes.length), 0, '离开时清空飞牌');
     }
@@ -147,6 +169,8 @@ test('三打一：连续飞牌、四家落点、八张底牌印记及拿底/埋�
     assert.deepEqual(await page.evaluate(() => flightCounts), { start: 100, end: 100 }, '100 张飞牌各自从起点连续完成一次');
     assert.equal(await page.$$eval('#hand-row .card', (cards) => cards.length), 25);
     await checkReserve('waiting');
+    // Force a human bidding turn to inspect the full score chooser, not just an idle table.
+    await humanBiddingTurn();
     await page.evaluate(() => { window.reserveNodes = [...document.getElementById('bottom-reserve-cards').children]; });
     await page.waitForFunction(() => reserveStarts === 8);
     await page.evaluate(() => window.dispatchEvent(new Event('resize')));
@@ -179,6 +203,23 @@ test('三打一：连续飞牌、四家落点、八张底牌印记及拿底/埋�
     assert.equal(await page.$$eval('#hand-row .card--selected', (cards) => cards.length), 0);
     await checkReserve('buried');
     assert.match(await page.$eval('#bottom-reserve-status', (el) => el.textContent), /等待扣底/);
+    // Put real legal cards on three sides; the compact centre stack must fit between them.
+    await page.evaluate(() => {
+      for (let i = 0; i < 3; i++) {
+        const st = testService.getState(), hint = GameCore.getHint(st, st.turnIdx);
+        const result = testService.play(st.turnIdx, hint.cards);
+        if (!result.ok) throw new Error(result.reason);
+      }
+      window.dispatchEvent(new Event('resize'));
+    });
+    await page.waitForSelector('#trick-area .card');
+    await checkReserve('buried');
+    for (const [width, height] of viewports) {
+      // Keep device emulation fixed: toggling isMobile reloads the page and discards the fixture.
+      await page.setViewport({ width, height, isMobile: true, hasTouch: true });
+      await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 300)));
+      await checkReserve('buried');
+    }
 
     // Portrait AI dealer: bottom cards stay private, and redealing cancels the old flight chain.
     await start(390, 844, true);
