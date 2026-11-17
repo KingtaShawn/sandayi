@@ -140,6 +140,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 
 /* ========== 牌桌 ========== */
 .table {
+  position: relative;
   height: 100%;
   background: radial-gradient(circle at 50% 30%, #12904f, #0b6b3a 70%, #074f2c);
   display: flex;
@@ -149,6 +150,39 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
 }
 
 .table__north { display: flex; justify-content: center; margin-bottom: 0.8rem; }
+
+/* 常驻右上角：保留八张底牌的印记，不挤占出牌区和叫分/重发按钮。 */
+.bottom-reserve {
+  position: absolute; top: 1.6rem; right: max(3.2rem, env(safe-area-inset-right));
+  width: 24rem; z-index: 5; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+}
+.bottom-reserve__cards { display: flex; align-items: center; height: 7.8rem; padding-right: 0.8rem; }
+.bottom-reserve__card {
+  width: 5.1rem; height: 7rem; margin-left: -3.1rem;
+  border: 0.27rem solid #e4c77d; border-radius: 0.65rem;
+  background: repeating-linear-gradient(45deg, #355c9c 0 0.65rem, #294579 0.65rem 1.3rem);
+  box-shadow: 0.35rem 0.35rem 0.6rem #0004;
+  animation: reserve-arrive 300ms ease-out backwards;
+  animation-delay: calc(var(--bottom-index) * 45ms);
+  transition: opacity 220ms ease;
+}
+.bottom-reserve__card:first-child { margin-left: 0; }
+.bottom-reserve__label { font-size: 2.67rem; line-height: 1.2; font-weight: 700; color: #ffe3a0; }
+.bottom-reserve__status { font-size: 2.13rem; line-height: 1.2; color: #c7e4d5; white-space: nowrap; }
+.bottom-reserve--held .bottom-reserve__card,
+.bottom-reserve--grabbing .bottom-reserve__card { opacity: 0.2; animation: none; }
+.bottom-reserve--buried .bottom-reserve__cards { animation: reserve-seal 650ms ease-out; }
+@keyframes reserve-arrive {
+  from { opacity: 0; transform: translate3d(-2rem, 3rem, 0) rotate(-12deg); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
+}
+@keyframes reserve-seal {
+  50% { filter: drop-shadow(0 0 1.2rem #f3c14b); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom-reserve__card, .bottom-reserve__cards { animation: none !important; transition: none; }
+}
 
 .table__mid { flex: 1; display: flex; align-items: stretch; gap: 1.07rem; min-height: 0; }
 
@@ -636,6 +670,12 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center;
 }
+.grab-anim__pile--opening { animation: bottom-open 360ms cubic-bezier(0.22, 0.65, 0.3, 1) both; }
+@keyframes bottom-open {
+  from { transform: translate(calc(-50% + var(--bottom-open-x)), calc(-50% + var(--bottom-open-y))) scale(0.5); }
+  to { transform: translate(-50%, -50%) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .grab-anim__pile--opening { animation: none; } }
 .grab-anim__cards { display: flex; align-items: center; }
 .grab-anim__card {
   width: 9.6rem; height: 13.33rem;
@@ -761,6 +801,7 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
     padding-left: max(2.4rem, env(safe-area-inset-top));
     padding-right: max(2.4rem, env(safe-area-inset-bottom));
   }
+  .bottom-reserve { right: max(3.2rem, env(safe-area-inset-bottom)); }
 }
 @supports (width: 1dvw) {
   @media (orientation: portrait) and (pointer: coarse) {
