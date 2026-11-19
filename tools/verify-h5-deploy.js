@@ -49,6 +49,10 @@ async function verify() {
   assert.ok(Array.isArray((await leaderboard.json()).list), '排行榜必须返回 JSON 列表');
   const allowOrigin = leaderboard.headers.get('access-control-allow-origin');
   assert.ok(['*', 'https://kingtashawn.github.io'].includes(allowOrigin), '主入口跨域访问 API');
+  if (SITES.includes(ENTRANCES.cloudflare)) {
+    const replays = await request('https://sandayi.pages.dev/api/replays', { method: 'PUT' });
+    assert.equal(replays.status, 401, '云牌谱上传需要账号鉴权');
+  }
   const sync = await request('https://sandayi.pages.dev/api/sync');
   assert.equal(sync.status, 401, '存档 API 必须保留鉴权');
   assert.match(sync.headers.get('content-type') || '', /application\/json/, '存档接口必须由 Worker 响应');

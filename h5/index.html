@@ -161,6 +161,7 @@
     <!-- v3.0 云账号：游客无感建档，点开可升级正式账号（换设备不丢档） -->
     <div class="home__cloud" id="home-cloud">
       <span class="home__cloud-state" id="cloud-state">☁ 未连接</span>
+      <button class="btn btn--ghost home__cloud-btn" id="btn-replay-settings">云牌谱</button>
       <button class="btn btn--ghost home__cloud-btn" id="btn-cloud">账号</button>
     </div>
   </section>
@@ -306,6 +307,21 @@
     </div>
   </div>
 
+<div class="cloud-modal" id="replay-settings" hidden role="dialog" aria-modal="true" aria-labelledby="replay-title">
+  <div class="cloud-modal__mask"></div>
+  <div class="cloud-modal__panel">
+    <div class="cloud-modal__title" id="replay-title">我的牌谱</div>
+    <label class="cloud-modal__hint"><input id="replay-auto" type="checkbox"> 自动上传今后新开的牌局到当前云账号</label>
+    <div class="cloud-modal__hint" id="replay-status" role="status"></div>
+    <div class="cloud-modal__foot">持有复盘链接的人可读取本账号已上传和今后上传的牌谱。</div>
+    <div class="cloud-modal__tabs">
+      <button class="cloud-modal__tab" id="replay-share">获取只读复盘链接</button>
+      <button class="cloud-modal__tab" id="replay-revoke">撤销链接</button>
+    </div>
+    <input class="cloud-modal__input" id="replay-link" aria-label="只读复盘链接，可复制" readonly hidden>
+    <button class="btn btn--ghost cloud-modal__close" id="replay-close">关闭</button>
+  </div>
+</div>
 <script src="js/game-bundle.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/cloud.js"></script>

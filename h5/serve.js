@@ -33,6 +33,11 @@ const devKv = (() => {
   let timer = null;
   const flush = () => { try { fs.writeFileSync(DEV_KV_FILE, JSON.stringify(Object.fromEntries(m))); } catch (e) { /* 忽略 */ } };
   return {
+    async list({ prefix, limit, cursor }) {
+      const names = [...m.keys()].filter(k => k.startsWith(prefix) && (!cursor || k > cursor)).sort();
+      const keys = names.slice(0, limit).map(name => ({ name }));
+      return { keys, list_complete: names.length <= limit, cursor: keys.at(-1)?.name };
+    },
     async get(k) { return m.has(k) ? m.get(k) : null; },
     async put(k, v) { m.set(k, String(v)); if (timer) clearTimeout(timer); timer = setTimeout(flush, 300); },
     async delete(k) { m.delete(k); if (timer) clearTimeout(timer); timer = setTimeout(flush, 300); }
@@ -48,7 +53,7 @@ const apiPromise = import('./functions/api/_lib/api.js');
 async function toWebRequest(req) {
   const chunks = [];
   for await (const c of req) chunks.push(c);
-  return new Request('http://localhost' + req.url, {
+  return new Request('http://localhost:' + PORT + req.url, {
     method: req.method,
     headers: Object.assign({}, req.headers),
     body: (req.method === 'GET' || req.method === 'HEAD' || !chunks.length) ? undefined : Buffer.concat(chunks)

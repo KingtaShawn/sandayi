@@ -19,6 +19,7 @@
 import { jsonResp, errResp, readJson, getBearer, corsPreflight } from './http.js';
 import { signToken, verifyToken, newUid, randDigits4 } from './token.js';
 import { kvOf } from './runtime.js';
+import { handleReplays } from './replays.js';
 import Users from './users.js';
 
 /** 云端档案体积上限（KV 单值限 1MB，这里给同步留个远小于它的护栏）。 */
@@ -201,6 +202,10 @@ export async function handleLeaderboard(request, env) {
 
 /** 路由表：serve.js 与边缘函数入口共用。键为 'METHOD /path'。 */
 export const ROUTES = {
+  'GET /api/replays': handleReplays,
+  'PUT /api/replays': handleReplays,
+  'POST /api/replays': handleReplays,
+  'DELETE /api/replays': handleReplays,
   'POST /api/auth/guest': handleGuest,
   'POST /api/auth/login': handleLogin,
   'POST /api/auth/bind': handleBind,
