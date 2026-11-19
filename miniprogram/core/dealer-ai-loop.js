@@ -32,8 +32,9 @@ function stepAI(state, ai, rng) {
     const dealer = state.players[state.dealerIdx];
     if (dealer.isHuman) return { state, acted: false, what: null };
     const suit = ai.decideTrumpSuit ? ai.decideTrumpSuit(state, state.dealerIdx) : 'S';
-    const next = transition(state, { type: 'CHOOSE_TRUMP', playerIdx: state.dealerIdx, suit, ts: Date.now() });
-    return { state: next, acted: true, what: `CHOOSE_TRUMP:${suit}` };
+    const action = { type: 'CHOOSE_TRUMP', playerIdx: state.dealerIdx, suit, ts: Date.now() };
+    const next = transition(state, action);
+    return { state: next, acted: true, action, what: `CHOOSE_TRUMP:${suit}` };
   }
   // BIDDING：三打一 → 报分竞价
   if (state.phase === 'BIDDING' && state.config.gameMode === 'san_da_yi') {
@@ -54,9 +55,10 @@ function stepAI(state, ai, rng) {
       }
       // 不亮 → 放弃表态（全员放弃且无人亮 → 真人是否表态由 Presenter 判断；
       // stepAI 语义：AI 全放弃且无人亮主时交还 acted=false 等真人，或翻底）
-      const next = transition(state, { type: 'PASS_BID', playerIdx: i, ts: Date.now() });
+      const action = { type: 'PASS_BID', playerIdx: i, ts: Date.now() };
+      const next = transition(state, action);
       // 放弃后若全员已表态且有亮主 → PASS_BID 内部自动进入 BURYING
-      return { state: next, acted: true, what: `PASS_BID:${i}` };
+      return { state: next, acted: true, action, what: `PASS_BID:${i}` };
     }
     // 全部 AI 已表态：若真人也未亮且无人亮主 → 翻底定主（R20）
     const humanDecided = state.bids.some((b) => b.playerIdx === 0) || (state.passedBidders || []).includes(0);
@@ -78,8 +80,9 @@ function stepAI(state, ai, rng) {
       return { state, acted: false, what: null };
     }
     const cards = ai.decideBury(state, state.dealerIdx, rand);
-    const next = transition(state, { type: 'BURY', playerIdx: state.dealerIdx, cards, ts: Date.now() });
-    return { state: next, acted: true, what: `BURY:${state.dealerIdx}` };
+    const action = { type: 'BURY', playerIdx: state.dealerIdx, cards, ts: Date.now() };
+    const next = transition(state, action);
+    return { state: next, acted: true, action, what: `BURY:${state.dealerIdx}` };
   }
   // PLAYING：AI 出牌
   if (state.phase === 'PLAYING') {
@@ -88,8 +91,9 @@ function stepAI(state, ai, rng) {
       return { state, acted: false, what: null };
     }
     const cards = ai.decidePlay(state, state.turnIdx, rand);
-    const next = transition(state, { type: 'PLAY', playerIdx: state.turnIdx, cards, ts: Date.now() });
-    return { state: next, acted: true, what: `PLAY:${state.turnIdx}` };
+    const action = { type: 'PLAY', playerIdx: state.turnIdx, cards, ts: Date.now() };
+    const next = transition(state, action);
+    return { state: next, acted: true, action, what: `PLAY:${state.turnIdx}` };
   }
   return { state, acted: false, what: null };
 }
@@ -106,11 +110,13 @@ function stepSanDaYiBid(state, ai, rand) {
   const opts = scoreBidOptions(state, cur, state.config);
   const decision = ai.decideScoreBid ? ai.decideScoreBid(state, cur, opts, rand) : null;
   if (decision) {
-    const next = transition(state, { type: 'SCORE_BID', playerIdx: cur, score: decision, ts: Date.now() });
-    return { state: next, acted: true, what: `SCORE_BID:${cur}:${decision}` };
+    const action = { type: 'SCORE_BID', playerIdx: cur, score: decision, ts: Date.now() };
+    const next = transition(state, action);
+    return { state: next, acted: true, action, what: `SCORE_BID:${cur}:${decision}` };
   }
-  const next = transition(state, { type: 'PASS_BID', playerIdx: cur, ts: Date.now() });
-  return { state: next, acted: true, what: `PASS_BID:${cur}` };
+  const action = { type: 'PASS_BID', playerIdx: cur, ts: Date.now() };
+  const next = transition(state, action);
+  return { state: next, acted: true, action, what: `PASS_BID:${cur}` };
 }
 
 /**

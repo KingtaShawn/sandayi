@@ -2766,8 +2766,9 @@ function stepAI(state, ai, rng) {
     const dealer = state.players[state.dealerIdx];
     if (dealer.isHuman) return { state, acted: false, what: null };
     const suit = ai.decideTrumpSuit ? ai.decideTrumpSuit(state, state.dealerIdx) : 'S';
-    const next = transition(state, { type: 'CHOOSE_TRUMP', playerIdx: state.dealerIdx, suit, ts: Date.now() });
-    return { state: next, acted: true, what: `CHOOSE_TRUMP:${suit}` };
+    const action = { type: 'CHOOSE_TRUMP', playerIdx: state.dealerIdx, suit, ts: Date.now() };
+    const next = transition(state, action);
+    return { state: next, acted: true, action, what: `CHOOSE_TRUMP:${suit}` };
   }
   // BIDDING：三打一 → 报分竞价
   if (state.phase === 'BIDDING' && state.config.gameMode === 'san_da_yi') {
@@ -2788,9 +2789,10 @@ function stepAI(state, ai, rng) {
       }
       // 不亮 → 放弃表态（全员放弃且无人亮 → 真人是否表态由 Presenter 判断；
       // stepAI 语义：AI 全放弃且无人亮主时交还 acted=false 等真人，或翻底）
-      const next = transition(state, { type: 'PASS_BID', playerIdx: i, ts: Date.now() });
+      const action = { type: 'PASS_BID', playerIdx: i, ts: Date.now() };
+      const next = transition(state, action);
       // 放弃后若全员已表态且有亮主 → PASS_BID 内部自动进入 BURYING
-      return { state: next, acted: true, what: `PASS_BID:${i}` };
+      return { state: next, acted: true, action, what: `PASS_BID:${i}` };
     }
     // 全部 AI 已表态：若真人也未亮且无人亮主 → 翻底定主（R20）
     const humanDecided = state.bids.some((b) => b.playerIdx === 0) || (state.passedBidders || []).includes(0);
@@ -2812,8 +2814,9 @@ function stepAI(state, ai, rng) {
       return { state, acted: false, what: null };
     }
     const cards = ai.decideBury(state, state.dealerIdx, rand);
-    const next = transition(state, { type: 'BURY', playerIdx: state.dealerIdx, cards, ts: Date.now() });
-    return { state: next, acted: true, what: `BURY:${state.dealerIdx}` };
+    const action = { type: 'BURY', playerIdx: state.dealerIdx, cards, ts: Date.now() };
+    const next = transition(state, action);
+    return { state: next, acted: true, action, what: `BURY:${state.dealerIdx}` };
   }
   // PLAYING：AI 出牌
   if (state.phase === 'PLAYING') {
@@ -2822,8 +2825,9 @@ function stepAI(state, ai, rng) {
       return { state, acted: false, what: null };
     }
     const cards = ai.decidePlay(state, state.turnIdx, rand);
-    const next = transition(state, { type: 'PLAY', playerIdx: state.turnIdx, cards, ts: Date.now() });
-    return { state: next, acted: true, what: `PLAY:${state.turnIdx}` };
+    const action = { type: 'PLAY', playerIdx: state.turnIdx, cards, ts: Date.now() };
+    const next = transition(state, action);
+    return { state: next, acted: true, action, what: `PLAY:${state.turnIdx}` };
   }
   return { state, acted: false, what: null };
 }
@@ -2840,11 +2844,13 @@ function stepSanDaYiBid(state, ai, rand) {
   const opts = scoreBidOptions(state, cur, state.config);
   const decision = ai.decideScoreBid ? ai.decideScoreBid(state, cur, opts, rand) : null;
   if (decision) {
-    const next = transition(state, { type: 'SCORE_BID', playerIdx: cur, score: decision, ts: Date.now() });
-    return { state: next, acted: true, what: `SCORE_BID:${cur}:${decision}` };
+    const action = { type: 'SCORE_BID', playerIdx: cur, score: decision, ts: Date.now() };
+    const next = transition(state, action);
+    return { state: next, acted: true, action, what: `SCORE_BID:${cur}:${decision}` };
   }
-  const next = transition(state, { type: 'PASS_BID', playerIdx: cur, ts: Date.now() });
-  return { state: next, acted: true, what: `PASS_BID:${cur}` };
+  const action = { type: 'PASS_BID', playerIdx: cur, ts: Date.now() };
+  const next = transition(state, action);
+  return { state: next, acted: true, action, what: `PASS_BID:${cur}` };
 }
 
 /**
@@ -7333,6 +7339,7 @@ __def("services/game-service", function (exports, __require, module) {
 const { createInitialState, serializeState, deserializeState, cloneState } = __require('core/state');
 const { transition } = __require('core/statemachine');
 const { stepAI, aiBidOptions } = __require('core/dealer-ai-loop');
+const { beginReplay, recordAction } = __require('services/round-replay');
 const { Logger } = __require('core/logger');
 const { createAI } = __require('ai/strategy');
 const { SharedAttackStrategy } = __require('ai/strategy-shared');
@@ -7354,6 +7361,8 @@ class GameService {
     this.logger = new Logger();
     this.rng = o.rng || createRng(o.seed);
     this.state = null;
+    this.saveReplay = o.saveReplay;
+    this.replay = null;
   }
 
   /**
@@ -7379,12 +7388,21 @@ class GameService {
   dispatch(action) {
     const next = transition(this.state, action);
     this.state = next;
+    this.archive(action);
     this.logger.log(action.type, {
       playerIdx: action.playerIdx,
       phase: next.phase,
       n: action.cards ? action.cards.length : undefined
     });
     return next;
+  }
+
+  archive(action) {
+    if (!this.saveReplay || this.state.config.gameMode !== 'san_da_yi' || !action) return;
+    if (action.type === 'DEAL') this.replay = beginReplay(this.state, true);
+    else if (action.type === 'NEXT_ROUND' || !this.replay) return;
+    else recordAction(this.replay, action, this.state);
+    this.saveReplay(this.replay);
   }
 
   /**
@@ -7495,6 +7513,7 @@ class GameService {
     const r = stepAI(this.state, this.ai, this.rng);
     if (r.acted) {
       this.state = r.state;
+      this.archive(r.action);
       this.logger.log('AI_' + (r.what || ''), { phase: this.state.phase, turnIdx: this.state.turnIdx });
     }
     return { acted: r.acted, what: r.what };
@@ -7550,7 +7569,9 @@ class GameService {
    * @returns {object}
    */
   serialize() {
-    return serializeState(this.state);
+    const saved = serializeState(this.state);
+    if (this.replay) saved.roundReplay = this.replay;
+    return saved;
   }
 
   /**
@@ -7559,6 +7580,12 @@ class GameService {
    */
   resume(saved) {
     this.state = deserializeState(saved);
+    const replay = this.state.roundReplay;
+    delete this.state.roundReplay;
+    if (this.saveReplay && this.state.config.gameMode === 'san_da_yi') {
+      this.replay = replay || beginReplay(this.state, false);
+      this.saveReplay(this.replay);
+    }
     this.logger.log('RESUME', { phase: this.state.phase, roundNo: this.state.roundNo });
   }
 }
@@ -7602,6 +7629,43 @@ function getHint(state, playerIdx) {
 }
 
 module.exports = { getHint };
+
+});
+__def("services/round-replay", function (exports, __require, module) {
+// 逐副记录起点和引擎接受的动作。牌 ID 区分两副牌中的同花同点。
+'use strict';
+
+const { serializeState } = __require('core/state');
+
+function beginReplay(state, fromDeal) {
+  const startedAt = Date.now();
+  return {
+    version: 1, id: startedAt.toString(36) + '-' + Math.random().toString(36).slice(2),
+    startedAt, fromDeal, initial: serializeState(state), actions: [],
+    phase: state.phase, settlement: state.lastSettle
+  };
+}
+
+function recordAction(replay, action, state) {
+  const entry = { type: action.type, playerIdx: action.playerIdx };
+  if (action.score !== undefined) entry.score = action.score;
+  if (action.suit !== undefined) entry.suit = action.suit;
+  if (action.cards) entry.cards = action.cards.map(card => card.id);
+  if (action.type === 'PLAY') {
+    const trick = state.currentTrick || state.completedTricks[state.completedTricks.length - 1];
+    const play = trick.plays[trick.plays.length - 1];
+    entry.played = play.cards.map(card => card.id);
+    if (!state.currentTrick) {
+      entry.winnerIdx = trick.winnerIdx;
+      entry.points = trick.points;
+    }
+  }
+  replay.actions.push(entry);
+  replay.phase = state.phase;
+  replay.settlement = state.lastSettle;
+}
+
+module.exports = { beginReplay, recordAction };
 
 });
 __def("services/stats", function (exports, __require, module) {
@@ -8313,6 +8377,40 @@ const STORAGE_KEYS = {
 };
 
 module.exports = { SCHEMA_VERSION, STORAGE_KEYS };
+
+});
+__def("storage/replay-files", function (exports, __require, module) {
+'use strict';
+
+const prefix = 'sandayi:replay:';
+let warned = false;
+
+function save(record) {
+  try {
+    wx.setStorageSync(prefix + record.id, record);
+    warned = false;
+  } catch (error) {
+    if (!warned) wx.showModal({ title: '牌谱保存失败', content: '请检查设备存储空间。此前保存的牌谱仍可导出。', showCancel: false });
+    warned = true;
+  }
+}
+
+function exportFile() {
+  const fail = () => wx.showToast({ title: '牌谱导出失败', icon: 'none' });
+  try {
+    const keys = wx.getStorageInfoSync().keys.filter(key => key.startsWith(prefix));
+    if (!keys.length) return wx.showToast({ title: '本机还没有牌谱', icon: 'none' });
+    const rounds = keys.map(key => wx.getStorageSync(key)).sort((a, b) => a.startedAt - b.startedAt);
+    const filePath = wx.env.USER_DATA_PATH + '/sandayi-replays.json';
+    wx.getFileSystemManager().writeFile({
+      filePath, encoding: 'utf8', data: JSON.stringify({ version: 1, rounds }),
+      success: () => wx.shareFileMessage({ filePath, fileName: '三打一本机牌谱.json', fail }),
+      fail
+    });
+  } catch (error) { fail(); }
+}
+
+module.exports = { save, exportFile };
 
 });
 __def("match3/engine", function (exports, __require, module) {

@@ -51,6 +51,7 @@ const TEST_FILES = [
   'test-qa-bid-resume-seed.js',
   'test-qa-e2e-rounds.js',
   'test-san-da-yi.js',
+  'test-round-replay.js',
   'test-eight-throw.js',
   'test-cloud-api.js',
   'test-cloud-h5.js',

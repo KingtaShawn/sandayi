@@ -7,6 +7,7 @@
 const { createInitialState, serializeState, deserializeState, cloneState } = require('../core/state');
 const { transition } = require('../core/statemachine');
 const { stepAI, aiBidOptions } = require('../core/dealer-ai-loop');
+const { beginReplay, recordAction } = require('./round-replay');
 const { Logger } = require('../core/logger');
 const { createAI } = require('../ai/strategy');
 const { SharedAttackStrategy } = require('../ai/strategy-shared');
@@ -28,6 +29,8 @@ class GameService {
     this.logger = new Logger();
     this.rng = o.rng || createRng(o.seed);
     this.state = null;
+    this.saveReplay = o.saveReplay;
+    this.replay = null;
   }
 
   /**
@@ -53,12 +56,21 @@ class GameService {
   dispatch(action) {
     const next = transition(this.state, action);
     this.state = next;
+    this.archive(action);
     this.logger.log(action.type, {
       playerIdx: action.playerIdx,
       phase: next.phase,
       n: action.cards ? action.cards.length : undefined
     });
     return next;
+  }
+
+  archive(action) {
+    if (!this.saveReplay || this.state.config.gameMode !== 'san_da_yi' || !action) return;
+    if (action.type === 'DEAL') this.replay = beginReplay(this.state, true);
+    else if (action.type === 'NEXT_ROUND' || !this.replay) return;
+    else recordAction(this.replay, action, this.state);
+    this.saveReplay(this.replay);
   }
 
   /**
@@ -169,6 +181,7 @@ class GameService {
     const r = stepAI(this.state, this.ai, this.rng);
     if (r.acted) {
       this.state = r.state;
+      this.archive(r.action);
       this.logger.log('AI_' + (r.what || ''), { phase: this.state.phase, turnIdx: this.state.turnIdx });
     }
     return { acted: r.acted, what: r.what };
@@ -224,7 +237,9 @@ class GameService {
    * @returns {object}
    */
   serialize() {
-    return serializeState(this.state);
+    const saved = serializeState(this.state);
+    if (this.replay) saved.roundReplay = this.replay;
+    return saved;
   }
 
   /**
@@ -233,6 +248,12 @@ class GameService {
    */
   resume(saved) {
     this.state = deserializeState(saved);
+    const replay = this.state.roundReplay;
+    delete this.state.roundReplay;
+    if (this.saveReplay && this.state.config.gameMode === 'san_da_yi') {
+      this.replay = replay || beginReplay(this.state, false);
+      this.saveReplay(this.replay);
+    }
     this.logger.log('RESUME', { phase: this.state.phase, roundNo: this.state.roundNo });
   }
 }
