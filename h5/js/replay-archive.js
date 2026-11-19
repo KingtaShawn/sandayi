@@ -1,4 +1,4 @@
-// 牌谱与待上传任务在同一事务中保存，写入云端成功后才删除任务。
+// 只暂存已开启云上传的进行中牌局和待传牌谱，云端确认后清除。
 (function () {
   'use strict';
   let opening, syncing, retryTimer, currentDeal, delay = 5000;
@@ -26,12 +26,28 @@
 
   function open() {
     if (!opening) opening = new Promise((resolve, reject) => {
-      const request = indexedDB.open('sandayi-replays', 2);
+      const request = indexedDB.open('sandayi-replays', 3);
       request.onupgradeneeded = () => {
         const db = request.result;
-        if (!db.objectStoreNames.contains('rounds')) db.createObjectStore('rounds', { keyPath: 'id' });
-        db.createObjectStore('unfinished', { keyPath: ['owner', 'id'] }).createIndex('owner', 'owner');
-        db.createObjectStore('pending', { keyPath: ['owner', 'id'] }).createIndex('owner', 'owner');
+        for (const name of ['unfinished', 'pending']) {
+          if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: ['owner', 'id'] }).createIndex('owner', 'owner');
+        }
+        // v2 的中断局只有索引。升级时把待上传内容带入队列，旧本机档案保留原样。
+        if (db.objectStoreNames.contains('rounds')) {
+          const tx = request.transaction;
+          const scan = tx.objectStore('unfinished').openCursor();
+          scan.onsuccess = () => {
+            const cursor = scan.result;
+            if (!cursor) return;
+            const item = cursor.value;
+            const read = tx.objectStore('rounds').get(item.id);
+            read.onsuccess = () => {
+              if (read.result) cursor.update({ ...item, round: read.result });
+              else cursor.delete();
+              cursor.continue();
+            };
+          };
+        }
       };
       request.onsuccess = () => {
         const db = request.result;
@@ -63,17 +79,14 @@
       await navigator.locks.request(lockName(item.page), { ifAvailable: true }, async lock => {
         if (!lock || !enabled(uid) || uid !== owner()) return;
         // 在同一事务里重读标记，多个标签页恢复同一局时只入队一次。
-        await transact(['rounds', 'unfinished', 'pending'], 'readwrite', tx => {
+        await transact(['unfinished', 'pending'], 'readwrite', tx => {
           const stages = tx.objectStore('unfinished');
           const key = [uid, item.id];
           const check = stages.get(key);
           check.onsuccess = () => {
             if (!check.result) return;
-            const request = tx.objectStore('rounds').get(item.id);
-            request.onsuccess = () => {
-              if (request.result) tx.objectStore('pending').put({ owner: uid, id: item.id, round: request.result });
-              stages.delete(key);
-            };
+            tx.objectStore('pending').put({ owner: uid, id: item.id, round: check.result.round });
+            stages.delete(key);
           };
         });
       });
@@ -106,17 +119,17 @@
     }, ms);
   }
   async function write(record, uid, closed) {
-    const staged = uid && !closed && await keepPageLock();
-    const stores = uid ? ['rounds', 'unfinished', 'pending'] : ['rounds'];
-    await transact(stores, 'readwrite', tx => {
-      tx.objectStore('rounds').put(record);
-      if (staged) tx.objectStore('unfinished').put({ owner: uid, id: record.id, page: pageId });
-      if (uid && closed) {
-        tx.objectStore('unfinished').delete([uid, record.id]);
-        tx.objectStore('pending').put({ owner: uid, id: record.id, round: record });
-      }
+    if (!uid) return;
+    if (!closed) {
+      if (await keepPageLock()) await transact('unfinished', 'readwrite', tx =>
+        tx.objectStore('unfinished').put({ owner: uid, id: record.id, page: pageId, round: record }));
+      return;
+    }
+    await transact(['unfinished', 'pending'], 'readwrite', tx => {
+      tx.objectStore('unfinished').delete([uid, record.id]);
+      tx.objectStore('pending').put({ owner: uid, id: record.id, round: record });
     });
-    if (uid && closed) schedule();
+    schedule();
   }
   let lastWrite = Promise.resolve();
   function persist(record, uid, closed) {
@@ -138,7 +151,6 @@
       if (record && currentDeal?.id === record.id && !record.settlement) return persist(record, currentDeal.owner, true);
       return Promise.resolve();
     },
-    all() { return transact('rounds', 'readonly', tx => tx.objectStore('rounds').getAll()); },
     enabled() { return enabled(owner()); },
     setEnabled(value) {
       const uid = owner();

@@ -213,26 +213,9 @@
   let replayWriteFailed = false;
   function saveReplay(record) {
     window.RoundArchive.save(record).then(() => { replayWriteFailed = false; }).catch(() => {
-      if (!replayWriteFailed) toast('本机牌谱保存失败，请检查浏览器存储空间');
+      if (!replayWriteFailed) toast('云牌谱待传数据保存失败，请检查浏览器存储空间');
       replayWriteFailed = true;
     });
-  }
-
-  async function exportReplays() {
-    try {
-      const rounds = await window.RoundArchive.all();
-      if (!rounds.length) { toast('本机还没有牌谱'); return; }
-      rounds.sort((a, b) => a.startedAt - b.startedAt);
-      const blob = new Blob([JSON.stringify({ version: 1, rounds })], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'sandayi-replays-' + Date.now() + '.json';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-    } catch (error) { toast('读取本机牌谱失败'); }
   }
 
   function startGame() {
@@ -1447,7 +1430,13 @@
     const st = G.service && G.service.getState();
     if (!st) return;
     if (st.phase === 'GAME_OVER') storage.remove(STORAGE_KEYS.CURRENT_GAME);
-    else { try { storage.set(STORAGE_KEYS.CURRENT_GAME, G.service.serialize()); } catch (e) { /* 忽略 */ } }
+    else {
+      try {
+        const saved = G.service.serialize();
+        delete saved.roundReplay;
+        storage.set(STORAGE_KEYS.CURRENT_GAME, saved);
+      } catch (e) { /* 忽略 */ }
+    }
   }
 
   /* ---------- 首页/规则页 ---------- */
@@ -1665,12 +1654,13 @@
     const request = ++visibilityRequest;
     const box = $('replay-public');
     box.disabled = true;
-    if (!window.Cloud?.name()) { box.checked = false; return; }
+    if (!window.Cloud?.uid()) { box.checked = false; return; }
     try {
       const result = await Cloud.replayVisibility(Cloud.uid(), method);
       if (request !== visibilityRequest) return;
       box.checked = result.published;
-      box.disabled = false;
+      box.disabled = !result.name;
+      $('replay-revoke').hidden = !result.hasReviewLink;
     } catch {
       if (request !== visibilityRequest) return;
       box.checked = false;
@@ -1763,10 +1753,8 @@
     const connected = !!window.Cloud?.uid();
     $('replay-auto').checked = RoundArchive.enabled();
     $('replay-auto').disabled = !connected;
-    $('replay-share').disabled = !connected;
-    $('replay-revoke').disabled = !connected;
     $('replay-status').textContent = !connected ? '连接云账号后可开启自动上传'
-      : RoundArchive.status() || (RoundArchive.enabled() ? '结算或重发时上传，断网后自动补传' : '当前仅在本机保存');
+      : RoundArchive.status() || (RoundArchive.enabled() ? '结算或重发时上传，断网后自动补传' : '自动上传未开启');
   }
   $('btn-replay-settings').addEventListener('click', () => {
     renderReplaySettings();
@@ -1778,22 +1766,14 @@
     try { RoundArchive.setEnabled(event.target.checked); } catch { toast('设置保存失败'); }
     renderReplaySettings();
   });
-  async function manageReplayLink(method) {
+  $('replay-revoke').addEventListener('click', async () => {
     const uid = Cloud.uid();
     try {
-      const result = await Cloud.replayRequest(uid, method);
-      if (uid !== Cloud.uid()) return;
-      const input = $('replay-link');
-      input.value = result.url || '';
-      input.hidden = !input.value;
-      if (input.value) { input.focus(); input.select(); }
-      else toast('已撤销复盘链接');
-    } catch { toast('复盘链接操作失败，请联网后重试'); }
-  }
-  $('replay-share').addEventListener('click', () => manageReplayLink('POST'));
-  $('replay-revoke').addEventListener('click', () => manageReplayLink('DELETE'));
+      await Cloud.replayRequest(uid, 'DELETE');
+      if (uid === Cloud.uid()) { $('replay-revoke').hidden = true; toast('已撤销复盘链接'); }
+    } catch { toast('撤销失败，请联网后重试'); }
+  });
   window.addEventListener('replay-sync', renderReplaySettings);
-  $('btn-export-replays').addEventListener('click', exportReplays);
   $('btn-rules').addEventListener('click', () => { renderRules(); showView('rules'); });
   $('btn-rules-back').addEventListener('click', () => showView('home'));
   $('btn-leaderboard').addEventListener('click', openLeaderboard);
@@ -1851,8 +1831,7 @@
   $('tab-cloud-login').addEventListener('click', () => setCloudMode('login'));
   $('tab-cloud-bind').addEventListener('click', () => setCloudMode('bind'));
   if (window.Cloud) Cloud.on('state', () => {
-    $('replay-link').hidden = true;
-    $('replay-link').value = '';
+    $('replay-revoke').hidden = true;
     if (!$('replay-settings').hidden) replayVisibility('GET');
     else visibilityRequest++;
     RoundArchive.accountChanged();

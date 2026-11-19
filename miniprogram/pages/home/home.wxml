@@ -15,7 +15,6 @@
       <text>开始对局</text>
     </view>
     <view class="home__secondary">
-      <view wx:if="{{isSanDaYi}}" class="btn btn--ghost" bind:tap="onExportReplays">导出本机牌谱</view>
       <view class="btn btn--ghost" bind:tap="onRules">
         <text>规则速查</text>
       </view>
