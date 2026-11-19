@@ -926,3 +926,10 @@ button { font-family: inherit; border: none; outline: none; cursor: pointer; }
   .lb-modal__empty { padding: 4vw; font-size: 3.8vw; }
   .lb-modal__close { font-size: 3.8vw; padding: 2.2vw 5.5vw; margin-top: 2.4vw; }
 }
+
+#replay-settings .cloud-modal__panel { overflow-y: auto; }
+#replay-settings .cloud-modal__panel > * { flex-shrink: 0; }
+#public-search { display: flex; align-items: center; gap: 1rem; }
+#public-search input { width: 30rem; margin: 0; }
+#public-rounds details { margin: 1.2rem 0; }
+#public-rounds summary { cursor: pointer; }

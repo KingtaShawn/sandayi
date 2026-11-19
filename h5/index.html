@@ -166,6 +166,18 @@
     </div>
   </section>
 
+  <section id="view-public-replays" class="rules view" hidden>
+    <div class="rules__nav"><button class="btn btn--ghost" id="public-back">← 返回</button></div>
+    <div class="rules__body">
+      <h3>公开牌谱</h3>
+      <form id="public-search"><input class="cloud-modal__input" id="public-name" aria-label="账号名" placeholder="输入账号名" required maxlength="16"><button class="btn btn--primary">查询牌谱</button></form>
+      <div id="public-accounts" aria-label="已公开牌谱的账号"></div>
+      <button class="btn btn--ghost" id="public-more-accounts" hidden>更多公开账号</button>
+      <p id="public-status" role="status"></p>
+      <div id="public-rounds"></div>
+      <button class="btn btn--ghost" id="public-more" hidden>下一页</button>
+    </div>
+  </section>
   <!-- ===== 规则页 ===== -->
   <section id="view-rules" class="rules view" hidden>
     <div class="rules__nav"><button class="btn btn--ghost" id="btn-rules-back">← 返回</button></div>
@@ -313,6 +325,8 @@
     <div class="cloud-modal__title" id="replay-title">我的牌谱</div>
     <label class="cloud-modal__hint"><input id="replay-auto" type="checkbox"> 自动上传今后新开的牌局到当前云账号</label>
     <div class="cloud-modal__hint" id="replay-status" role="status"></div>
+    <label class="cloud-modal__hint"><input type="checkbox" id="replay-public" disabled> 按账号名公开全部云牌谱（含历史和今后的牌局）</label>
+    <button class="cloud-modal__tab" id="public-browse">按账号查公开牌谱</button>
     <div class="cloud-modal__foot">持有复盘链接的人可读取本账号已上传和今后上传的牌谱。</div>
     <div class="cloud-modal__tabs">
       <button class="cloud-modal__tab" id="replay-share">获取只读复盘链接</button>
