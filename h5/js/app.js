@@ -210,6 +210,31 @@
     try { return createConfig(overrides); } catch (e) { return DEFAULT_CONFIG; }
   }
 
+  let replayWriteFailed = false;
+  function saveReplay(record) {
+    window.RoundArchive.save(record).then(() => { replayWriteFailed = false; }).catch(() => {
+      if (!replayWriteFailed) toast('本机牌谱保存失败，请检查浏览器存储空间');
+      replayWriteFailed = true;
+    });
+  }
+
+  async function exportReplays() {
+    try {
+      const rounds = await window.RoundArchive.all();
+      if (!rounds.length) { toast('本机还没有牌谱'); return; }
+      rounds.sort((a, b) => a.startedAt - b.startedAt);
+      const blob = new Blob([JSON.stringify({ version: 1, rounds })], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'sandayi-replays-' + Date.now() + '.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (error) { toast('读取本机牌谱失败'); }
+  }
+
   function startGame() {
     // 重发可在任意时刻触发：先掐掉进行中的发牌/拿底动画与定时器（否则 _dealAnimating/_grabAnimating 残留会卡住 driveAI）
     if (G._dealTimer) { clearInterval(G._dealTimer); G._dealTimer = null; }
@@ -220,7 +245,7 @@
     G._grabAnimating = false;
     G.grabBottom = { active: false, stage: 'done', dealerIdx: 0, cards: [], flyCount: 0, flyCards: [], reveal: false };
     G.newGrabIds = null;
-    G.service = new GameService({ config: buildConfig(), rng: createRng() });
+    G.service = new GameService({ config: buildConfig(), rng: createRng(), saveReplay });
     G.selectedIds = [];
     G.lastAdded = null;
     G.prevHandIds = null;
@@ -1634,6 +1659,7 @@
     storage.remove(STORAGE_KEYS.CURRENT_GAME);
     startGame();
   });
+  $('btn-export-replays').addEventListener('click', exportReplays);
   $('btn-rules').addEventListener('click', () => { renderRules(); showView('rules'); });
   $('btn-rules-back').addEventListener('click', () => showView('home'));
   $('btn-leaderboard').addEventListener('click', openLeaderboard);

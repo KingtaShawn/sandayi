@@ -23,6 +23,7 @@
 
 'use strict';
 
+const replayFiles = require('../../storage/replay-files');
 const { GameService } = require('../../services/game-service');
 const { getHint } = require('../../services/hint');
 const storage = require('../../storage/adapter');
@@ -85,7 +86,7 @@ Page({
 
   onLoad(query) {
     const app = getApp();
-    this.service = new GameService({ config: app.globalData.config, rng: createRng() });
+    this.service = new GameService({ config: app.globalData.config, rng: createRng(), saveReplay: replayFiles.save });
     this.burySelected = [];
     this.lastTapCardId = '';
     this.lastTapAt = 0;

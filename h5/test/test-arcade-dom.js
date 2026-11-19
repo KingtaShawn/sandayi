@@ -13,7 +13,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 test('H5 发布产物：所有本地 CSS/JS/manifest 引用存在且使用同一版本', () => {
   const html = fs.readFileSync(path.join(H5, 'dist/index.html'), 'utf8');
   const refs = Array.from(html.matchAll(/(?:src|href)="((?:css|js)\/[^"?]+|manifest\.webmanifest)\?v=([^"]+)"/g));
-  assert.equal(refs.length, 16);
+  assert.equal(refs.length, 17);
   assert.equal(new Set(refs.map((ref) => ref[2])).size, 1);
   refs.forEach((ref) => assert.ok(fs.existsSync(path.join(H5, 'dist', ref[1])), ref[1]));
   assert.match(html, /id="btn-enter-match3"/);
@@ -44,7 +44,7 @@ function boot(saved, { normalMotion = false, starSaved, pokerSetup, sudokuSaved 
   if (starSaved) w.localStorage.setItem('popstar:progress:v1', starSaved);
   if (saved) w.localStorage.setItem(KEY, saved);
   if (sudokuSaved) w.localStorage.setItem('sudoku:progress:v1', sudokuSaved);
-  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'poker-engine.js', 'poker-motion.js', 'poker.js', 'mini-games.js', 'app.js']) {
+  for (const script of ['game-bundle.js', 'arcade-motion.js', 'popstar.js', 'match3.js', 'poker-engine.js', 'poker-motion.js', 'poker.js', 'mini-games.js', 'replay-archive.js', 'app.js']) {
     w.eval(fs.readFileSync(path.join(H5, 'js', script), 'utf8'));
     if (script === 'poker-engine.js' && pokerSetup) {
       const create = w.Poker.create;
