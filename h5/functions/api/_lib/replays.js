@@ -1,6 +1,7 @@
-// 牌谱以账号和牌局 ID 独立存放。只有持有复盘链接的人可以分页读取。
+// 牌谱按账号和局号存放，可通过只读链接或已公开的账号名分页读取。
 import { jsonResp, errResp, getBearer } from './http.js';
 import { verifyToken } from './token.js';
+import Users from './users.js';
 import { kvOf } from './runtime.js';
 
 const maxBytes = 256 * 1024;
@@ -24,11 +25,41 @@ async function readReplay(request) {
 export async function handleReplays(request, env) {
   const kv = kvOf(env);
   const url = new URL(request.url);
+  if (url.searchParams.has('visibility')) {
+    if (!env?.AUTH_SECRET) return errResp(503, '云牌谱服务未配置');
+    const uid = await verifyToken(env, getBearer(request));
+    if (!uid) return errResp(401, '请先连接云账号');
+    const user = await Users.getUser(env, uid);
+    if (!user?.login) return errResp(400, '请先绑定账号名');
+    const name = user.login.name;
+    const key = 'publicReplayName:' + user.login.nameKey;
+    const method = request.method;
+    if (method === 'PUT') await kv.put(key, uid);
+    else if (method === 'DELETE') await kv.delete(key);
+    else if (method !== 'GET') return errResp(405, '请求方法不支持');
+    const published = method === 'GET' ? await kv.get(key) === uid : method === 'PUT';
+    return jsonResp({ name, published });
+  }
+
   if (request.method === 'GET') {
-    const key = url.searchParams.get('key') || '';
-    if (!keyPattern.test(key)) return errResp(403, '复盘链接无效');
-    const owner = await kv.get('review:' + key);
-    if (!owner || await kv.get('reviewKey:' + owner) !== key) return errResp(403, '复盘链接无效');
+    if (url.searchParams.has('accounts')) {
+      const prefix = 'publicReplayName:';
+      const page = await kv.list({ prefix, limit: 25, cursor: url.searchParams.get('cursor') || undefined });
+      return jsonResp({ names: page.keys.map(item => item.name.slice(prefix.length)),
+        cursor: page.list_complete ? null : page.cursor });
+    }
+    let owner;
+    if (url.searchParams.has('name')) {
+      const name = url.searchParams.get('name').trim();
+      if (Users.validateName(name)) return errResp(400, '请输入有效账号名');
+      owner = await kv.get('publicReplayName:' + name.toLowerCase());
+      if (!owner) return errResp(404, '未找到该账号的公开牌谱');
+    } else {
+      const key = url.searchParams.get('key') || '';
+      if (!keyPattern.test(key)) return errResp(403, '复盘链接无效');
+      owner = await kv.get('review:' + key);
+      if (!owner || await kv.get('reviewKey:' + owner) !== key) return errResp(403, '复盘链接无效');
+    }
     const page = await kv.list({ prefix: 'replay:' + owner + ':', limit: 10, cursor: url.searchParams.get('cursor') || undefined });
     const values = await Promise.all(page.keys.map(item => kv.get(item.name)));
     if (!page.list_complete) url.searchParams.set('cursor', page.cursor);

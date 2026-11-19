@@ -295,3 +295,35 @@ test('云牌谱按账号隔离，重试不重复，复盘链接只读且可撤�
   await call('DELETE', token);
   assert.equal((await read(url)).status, 403);
 });
+
+test('按名公开全部现有与新增牌局，匿名可发现；撤回和分页都按账号隔离', async () => {
+  const { env, token, user } = await mkGuest();
+  const other = await mkGuestIn(env);
+  env.KV.list = async ({ prefix, limit, cursor }) => {
+    const names = [...env.KV._m.keys()].filter(k => k.startsWith(prefix) && (!cursor || k > cursor)).sort();
+    const keys = names.slice(0, limit).map(name => ({ name }));
+    return { keys, list_complete: names.length <= limit, cursor: keys.at(-1)?.name };
+  };
+  const bind = (auth, username) => api.handleBind(mkReq('POST', '/api/auth/bind', { username, password: 'test-pass' }, auth), env);
+  await bind(token, '华哥'); await bind(other.token, '其他账号');
+  const path = '/api/replays';
+  const read = query => api.dispatch(mkReq('GET', path + query), env);
+  const manage = (method, auth) => api.dispatch(mkReq(method, path + '?visibility=1&name=华哥', undefined, auth), env);
+  for (let i = 0; i < 11; i++) await env.KV.put('replay:' + user.uid + ':game-' + i, JSON.stringify({ id: i }));
+  await env.KV.put('replay:' + other.user.uid + ':other', '{"id":"other"}');
+  assert.equal((await manage('PUT')).status, 401);
+  await manage('PUT', other.token);
+  assert.equal((await read('?name=华哥')).status, 404);
+  await manage('PUT', token);
+  await env.KV.put('replay:' + user.uid + ':new', '{"id":"new"}');
+  assert.deepEqual(new Set((await (await read('?accounts=1')).json()).names), new Set(['华哥','其他账号']));
+  const first = await (await read('?name=华哥')).json();
+  const second = await (await api.dispatch(new Request(first.next), env)).json();
+  const ids = [...first.rounds, ...second.rounds].map(r => r.id);
+  assert.equal(ids.length, 12); assert.ok(ids.includes('new')); assert.ok(!ids.includes('other'));
+  await manage('DELETE', token);
+  assert.equal((await read('?name=华哥')).status, 404);
+  assert.equal((await api.dispatch(new Request(first.next), env)).status, 404);
+  assert.deepEqual((await (await read('?accounts=1')).json()).names, ['其他账号']);
+  assert.ok(await env.KV.get('replay:' + user.uid + ':new'));
+});

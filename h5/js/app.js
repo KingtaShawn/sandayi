@@ -78,7 +78,7 @@
     if (pokerUI) pokerUI.close();
     if (breakoutUI) breakoutUI.close();
     if (sudokuUI) sudokuUI.close();
-    ['lobby', 'match3', 'popstar', 'poker', 'breakout', 'sudoku', 'home', 'rules', 'table'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
+    ['lobby', 'match3', 'popstar', 'poker', 'breakout', 'sudoku', 'home', 'rules', 'public-replays', 'table'].forEach((v) => { $('view-' + v).hidden = (v !== name); });
     const arcade = ['poker', 'lobby', 'match3', 'popstar', 'breakout', 'sudoku'].includes(name);
     document.documentElement.classList.toggle('arcade-mode', arcade);
     if (Sfx.setActive) Sfx.setActive(!arcade);
@@ -1660,6 +1660,105 @@
     storage.remove(STORAGE_KEYS.CURRENT_GAME);
     startGame();
   });
+  let visibilityRequest = 0;
+  async function replayVisibility(method) {
+    const request = ++visibilityRequest;
+    const box = $('replay-public');
+    box.disabled = true;
+    if (!window.Cloud?.name()) { box.checked = false; return; }
+    try {
+      const result = await Cloud.replayVisibility(Cloud.uid(), method);
+      if (request !== visibilityRequest) return;
+      box.checked = result.published;
+      box.disabled = false;
+    } catch {
+      if (request !== visibilityRequest) return;
+      box.checked = false;
+      toast('无法确认公开设置，请重新打开云牌谱');
+    }
+  }
+  $('replay-public').addEventListener('change', event => replayVisibility(event.target.checked ? 'PUT' : 'DELETE'));
+
+  let publicRequest = 0, publicCursor = '', publicAccount = '';
+  function appendPublicRound(round) {
+    const details = document.createElement('details');
+    const title = document.createElement('summary');
+    const result = round.settlement;
+    const when = new Date(round.startedAt).toLocaleString('zh-CN');
+    title.textContent = when + ' · ' + (result ? '庄家 ' + result.dealerPoints + ' 分' : '未结算');
+    details.appendChild(title);
+    const seats = ['南', '东', '北', '西'];
+    let trick = (round.initial.completedTricks || []).length + 1;
+    for (const action of round.actions) {
+      if (action?.type !== 'PLAY' || !Array.isArray(action.played || action.cards)) continue;
+      const line = document.createElement('p');
+      const cards = (action.played || action.cards || []).map(id => String(id).replace(/^\d([SHCD])/, (_, suit) => SYMBOLS[suit]).replace(/^\dJOKERBJ$/, '大王').replace(/^\dJOKERRJ$/, '小王'));
+      line.textContent = '第 ' + trick + ' 墩 · ' + seats[action.playerIdx] + '家 ' + cards.join(' ');
+      if (Number.isInteger(action.winnerIdx)) {
+        line.textContent += '　' + seats[action.winnerIdx] + '家赢墩，' + action.points + ' 分';
+        trick++;
+      }
+      details.appendChild(line);
+    }
+    $('public-rounds').appendChild(details);
+  }
+  async function findPublicRounds(more) {
+    const request = ++publicRequest;
+    if (!more) {
+      publicAccount = $('public-name').value.trim();
+      publicCursor = '';
+      $('public-rounds').replaceChildren();
+    }
+    $('public-more').hidden = true;
+    $('public-status').textContent = '正在查询…';
+    try {
+      const page = await Cloud.publicReplays(publicAccount, publicCursor);
+      if (request !== publicRequest) return;
+      page.rounds.forEach(appendPublicRound);
+      publicCursor = page.next ? new URL(page.next).searchParams.get('cursor') : '';
+      $('public-more').hidden = !publicCursor;
+      const count = $('public-rounds').childElementCount;
+      $('public-status').textContent = count ? publicAccount + ' · 已显示 ' + count + ' 副' : '该账号已公开，目前还没有云牌谱';
+    } catch (error) {
+      if (request !== publicRequest) return;
+      $('public-status').textContent = error.status === 404 ? '未找到该账号的公开牌谱' : '查询失败，请检查账号名或网络';
+      $('public-more').hidden = !publicCursor;
+    }
+  }
+  $('public-search').addEventListener('submit', event => { event.preventDefault(); findPublicRounds(false); });
+  $('public-more').addEventListener('click', () => findPublicRounds(true));
+  let accountCursor = null, accountRequest = 0;
+  async function listPublicAccounts(more) {
+    const request = ++accountRequest;
+    const list = $('public-accounts');
+    if (!more) { accountCursor = null; list.replaceChildren(); }
+    $('public-more-accounts').hidden = true;
+    try {
+      const page = await Cloud.publicReplayAccounts(accountCursor);
+      if (request !== accountRequest) return;
+      for (const name of page.names) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn--ghost';
+        button.textContent = name;
+        button.addEventListener('click', () => { $('public-name').value = name; findPublicRounds(false); });
+        list.appendChild(button);
+      }
+      accountCursor = page.cursor;
+      $('public-more-accounts').hidden = !accountCursor;
+    } catch {
+      if (request === accountRequest) $('public-more-accounts').hidden = false;
+    }
+  }
+  $('public-more-accounts').addEventListener('click', () => listPublicAccounts(!!accountCursor));
+  $('public-browse').addEventListener('click', () => {
+    $('replay-settings').hidden = true;
+    showView('public-replays');
+    listPublicAccounts(false);
+    $('public-name').focus();
+  });
+  $('public-back').addEventListener('click', () => showView('home'));
+
   function renderReplaySettings() {
     const connected = !!window.Cloud?.uid();
     $('replay-auto').checked = RoundArchive.enabled();
@@ -1672,6 +1771,7 @@
   $('btn-replay-settings').addEventListener('click', () => {
     renderReplaySettings();
     $('replay-settings').hidden = false;
+    replayVisibility('GET');
   });
   $('replay-close').addEventListener('click', () => { $('replay-settings').hidden = true; });
   $('replay-auto').addEventListener('change', event => {
@@ -1753,6 +1853,8 @@
   if (window.Cloud) Cloud.on('state', () => {
     $('replay-link').hidden = true;
     $('replay-link').value = '';
+    if (!$('replay-settings').hidden) replayVisibility('GET');
+    else visibilityRequest++;
     RoundArchive.accountChanged();
     updateCloudLine(); // 游客建档/升级成功时首页状态行即时刷新
     // 后端慢时（实测 guest 建档可 6s+）弹层先以"未连接"单表单打开，建档落地后自动长出升级Tab

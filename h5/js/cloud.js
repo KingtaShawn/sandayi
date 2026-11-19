@@ -252,6 +252,19 @@
       return api('replays', { method: method, auth: true, body: round });
     },
 
+    replayVisibility: function (owner, method) {
+      if (!owner || !user || user.uid !== owner || !token) return Promise.reject(new Error('云账号已切换'));
+      return api('replays?visibility=1', { method: method, auth: true });
+    },
+    publicReplayAccounts: function (cursor) {
+      return api('replays?accounts=1' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''));
+    },
+    publicReplays: function (name, cursor) {
+      var path = 'replays?name=' + encodeURIComponent(name);
+      if (cursor) path += '&cursor=' + encodeURIComponent(cursor);
+      return api(path);
+    },
+
     /** 本地数据有变（战绩/设置/房规写入后调）：更新时间戳 + 防抖推送。 */
     notifyLocal: function () {
       lsSet(LS_LOCAL_AT, String(Date.now()));

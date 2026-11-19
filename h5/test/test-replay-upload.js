@@ -66,6 +66,26 @@ test('云牌谱：同意后重发自动上传，断网刷新补传，只读链�
     assert.equal(result.rounds[0].initial.bottomCards.length, 8);
     await page.click('#replay-revoke'); await page.waitForSelector('#replay-link[hidden]');
     assert.equal((await fetch(link)).status, 403);
+    // 旧牌谱已经上传。绑定账号名后由本人公开，匿名访问者即可按名读取。
+    await page.evaluate(() => Cloud.bind('华哥', 'test-local-password'));
+    const publicUrl = base + '/api/replays?name=' + encodeURIComponent('华哥');
+    assert.equal((await fetch(publicUrl)).status, 404);
+    await page.waitForSelector('#replay-public:enabled');
+    await page.click('#replay-public');
+    await page.waitForFunction(() => { const b = document.querySelector('#replay-public'); return b.checked && !b.disabled; });
+    assert.deepEqual((await (await fetch(publicUrl)).json()).rounds.map(r => r.id).sort(), localIds);
+    const guestPage = await browser.createBrowserContext();
+    try {
+      const visitor = await guestPage.newPage();
+      await visitor.setRequestInterception(true);
+      visitor.on('request', r => r.url().startsWith(base + '/') && !r.url().includes('/api/auth/') ? r.continue() : r.abort());
+      await visitor.goto(base); await visitor.click('#btn-enter-sandayi'); await visitor.click('#btn-replay-settings');
+      await visitor.click('#public-browse'); await visitor.type('#public-name', '华哥'); await visitor.click('#public-search button');
+      await visitor.waitForFunction(() => document.querySelectorAll('#public-rounds details').length === 2);
+    } finally { await guestPage.close(); }
+    await page.click('#replay-public');
+    await page.waitForFunction(() => { const b = document.querySelector('#replay-public'); return !b.checked && !b.disabled; });
+    assert.equal((await fetch(publicUrl)).status, 404);
   } finally {
     if (browser) await browser.close();
     server.closeAllConnections(); await new Promise(r => server.close(r));
