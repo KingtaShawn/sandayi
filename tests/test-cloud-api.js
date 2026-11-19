@@ -267,3 +267,31 @@ test('dispatch：OPTIONS 预检 2xx 放行（跨域 POST 必需）；未知路�
   const miss = await api.dispatch(mkReq('GET', '/api/nope'), env);
   assert.strictEqual(miss.status, 404);
 });
+
+test('云牌谱按账号隔离，重试不重复，复盘链接只读且可撤销', async () => {
+  const { env, token } = await mkGuest();
+  const other = await mkGuestIn(env);
+  env.KV.list = async ({ prefix, limit, cursor }) => {
+    const names = [...env.KV._m.keys()].filter(k => k.startsWith(prefix) && (!cursor || k > cursor)).sort();
+    const keys = names.slice(0, limit).map(name => ({ name }));
+    return { keys, list_complete: names.length <= limit, cursor: keys.at(-1)?.name };
+  };
+  const call = (method, auth, body) => api.dispatch(mkReq(method, '/api/replays', body, auth), env);
+  const round = { id: 'test-round', version: 1, initial: { config: { gameMode: 'san_da_yi' }, players: [{},{},{},{}] }, actions: [] };
+  assert.equal((await call('PUT', null, round)).status, 401);
+  assert.equal((await call('PUT', token, { ...round, id: '../invalid' })).status, 400);
+  assert.equal((await call('PUT', token, { ...round, extra: 'x'.repeat(262145) })).status, 413);
+  for (let i = 0; i < 11; i++) assert.equal((await call('PUT', token, { ...round, id: 'game-' + i })).status, 200);
+  await call('PUT', token, { ...round, id: 'game-0' });
+  await call('PUT', other.token, round);
+  const { url } = await (await call('POST', token)).json();
+  const read = u => api.dispatch(new Request(u), env);
+  assert.equal((await read('http://localhost/api/replays')).status, 403);
+  const page1 = await (await read(url)).json(), page2 = await (await read(page1.next)).json();
+  assert.equal(page2.next, null);
+  const ids = [...page1.rounds, ...page2.rounds].map(r => r.id);
+  assert.equal(ids.length, 11); assert.equal(new Set(ids).size, 11); assert.ok(!ids.includes(round.id));
+  assert.equal((await api.dispatch(new Request(url, { method: 'DELETE' }), env)).status, 401);
+  await call('DELETE', token);
+  assert.equal((await read(url)).status, 403);
+});

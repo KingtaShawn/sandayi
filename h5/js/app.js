@@ -1350,6 +1350,7 @@
       return;
     }
     disarmRedeal();
+    window.RoundArchive.finish(G.service?.replay).catch(() => toast('重发前的牌谱未能加入上传队列'));
     storage.remove(STORAGE_KEYS.CURRENT_GAME); // 旧局存档即刻作废（persist 只在结算/页面隐藏时写，不删会复活弃局）
     startGame();
     toast('已重新发牌');
@@ -1659,6 +1660,39 @@
     storage.remove(STORAGE_KEYS.CURRENT_GAME);
     startGame();
   });
+  function renderReplaySettings() {
+    const connected = !!window.Cloud?.uid();
+    $('replay-auto').checked = RoundArchive.enabled();
+    $('replay-auto').disabled = !connected;
+    $('replay-share').disabled = !connected;
+    $('replay-revoke').disabled = !connected;
+    $('replay-status').textContent = !connected ? '连接云账号后可开启自动上传'
+      : RoundArchive.status() || (RoundArchive.enabled() ? '结算或重发时上传，断网后自动补传' : '当前仅在本机保存');
+  }
+  $('btn-replay-settings').addEventListener('click', () => {
+    renderReplaySettings();
+    $('replay-settings').hidden = false;
+  });
+  $('replay-close').addEventListener('click', () => { $('replay-settings').hidden = true; });
+  $('replay-auto').addEventListener('change', event => {
+    try { RoundArchive.setEnabled(event.target.checked); } catch { toast('设置保存失败'); }
+    renderReplaySettings();
+  });
+  async function manageReplayLink(method) {
+    const uid = Cloud.uid();
+    try {
+      const result = await Cloud.replayRequest(uid, method);
+      if (uid !== Cloud.uid()) return;
+      const input = $('replay-link');
+      input.value = result.url || '';
+      input.hidden = !input.value;
+      if (input.value) { input.focus(); input.select(); }
+      else toast('已撤销复盘链接');
+    } catch { toast('复盘链接操作失败，请联网后重试'); }
+  }
+  $('replay-share').addEventListener('click', () => manageReplayLink('POST'));
+  $('replay-revoke').addEventListener('click', () => manageReplayLink('DELETE'));
+  window.addEventListener('replay-sync', renderReplaySettings);
   $('btn-export-replays').addEventListener('click', exportReplays);
   $('btn-rules').addEventListener('click', () => { renderRules(); showView('rules'); });
   $('btn-rules-back').addEventListener('click', () => showView('home'));
@@ -1717,6 +1751,9 @@
   $('tab-cloud-login').addEventListener('click', () => setCloudMode('login'));
   $('tab-cloud-bind').addEventListener('click', () => setCloudMode('bind'));
   if (window.Cloud) Cloud.on('state', () => {
+    $('replay-link').hidden = true;
+    $('replay-link').value = '';
+    RoundArchive.accountChanged();
     updateCloudLine(); // 游客建档/升级成功时首页状态行即时刷新
     // 后端慢时（实测 guest 建档可 6s+）弹层先以"未连接"单表单打开，建档落地后自动长出升级Tab
     if (!$('cloud-modal').hidden) refreshCloudModal();
