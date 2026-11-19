@@ -7,7 +7,48 @@ const path = require('node:path');
 const http = require('node:http');
 const puppeteer = require('puppeteer');
 
-test('云牌谱：同意后重发自动上传，断网刷新补传，只读链接能取回同一副牌', async () => {
+// 在浏览器内观察待传记录，避免读取测试本身创建数据库。
+async function replayStores() {
+  if (!(await indexedDB.databases()).some(db => db.name === 'sandayi-replays')) return {};
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('sandayi-replays');
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      const tx = db.transaction([...db.objectStoreNames]);
+      const rows = {};
+      for (const name of db.objectStoreNames) {
+        const keys = tx.objectStore(name).getAllKeys();
+        keys.onsuccess = () => { rows[name] = keys.result.map(key => Array.isArray(key) ? key[1] : key).sort(); };
+      }
+      tx.oncomplete = () => { db.close(); resolve(rows); };
+      tx.onabort = () => { db.close(); reject(tx.error); };
+    };
+  });
+}
+
+async function seedOldQueue(round) {
+  const owner = Cloud.uid();
+  await new Promise((resolve, reject) => {
+    const request = indexedDB.open('sandayi-replays', 2);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      const archive = db.createObjectStore('rounds', { keyPath: 'id' });
+      for (const id of ['old-private', 'old-closed-page']) archive.put({ ...round, id });
+      const stages = db.createObjectStore('unfinished', { keyPath: ['owner', 'id'] });
+      stages.createIndex('owner', 'owner');
+      stages.put({ owner, id: 'old-closed-page', page: 'previous-page' });
+      const pending = db.createObjectStore('pending', { keyPath: ['owner', 'id'] });
+      pending.createIndex('owner', 'owner');
+      pending.put({ owner, id: 'old-pending', round: { ...round, id: 'old-pending' } });
+    };
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => { request.result.close(); resolve(); };
+  });
+  localStorage.setItem('sandayi:upload-replays:' + owner, 'on');
+}
+
+test('云牌谱：断网补传、确认后清理、旧版升级和公开查询', async () => {
   const { dispatch } = await import('../functions/api/_lib/api.js');
   const data = new Map();
   const env = { AUTH_SECRET: 'local-test', KV: {
@@ -38,33 +79,47 @@ test('云牌谱：同意后重发自动上传，断网刷新补传，只读链�
   try {
     browser = await puppeteer.launch({ executablePath: process.env.CHROME_BIN || (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined), args: ['--no-sandbox'] });
     const page = await browser.newPage();
+    await page.exposeFunction('readReplayStores', () => page.evaluate(replayStores));
     await page.setRequestInterception(true);
     page.on('request', req => req.url().startsWith(base + '/') ? req.continue() : req.abort());
     await page.setViewport({ width: 844, height: 390, isMobile: true, hasTouch: true });
     await page.goto(base);
     await page.waitForFunction(() => !!Cloud.uid());
+    await page.evaluate(async () => {
+      await RoundArchive.save({ id: 'disabled-deal', phase: 'BIDDING' });
+      await RoundArchive.finish({ id: 'disabled-deal' });
+    });
+    assert.deepEqual(await page.evaluate(replayStores), {});
+    assert.equal(await page.$('#btn-export-replays, #replay-share'), null);
     await page.click('#btn-enter-sandayi'); await page.click('#btn-replay-settings');
     assert.equal(await page.$eval('#replay-auto', el => el.checked), false);
     await page.click('#replay-auto'); await page.click('#replay-close'); await page.click('#btn-start');
-    await page.waitForFunction(async () => (await RoundArchive.all()).length === 1);
-    const id = await page.evaluate(async () => (await RoundArchive.all())[0].id);
+    await page.waitForFunction(async () => (await window.readReplayStores()).unfinished?.length === 1);
+    const [id] = (await page.evaluate(replayStores)).unfinished;
     await page.click('#btn-redeal'); await page.click('#btn-redeal');
     await page.waitForFunction(() => RoundArchive.status().includes('重试'));
     assert.ok(failures > 0);
-    const localIds = await page.evaluate(async () => (await RoundArchive.all()).map(r => r.id).sort());
-    assert.equal(localIds.length, 2);
-    assert.ok(localIds.includes(id));
+    await page.waitForFunction(async () => (await window.readReplayStores()).unfinished?.length === 1);
+    const queue = await page.evaluate(replayStores);
+    assert.deepEqual(queue.pending, [id]);
+    assert.equal(queue.rounds, undefined);
+    const localIds = [...queue.pending, ...queue.unfinished].sort();
     offline = false;
     await page.reload();
     await page.waitForFunction(() => RoundArchive.status().includes('已上传'));
     await page.click('#btn-enter-sandayi'); await page.click('#btn-replay-settings');
-    await page.click('#replay-share'); await page.waitForSelector('#replay-link:not([hidden])');
-    const link = await page.$eval('#replay-link', el => el.value);
+    assert.equal(await page.$eval('#replay-revoke', el => el.hidden), true);
+    // 模拟旧版签发过的链接，新界面只在此时显示撤销入口。
+    const link = await page.evaluate(async () => (await Cloud.replayRequest(Cloud.uid(), 'POST')).url);
+    await page.click('#replay-close'); await page.click('#btn-replay-settings');
+    await page.waitForSelector('#replay-revoke', { visible: true });
     await page.waitForFunction(async url => (await (await fetch(url)).json()).rounds.length === 2, {}, link);
     const result = await (await fetch(link)).json();
     assert.deepEqual(result.rounds.map(r => r.id).sort(), localIds);
     assert.equal(result.rounds[0].initial.bottomCards.length, 8);
-    await page.click('#replay-revoke'); await page.waitForSelector('#replay-link[hidden]');
+    await page.waitForFunction(async () => !(await window.readReplayStores()).pending.length);
+    assert.deepEqual(await page.evaluate(replayStores), { pending: [], unfinished: [] });
+    await page.click('#replay-revoke'); await page.waitForSelector('#replay-revoke[hidden]');
     assert.equal((await fetch(link)).status, 403);
     // 旧牌谱已经上传。绑定账号名后由本人公开，匿名访问者即可按名读取。
     await page.evaluate(() => Cloud.bind('华哥', 'test-local-password'));
@@ -86,6 +141,20 @@ test('云牌谱：同意后重发自动上传，断网刷新补传，只读链�
     await page.click('#replay-public');
     await page.waitForFunction(() => { const b = document.querySelector('#replay-public'); return !b.checked && !b.disabled; });
     assert.equal((await fetch(publicUrl)).status, 404);
+    const upgrade = await browser.createBrowserContext();
+    try {
+      const oldPage = await upgrade.newPage();
+      await oldPage.setRequestInterception(true);
+      oldPage.on('request', r => r.url().startsWith(base + '/') ? r.continue() : r.abort());
+      await oldPage.goto(base); await oldPage.waitForFunction(() => !!Cloud.uid());
+      await oldPage.evaluate(seedOldQueue, result.rounds[0]);
+      await oldPage.reload(); await oldPage.waitForFunction(() => !!Cloud.uid());
+      const oldLink = await oldPage.evaluate(async () => (await Cloud.replayRequest(Cloud.uid(), 'POST')).url);
+      await oldPage.waitForFunction(async url => (await (await fetch(url)).json()).rounds.length === 2, {}, oldLink);
+      const migrated = await (await fetch(oldLink)).json();
+      assert.deepEqual(migrated.rounds.map(r => r.id).sort(), ['old-closed-page', 'old-pending']);
+      assert.deepEqual((await oldPage.evaluate(replayStores)).rounds, ['old-closed-page', 'old-private']);
+    } finally { await upgrade.close(); }
   } finally {
     if (browser) await browser.close();
     server.closeAllConnections(); await new Promise(r => server.close(r));

@@ -30,6 +30,8 @@ export async function handleReplays(request, env) {
     const uid = await verifyToken(env, getBearer(request));
     if (!uid) return errResp(401, '请先连接云账号');
     const user = await Users.getUser(env, uid);
+    const hasReviewLink = !!(await kv.get('reviewKey:' + uid));
+    if (user && !user.login && request.method === 'GET') return jsonResp({ name: null, published: false, hasReviewLink });
     if (!user?.login) return errResp(400, '请先绑定账号名');
     const name = user.login.name;
     const key = 'publicReplayName:' + user.login.nameKey;
@@ -38,7 +40,7 @@ export async function handleReplays(request, env) {
     else if (method === 'DELETE') await kv.delete(key);
     else if (method !== 'GET') return errResp(405, '请求方法不支持');
     const published = method === 'GET' ? await kv.get(key) === uid : method === 'PUT';
-    return jsonResp({ name, published });
+    return jsonResp({ name, published, hasReviewLink });
   }
 
   if (request.method === 'GET') {

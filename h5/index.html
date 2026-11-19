@@ -152,7 +152,6 @@
     <div class="home__actions">
       <button class="btn btn--primary home__start" id="btn-start">开始对局</button>
       <div class="home__secondary">
-        <button class="btn btn--ghost" id="btn-export-replays">导出本机牌谱</button>
         <button class="btn btn--ghost" id="btn-rules">规则速查</button>
         <button class="btn btn--ghost" id="btn-leaderboard">排行榜</button>
       </div>
@@ -322,17 +321,12 @@
 <div class="cloud-modal" id="replay-settings" hidden role="dialog" aria-modal="true" aria-labelledby="replay-title">
   <div class="cloud-modal__mask"></div>
   <div class="cloud-modal__panel">
-    <div class="cloud-modal__title" id="replay-title">我的牌谱</div>
+    <div class="cloud-modal__title" id="replay-title">云牌谱</div>
     <label class="cloud-modal__hint"><input id="replay-auto" type="checkbox"> 自动上传今后新开的牌局到当前云账号</label>
     <div class="cloud-modal__hint" id="replay-status" role="status"></div>
     <label class="cloud-modal__hint"><input type="checkbox" id="replay-public" disabled> 按账号名公开全部云牌谱（含历史和今后的牌局）</label>
     <button class="cloud-modal__tab" id="public-browse">按账号查公开牌谱</button>
-    <div class="cloud-modal__foot">持有复盘链接的人可读取本账号已上传和今后上传的牌谱。</div>
-    <div class="cloud-modal__tabs">
-      <button class="cloud-modal__tab" id="replay-share">获取只读复盘链接</button>
-      <button class="cloud-modal__tab" id="replay-revoke">撤销链接</button>
-    </div>
-    <input class="cloud-modal__input" id="replay-link" aria-label="只读复盘链接，可复制" readonly hidden>
+    <button class="cloud-modal__tab" id="replay-revoke" hidden>撤销以前分享的只读链接</button>
     <button class="btn btn--ghost cloud-modal__close" id="replay-close">关闭</button>
   </div>
 </div>

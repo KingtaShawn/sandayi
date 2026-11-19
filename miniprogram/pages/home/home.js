@@ -73,8 +73,6 @@ Page({
     wx.navigateTo({ url: '/pages/table/table?mode=new' });
   },
 
-  onExportReplays: require('../../storage/replay-files').exportFile,
-
   onRules() {
     wx.navigateTo({ url: '/pages/rules/rules' });
   },
