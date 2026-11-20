@@ -6,6 +6,9 @@
 
 /* ========== 全局 CSS 变量 ========== */
 page {
+  /* 所有游戏使用布局指定的字号，避免 WebView 自动放大。 */
+  -webkit-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
   /* 牌桌绿（深色渐变呢面） */
   --color-felt-dark: #07452a;
   --color-felt: #0b6b3a;
