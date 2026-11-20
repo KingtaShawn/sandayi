@@ -22,6 +22,12 @@ html { font-size: min(calc(100vw / 160), calc(100vh / 90)); }
 
 html, body, #app { height: 100%; }
 
+/* Keep mobile text autosizing from changing the layout of any game view. */
+html, body {
+  -webkit-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
   color: #f5f2e9;

@@ -13,14 +13,40 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 test('H5 发布产物：所有本地 CSS/JS/manifest 引用存在且使用同一版本', () => {
   const html = fs.readFileSync(path.join(H5, 'dist/index.html'), 'utf8');
   const refs = Array.from(html.matchAll(/(?:src|href)="((?:css|js)\/[^"?]+|manifest\.webmanifest)\?v=([^"]+)"/g));
-  assert.equal(refs.length, 17);
+  assert.equal(refs.length, 18);
   assert.equal(new Set(refs.map((ref) => ref[2])).size, 1);
   refs.forEach((ref) => assert.ok(fs.existsSync(path.join(H5, 'dist', ref[1])), ref[1]));
   assert.match(html, /id="btn-enter-match3"/);
   assert.match(html, /id="btn-enter-breakout"/);
   assert.match(html, /id="btn-enter-sudoku"/);
+  assert.ok(refs.some((ref) => ref[1] === 'js/font-size.js'));
   assert.match(html, /src="icons\/poker-dealer\.jpg"/);
   assert.ok(fs.existsSync(path.join(H5, 'dist/icons/poker-dealer.jpg')));
+});
+
+test('H5 字号：浏览器无微信桥接时正常，微信桥接就绪及字号切换时保持默认档位', () => {
+  const script = fs.readFileSync(path.join(H5, 'js/font-size.js'), 'utf8');
+  for (const timing of ['absent', 'immediate', 'late']) {
+    const { window } = new JSDOM('', { runScripts: 'outside-only' });
+    try {
+      const calls = [], listeners = [];
+      const bridge = {
+        invoke(method, options) { calls.push([method, options.fontSize]); },
+        on(event, handler) { if (event === 'menu:setfont') listeners.push(handler); }
+      };
+      if (timing === 'immediate') window.WeixinJSBridge = bridge;
+      window.eval(script);
+      if (timing !== 'immediate') assert.deepEqual(calls, []);
+      if (timing === 'absent') continue;
+      if (timing === 'late') window.WeixinJSBridge = bridge;
+      const ready = () => window.document.dispatchEvent(new window.Event('WeixinJSBridgeReady'));
+      ready(); ready();
+      assert.deepEqual(calls, [['setFontSizeCallback', '2']]);
+      assert.equal(listeners.length, 1);
+      listeners[0]({ fontSize: '6', fontScale: 1.6 });
+      assert.deepEqual(calls, [['setFontSizeCallback', '2'], ['setFontSizeCallback', '2']]);
+    } finally { window.close(); }
+  }
 });
 
 function boot(saved, { normalMotion = false, starSaved, pokerSetup, sudokuSaved } = {}) {
