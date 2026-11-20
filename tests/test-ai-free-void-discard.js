@@ -14,25 +14,25 @@ const { SharedAttackStrategy } = require('../miniprogram/ai/strategy-shared');
 const fixture = require('./fixtures/free-void-discard-replay.json');
 
 // seed 86005：模拟庄家白墩优先垫最短门、遇分再毙。保留第14墩之前的真实公开历史。
-function replay() {
-  const cfg = createConfig({ gameMode: 'san_da_yi', playDirection: fixture.direction, throwPenalty: 'penalty_smallest' });
-  const st = createInitialState(cfg, null, null, { dealerIdx: fixture.dealer });
+function replay(record = fixture) {
+  const cfg = createConfig({ gameMode: 'san_da_yi', playDirection: record.direction, throwPenalty: 'penalty_smallest' });
+  const st = createInitialState(cfg, null, null, { dealerIdx: record.dealer });
   const deck = new Map(buildDeck(cfg).map((c) => [c.id, c]));
   const take = (ids) => ids.map((id) => { const c = deck.get(id); assert.ok(c, id); deck.delete(id); return c; });
-  st.phase = 'PLAYING'; st.turnIdx = fixture.turn; st.contractScore = fixture.contract;
+  st.phase = 'PLAYING'; st.turnIdx = record.turn; st.contractScore = record.contract;
   st.bottomMerged = true; st.buryDone = true;
-  st.sanDaYiTeams = { dealer: fixture.dealer, attackers: [0, 1, 2, 3].filter((s) => s !== fixture.dealer) };
-  st.trumpInfo = buildTrumpInfo(fixture.trump, fixture.level, cfg);
-  st.players.forEach((p, s) => { p.hand = take(fixture.hands[s]); p.isHuman = s === fixture.dealer; });
-  st.bottomCards = take(fixture.bottom);
-  st.completedTricks = fixture.tricks.map((rows) => {
+  st.sanDaYiTeams = { dealer: record.dealer, attackers: [0, 1, 2, 3].filter((s) => s !== record.dealer) };
+  st.trumpInfo = buildTrumpInfo(record.trump, record.level, cfg);
+  st.players.forEach((p, s) => { p.hand = record.hands[s] ? take(record.hands[s]) : []; p.isHuman = s === record.dealer; });
+  st.bottomCards = record.bottom ? take(record.bottom) : [];
+  st.completedTricks = record.tricks.map((rows) => {
     const plays = rows.map(([playerIdx, ids]) => {
       const cards = take(ids); return { playerIdx, cards, combo: parseCombo(cards, st.trumpInfo, cfg) };
     });
     const t = { leadPlayerIdx: plays[0].playerIdx, leadCombo: plays[0].combo, plays };
     resolveTrick(t, st.trumpInfo, cfg); return t;
   });
-  assert.equal(deck.size, 0);
+  if (record.bottom) assert.equal(deck.size, 0);
   return st;
 }
 
@@ -191,4 +191,43 @@ test('无分门换门同样不读取暗牌，浏览器与源码决策一致', ()
   assert.deepEqual(source.decidePlay(st, st.turnIdx), expected);
   const web = new browser.window.GameCore.GameService().ai.decidePlay(st, st.turnIdx);
   assert.deepEqual(Array.from(web, (c) => c.id), expected.map((c) => c.id));
+});
+
+test('白副对可能让庄家垫短门时先兑现旁门顶单，保留有分对子和仍需保护的顶对', () => {
+  const ai = new GreedyStrategy();
+  const cfg = createConfig({ gameMode: 'san_da_yi' });
+  const ti = buildTrumpInfo('C', '2', cfg);
+  const deck = new Map(buildDeck(cfg).map(c => [c.id, c]));
+  const cards = (...ids) => ids.map(id => deck.get(id));
+  const pair = cards('0H7', '1H7'), ace = cards('0DA'), scored = cards('0H10', '1H10');
+  const hand = [...pair, ...ace, ...cards('0S3', '1S8', '1D5')];
+  const hidden = { get hand() { throw Error('暗牌不可读'); } };
+  const state = { config: cfg, trumpInfo: ti, players: [hidden, hidden, { hand }, hidden],
+    get bottomCards() { throw Error('底牌不可读'); },
+    completedTricks: [{ leadPlayerIdx: 0, leadCombo: parseCombo(cards('0D9'), ti, cfg),
+      plays: [{ playerIdx: 0, cards: cards('0D9') }] }] };
+  const range = (max, expected) => ({ count: { max, expected } });
+  const ranges = new Map([['TRUMP', range(4, 2)], ['D', range(4, 1.4)], ['H', range(5, 1.6)]]);
+  const ctx = { sdy: { dealerIdx: 0 }, di: { byDomain: new Map() },
+    knowledge: { consistent: true, seats: [{ domains: ranges }], domains: new Map([['D', { unseenPoints: 20 }]]) } };
+  const choose = (lead) => ai._cashBeforePair(state, 2, ctx, [lead, ace], lead);
+  assert.equal(choose(pair), ace);
+  assert.equal(choose(scored), scored);
+  hand.push(deck.get('1DA'));
+  assert.equal(choose(pair), pair, '不能拆开旁门顶对');
+  hand.pop();
+  ranges.set('D', range(0, 0));
+  assert.equal(choose(pair), pair, '庄家已断目标门');
+  ranges.set('D', range(4, 1.4));
+  ranges.set('H', range(5, 3));
+  assert.equal(choose(pair), pair, '庄家有足够的同门牌可跟对子');
+});
+
+test('独立发牌第11墩：闲家保留梅花J对，先兑现黑桃Q；公开决策无需其他三家的牌或底牌', () => {
+  const state = replay(require('./fixtures/short-suit-lead.json'));
+  for (const [seat, player] of state.players.entries()) {
+    if (seat !== state.turnIdx) Object.defineProperty(player, 'hand', { get() { throw Error('暗牌不可读'); } });
+  }
+  Object.defineProperty(state, 'bottomCards', { get() { throw Error('底牌不可读'); } });
+  assert.deepEqual(names(new GreedyStrategy().decidePlay(state, state.turnIdx)), ['SQ']);
 });

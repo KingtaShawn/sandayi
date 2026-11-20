@@ -4789,6 +4789,7 @@ class GreedyStrategy {
       pick = this._switchAfterFreeDiscard(state, playerIdx, ctx, candidates, pick) || pick;
     }
     if (ctx && !ctx.sdy.isDealer && this.difficulty !== 'easy') {
+      if (isLead) pick = this._cashBeforePair(state, playerIdx, ctx, candidates, pick);
       pick = this._finalizeAttackerPlay(state, playerIdx, ctx, candidates, pick);
     }
     // 铁律：二次校验；失败回退首个候选
@@ -4835,6 +4836,35 @@ class GreedyStrategy {
 
   _legalPlays(state, playerIdx, ctx) {
     return legalMoves(this._playView(state, playerIdx, ctx), playerIdx);
+  }
+
+  /** 白副对可能给庄家两个垫牌位。庄家近期出过的短门还有分可收时，优先兑现独立顶单。 */
+  _cashBeforePair(state, playerIdx, ctx, candidates, pick) {
+    const { trumpInfo: ti, config: cfg } = state;
+    const hand = state.players[playerIdx].hand;
+    const k = ctx.knowledge;
+    if (pick.length !== 2 || hand.length < 5 || hand.length > 10 || !k || !k.consistent) return pick;
+    const pair = parseCombo(pick, ti, cfg);
+    if (pair.type !== 'pair' || pair.isTrump || pointsOf(pick, cfg) > 0) return pick;
+
+    const dealer = k.seats[ctx.sdy.dealerIdx].domains;
+    if (dealer.get('TRUMP').count.max === 0 || dealer.get(pair.suit).count.expected >= 2) return pick;
+    // 最近跟足或领过该门才有兑现依据；部分跟牌已由公开张数上界排除。
+    for (const trick of state.completedTricks.slice(-2).reverse()) {
+      const lead = trick.leadCombo;
+      if (!lead || lead.type === 'eight' || lead.isTrump || lead.suit === pair.suit) continue;
+      const suit = lead.suit, range = dealer.get(suit).count;
+      if (range.max === 0 || range.expected > 2 || k.domains.get(suit).unseenPoints < 10) continue;
+      const shown = trick.plays.find(p => p.playerIdx === ctx.sdy.dealerIdx);
+      if (!shown || !shown.cards.every(c => domainOf(c, ti) === suit)) continue;
+
+      // 只用独立的无分顶张抢窗口；保留本家的对子、主牌和有分组合。
+      const cash = candidates.find(cards => cards.length === 1 && domainOf(cards[0], ti) === suit
+        && pointValue(cards[0], cfg) === 0 && this._unseenHigher(ctx.di, suit, strengthInDomain(cards[0], ti)) === 0
+        && !hand.some(c => c.id !== cards[0].id && c.suit === cards[0].suit && c.rank === cards[0].rank));
+      if (cash) return cash;
+    }
+    return pick;
   }
 
   /** 已无分的绝门不是天然逼主口；庄家还能垫其他分门时，应计入跑分窗口损失。 */
