@@ -4848,7 +4848,9 @@ class GreedyStrategy {
     if (pair.type !== 'pair' || pair.isTrump || pointsOf(pick, cfg) > 0) return pick;
 
     const dealer = k.seats[ctx.sdy.dealerIdx].domains;
-    if (dealer.get('TRUMP').count.max === 0 || dealer.get(pair.suit).count.expected >= 2) return pick;
+    const pairSuit = dealer.get(pair.suit).count;
+    // 已知庄家断门时，已有策略会权衡逼主与垫牌；只补尚未证实的短门风险。
+    if (pairSuit.max === 0 || pairSuit.expected >= 2 || dealer.get('TRUMP').count.max === 0) return pick;
     // 最近跟足或领过该门才有兑现依据；部分跟牌已由公开张数上界排除。
     for (const trick of state.completedTricks.slice(-2).reverse()) {
       const lead = trick.leadCombo;

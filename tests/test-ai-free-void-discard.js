@@ -219,6 +219,8 @@ test('白副对可能让庄家垫短门时先兑现旁门顶单，保留有分�
   ranges.set('D', range(0, 0));
   assert.equal(choose(pair), pair, '庄家已断目标门');
   ranges.set('D', range(4, 1.4));
+  ranges.set('H', range(0, 0));
+  assert.equal(choose(pair), pair, '已知断门交给既有的逼主与垫牌判断');
   ranges.set('H', range(5, 3));
   assert.equal(choose(pair), pair, '庄家有足够的同门牌可跟对子');
 });
